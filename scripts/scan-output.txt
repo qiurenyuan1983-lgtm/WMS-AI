@@ -1,0 +1,355 @@
+﻿Files: 57
+
+components/wms-prototype/WmsPrototypeList.vue (2)
+  L121: protoMsg(`${btn}??${row.orderNo || row.taskNo || row.id}`);
+  L241: <NButton type="primary" @click="handleSearch">∩┐╜∩┐╜???</NButton>
+
+constants/reg.ts (1)
+  L25: /(((^https?:(?:\/\/)?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+(?::\d+)?|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)((?:\/[+~%/.\w-_]*)?\??(?:[-+=&;%@.\w
+
+hooks/common/table.ts (1)
+  L99: const showTotal = computed(() => options.showTotal ?? true);
+
+mock/auth-routes.ts (1)
+  L33: // ???????????????????????????? Tab???????????????????
+
+mock/data/inbound-plan.ts (3)
+  L72: MOCK_CONTAINER_ORDERS.find(c => String(c.id) === containerOrderId) ?? MOCK_CONTAINER_ORDERS[0];
+  L128: const preset = Object.values(PLAN_BY_CONTAINER).find(p => p.planId === Number(planId)) ?? PLAN_BY_CONTAINER['70001'];
+  L140: const preset = Object.values(PLAN_BY_CONTAINER).find(p => p.planId === Number(planId)) ?? PLAN_BY_CONTAINER['70001'];
+
+mock/data/oms-container-cargo.ts (1)
+  L107: const container = MOCK_CONTAINER_ORDERS.find(c => String(c.id) === cid) ?? MOCK_CONTAINER_ORDERS[0];
+
+mock/data/oms.ts (1)
+  L21: return rows.reduce((acc, row) => { const k = String(row[field] ?? ''); if (k) acc[k] = (acc[k] || 0) + 1; return acc; }, {} as Record<string
+
+mock/data/wms.ts (33)
+  L16: { id: 60001, ...base, zoneName: 'FedEx??', storageMethod: 'FLOOR', zoneType: 'EXPRESS', allowMixedStorage: 1, maxMixedQty: 50, status: 'ENAB
+  L17: { id: 60002, ...base, zoneName: 'A??', storageMethod: 'RACK', zoneType: 'PRIVATE', allowMixedStorage: 0, maxMixedQty: null, status: 'ENABLED
+  L18: { id: 60003, ...base, zoneName: '???????', storageMethod: 'FLOOR', zoneType: 'EXCEPTION', allowMixedStorage: 1, maxMixedQty: 20, status: 'EN
+  L22: { id: 60101, ...base, zoneId: 60001, zoneName: 'FedEx??', locationCode: 'A-01-01', rowNo: '01', columnNo: '01', capacity: 100, currentQty: 4
+  L23: { id: 60102, ...base, zoneId: 60001, zoneName: 'FedEx??', locationCode: 'A-01-02', rowNo: '01', columnNo: '02', capacity: 100, currentQty: 8
+  L24: { id: 60103, ...base, zoneId: 60002, zoneName: 'A??', locationCode: 'B-02-01', rowNo: '02', columnNo: '01', capacity: 50, currentQty: 0, rem
+  L28: { id: 60201, ...base, customerId: 70001, customerName: '?????? A', cargoOrderId: 80001, cargoOrderNo: 'CO-2026-0001', shipmentId: 90001, shi
+  L29: { id: 60202, ...base, customerId: 70002, customerName: '?????? B', cargoOrderId: 80002, cargoOrderNo: 'CO-2026-0002', shipmentId: 90002, shi
+  L33: { id: 60301, ...base, palletNo: 'PLT-2026-0001', palletType: 'NORMAL', palletStatus: 'IN_STOCK', locationId: 60101, locationCode: 'A-01-01',
+  L34: { id: 60302, ...base, palletNo: 'PLT-2026-0002', palletType: 'NORMAL', palletStatus: 'PRE_OUTBOUND', locationId: 60102, locationCode: 'A-01-
+  L51: remark: '????????',
+  L52: customerName: '?????? A',
+  L53: channelName: '??????',
+  L54: customerServiceName: '????',
+  L82: customerName: '?????? B',
+  L84: customerServiceName: '????',
+  L110: customerName: '?????? C',
+  L112: customerServiceName: '????',
+  L135: remark: '??????',
+  L136: customerName: '?????? D',
+  L137: channelName: '??????',
+  L138: customerServiceName: '????',
+  L163: remark: '??????',
+  L164: customerName: '?????? A',
+  L166: customerServiceName: '????',
+  L190: remark: '??????',
+  L191: customerName: '?????? B',
+  L192: channelName: '??????',
+  L193: customerServiceName: '????',
+  L216: remark: '??????',
+  L217: customerName: '?????? C',
+  L219: customerServiceName: '????',
+  L333: /** Mock??????????????????????? */
+
+mock/handler.ts (22)
+  L29: /** ??? URL ???? */
+  L31: // ---------- ??? ----------
+  L39: // ---------- ??? ----------
+  L42: // ---------- ??? ----------
+  L48: // ---------- ??????? ----------
+  L100: if (!session) throw new Error('????????????');
+  L280: if (!session) throw new Error('??????');
+  L304: // ???????
+  L310: // ???? key
+  L316: // ???? GET /module/resource/:id
+  L320: return findDetailMock(url, id) ?? { id, remark: 'Mock ????' };
+  L323: // ????? GET
+  L328: // ?????
+  L338: // board??????????????????
+  L358: // ????
+  L363: // ????
+  L368: // POST/PUT/DELETE ???????
+  L411: * ???? Mock ??????????? HTTP ????
+  L419: // ??????????
+  L425: // ?????
+  L431: // ??????????? / ??????
+  L444: console.warn(`[Mock] ??????????????: ${method.toUpperCase()} ${url}`);
+
+mock/utils.ts (5)
+  L33: /** ????∩┐╜∩┐╜???? */
+  L45: /** ???? */
+  L50: /** ?????∩┐╜∩┐╜???????/?????? */
+  L55: /** ??????? Blob */
+  L60: /** ??????????????????? */
+
+service/request/index.ts (1)
+  L193: data instanceof Blob ? data : new Blob([typeof data === 'string' ? data : JSON.stringify(data ?? '')]);
+
+views/_builtin/user-center/modules/online-table.vue (1)
+  L58: const osName = row.os?.split(' or ')[0] ?? '';
+
+views/base/fee-item/index.vue (1)
+  L78: { key: 'businessType', title: 'Σ╕Üσèíτ▒╗σ₧ï', align: 'center', width: 110, render: row => <span>{row.businessType ?? 'ΘÇÜτö¿'}</span> },
+
+views/base/platform-address/index.vue (1)
+  L113: { key: 'unitPalletCbm', title: 'σìòµ¥┐CBM', align: 'right', width: 100, render: row => row.unitPalletCbm ?? '2.000' },
+
+views/base/sku/index.vue (2)
+  L67: render: row => <span>{row.weightKg ?? 'ΓÇö'}</span>
+  L74: render: row => <span>{row.volumeCbm ?? 'ΓÇö'}</span>
+
+views/base/vessel/index.vue (1)
+  L92: { key: 'capacityTeu', title: 'TEUσ«╣ΘçÅ', align: 'right', width: 100, render: row => row.capacityTeu ?? '--' },
+
+views/base/vessel/modules/vessel-detail-drawer.vue (4)
+  L37: <NDescriptionsItem label="TEUσ«╣ΘçÅ">{{ rowData.capacityTeu ?? '--' }}</NDescriptionsItem>
+  L38: <NDescriptionsItem label="Φê╣Θò┐(τ▒│)">{{ rowData.lengthM ?? '--' }}</NDescriptionsItem>
+  L39: <NDescriptionsItem label="Φê╣σ«╜(τ▒│)">{{ rowData.widthM ?? '--' }}</NDescriptionsItem>
+  L40: <NDescriptionsItem label="σ╗║ΘÇáσ╣┤Σ╗╜">{{ rowData.buildYear ?? '--' }}</NDescriptionsItem>
+
+views/monitor/logininfor/index.vue (1)
+  L114: const osName = row.os?.split(' or ')[0] ?? '';
+
+views/monitor/online/index.vue (1)
+  L86: const osName = row.os?.split(' or ')[0] ?? '';
+
+views/oms/cargo-grouping-rule/index.vue (1)
+  L131: .map(item => `${fieldLabel(item.field)} ${item.op} ${Array.isArray(item.value) ? item.value.join(',') : item.value ?? ''}`)
+
+views/oms/cargo-order/index.vue (5)
+  L362: return h(NTag, { type: 'info', size: 'small' }, () => opt?.label ?? row.fulfillmentStatus);
+  L399: return h(NTag, { type: map[row.billingStatus] ?? 'default', size: 'small' }, () => labels[row.billingStatus] ?? row.billingStatus);
+  L900: <span>τ«▒µò░∩╝Ü{{ shipment.cartonQty ?? '--' }}</span>
+  L901: <span>ΘçìΘçÅ∩╝Ü{{ shipment.weight ?? '--' }}</span>
+  L902: <span>Σ╜ôτº»∩╝Ü{{ shipment.cbm ?? '--' }}</span>
+
+views/oms/cargo-order/modules/cargo-order-detail-drawer.vue (21)
+  L607: <NTag type="info" size="small">{{ FULFILLMENT_STEPS.find(s => s.code === detail?.fulfillmentStatus)?.label ?? detail?.fulfillmentStatus }}</
+  L736: <NDescriptionsItem :label="isDetailTruckDelivery ? '* σ£░σ¥Çτ▒╗σ₧ï' : 'σ£░σ¥Çτ▒╗σ₧ï'">
+  L745: <template v-else>{{ addressTypeRecord[detail.addressType as string]?.dictLabel ?? detail.addressType ?? '--' }}</template>
+  L747: <NDescriptionsItem :label="isDetailTruckDelivery && (editModel as any)?.addressType === 'PLATFORM_WH' ? '* σ╣│σÅ░' : 'σ╣│σÅ░'">
+  L760: <NDescriptionsItem :label="isDetailTruckDelivery && (editModel as any)?.addressType === 'PLATFORM_WH' ? '* Σ╗ôσ║ôΣ╗úτáü' : 'Σ╗ôσ║ôΣ╗úτáü'">
+  L773: <NDescriptionsItem :label="isDetailTruckDelivery ? '* µö╢Φ┤ºµû╣' : 'µö╢Φ┤ºµû╣'">
+  L781: <NDescriptionsItem :label="isDetailTruckDelivery ? '* Address Line1' : 'Address Line1'" :span="2">
+  L789: <NDescriptionsItem :label="isDetailTruckDelivery ? '* City' : 'City'">
+  L793: <NDescriptionsItem :label="isDetailTruckDelivery ? '* State' : 'State'">
+  L797: <NDescriptionsItem :label="isDetailTruckDelivery ? '* Zip Code' : 'Zip Code'">
+  L863: <template v-else>{{ detail.declaredCartonQty ?? '--' }}</template>
+  L867: <template v-else>{{ detail.declaredPalletQty ?? '--' }}</template>
+  L871: <template v-else>{{ detail.declaredPieceQty ?? '--' }}</template>
+  L875: <template v-else>{{ detail.declaredWeight ?? '--' }}</template>
+  L879: <template v-else>{{ detail.declaredCbm ?? '--' }}</template>
+  L884: <NDescriptionsItem label="σ«₧ΘÖàτ«▒µò░">{{ detail.actualCartonQty ?? '--' }}</NDescriptionsItem>
+  L885: <NDescriptionsItem label="σ«₧ΘÖàµ¥┐µò░">{{ detail.actualPalletQty ?? '--' }}</NDescriptionsItem>
+  L886: <NDescriptionsItem label="σ«₧ΘÖàΣ╗╢µò░">{{ detail.actualPieceQty ?? '--' }}</NDescriptionsItem>
+  L887: <NDescriptionsItem label="σ«₧ΘÖàΘçìΘçÅ(kg)">{{ detail.actualWeight ?? '--' }}</NDescriptionsItem>
+  L888: <NDescriptionsItem label="σ«₧ΘÖàΣ╜ôτº»(m┬│)">{{ detail.actualCbm ?? '--' }}</NDescriptionsItem>
+  L898: <NTag type="info" size="small">{{ FULFILLMENT_STEPS.find(s => s.code === detail?.fulfillmentStatus)?.label ?? detail?.fulfillmentStatus }}</
+
+views/oms/cargo-order/modules/cargo-order-shipment-sku-panel.vue (6)
+  L244: h('span', { class: 'text-12px text-#6b7280' }, `SKU µÿÄτ╗å ┬╖ Φ┤ºΣ╗╢ ${val(row.shipmentNo ?? row.shipmentCode)}∩╝ê${skuItems.length} µ¥í∩╝ë`),
+  L280: { title: 'Φ┤ºΣ╗╢τ╝ûτáü', key: 'shipmentNo', width: 150, render: row => val(row.shipmentNo ?? row.shipmentCode) },
+  L282: { title: 'σö¢σñ┤', key: 'shippingMark', width: 120, render: row => val(row.shippingMark ?? row.mark) },
+  L283: { title: 'τ«▒µò░', key: 'cartonQty', width: 80, align: 'right', render: row => val(row.cartonQty ?? row.expectedBoxQty) },
+  L285: { title: 'ΘçìΘçÅKG', key: 'weight', width: 90, align: 'right', render: row => val(row.weight ?? row.expectedWeight) },
+  L286: { title: 'Σ╜ôτº»CBM', key: 'cbm', width: 90, align: 'right', render: row => val(row.cbm ?? row.expectedCbm) },
+
+views/oms/container-order/composables/use-container-cargo-table-columns.tsx (5)
+  L135: render: row => addressTypeRecord.value[row.addressType as string]?.dictLabel ?? row.addressType ?? '--'
+  L212: render: row => String(row.declaredCartonQty ?? row.expectedBoxQty ?? '--')
+  L219: render: row => String(row.declaredWeight ?? row.expectedWeight ?? '--')
+  L226: render: row => String(row.declaredCbm ?? row.expectedCbm ?? '--')
+  L278: {`σ╝éσ╕╕(${row.exceptionCount ?? 0})`}
+
+views/oms/container-order/modules/cargo-order-shipment-drawer.vue (5)
+  L59: render: row => val(row.shipmentNo ?? row.shipmentCode)
+  L66: render: row => val(row.shippingMark ?? row.mark)
+  L74: render: row => val(row.cartonQty ?? row.expectedBoxQty)
+  L81: render: row => val(row.weight ?? row.expectedWeight)
+  L88: render: row => val(row.cbm ?? row.expectedCbm)
+
+views/oms/container-order/modules/container-cargo-order-form.vue (9)
+  L255: <NDescriptionsItem :label="isTruckDelivery ? '* σ£░σ¥Çτ▒╗σ₧ï' : 'σ£░σ¥Çτ▒╗σ₧ï'">
+  L264: <NDescriptionsItem :label="isTruckDelivery && model.addressType === 'PLATFORM_WH' ? '* σ╣│σÅ░' : 'σ╣│σÅ░'">
+  L275: <NDescriptionsItem :label="isTruckDelivery && model.addressType === 'PLATFORM_WH' ? '* Σ╗ôσ║ôΣ╗úτáü' : 'Σ╗ôσ║ôΣ╗úτáü'">
+  L286: <NDescriptionsItem :label="isTruckDelivery ? '* µö╢Φ┤ºµû╣' : 'µö╢Φ┤ºµû╣'">
+  L292: <NDescriptionsItem :label="isTruckDelivery ? '* Address Line1' : 'Address Line1'" :span="2">
+  L298: <NDescriptionsItem :label="isTruckDelivery ? '* City' : 'City'">
+  L301: <NDescriptionsItem :label="isTruckDelivery ? '* State' : 'State'">
+  L304: <NDescriptionsItem :label="isTruckDelivery ? '* Zip Code' : 'Zip Code'">
+  L330: <NDescriptionsItem :label="isExpressDelivery ? '* σ┐½ΘÇÆσòå' : 'σ┐½ΘÇÆσòå'">
+
+views/oms/container-order/utils/container-cargo-order.ts (2)
+  L63: return rows.find(item => item.businessTypeName === normalized || item.businessTypeCode === normalized)?.id ?? null;
+  L71: return rows.find(item => String(item.id) === String(id))?.businessTypeName ?? null;
+
+views/oms/inbound-plan/index.vue (16)
+  L75: expandedGroups.value = new Set(data.groups.map(g => g.groupCode ?? '__UNGROUPED__'));
+  L221: editingValue.value = (field === 'groupCode' ? item.groupCode : item.preLocation) ?? '';
+  L262: const planStatus = computed(() => plan.value?.status ?? '');
+  L317: <span style="color: #d97706; font-weight: 500;">{displayCode ?? 'ΓÇö'}</span>
+  L321: <NText>{displayCode ?? <span class="text-gray-400">ΓÇö</span>}</NText>
+  L353: <NText>{row.preLocation ?? <span class="text-gray-400">ΓÇö</span>}</NText>
+  L397: render: (row: any) => addressTypeRecord.value[row.addressType]?.dictLabel ?? row.addressType ?? '--'
+  L450: <NDescriptionsItem label="µ╡╖µƒ£Φ«óσìò">{{ plan.containerOrderNo ?? 'ΓÇö' }}</NDescriptionsItem>
+  L451: <NDescriptionsItem label="µ╕áΘüô">{{ plan.channelName ?? 'ΓÇö' }}</NDescriptionsItem>
+  L452: <NDescriptionsItem label="σ«óµê╖">{{ plan.customerName ?? 'ΓÇö' }}</NDescriptionsItem>
+  L453: <NDescriptionsItem label="ETA">{{ plan.eta ?? 'ΓÇö' }}</NDescriptionsItem>
+  L454: <NDescriptionsItem label="µÇ╗CBM">{{ plan.totalCbm ?? 'ΓÇö' }}</NDescriptionsItem>
+  L455: <NDescriptionsItem label="µÇ╗τ«▒µò░">{{ plan.totalCartonQty ?? 'ΓÇö' }}</NDescriptionsItem>
+  L563: <span>{{ group.totalCartonQty ?? 0 }} τ«▒</span>
+  L564: <span>{{ group.totalWeight ?? 0 }} kg</span>
+  L565: <span>{{ group.totalCbm ?? 0 }} CBM</span>
+
+views/oms/outbound-pool/index.vue (9)
+  L172: if (actual !== null && actual !== undefined) return `${actual} / ${declared ?? 0}`;
+  L173: return `-- / ${declared ?? 0}`;
+  L245: { key: 'addressType', title: 'σ£░σ¥Çτ▒╗σ₧ï', width: 120, render: row => addressTypeRecord.value[row.addressType as string]?.dictLabel ?? row.address
+  L1065: <td>{{ item.length ?? '--' }}</td>
+  L1066: <td>{{ item.width ?? '--' }}</td>
+  L1067: <td>{{ item.height ?? '--' }}</td>
+  L1099: <td>{{ item.cartonQty ?? '--' }}</td>
+  L1100: <td>{{ item.palletQty ?? '--' }}</td>
+  L1121: <NFormItem :label="noteMode === 'remark' ? 'σñçµ│¿' : 'Φ╖ƒΦ┐¢Φ«░σ╜ò'">
+
+views/system/menu/index.vue (1)
+  L486: :label="!isExternalType ? $t('page.system.menu.path') : $t('page.system.menu.externalPath')"
+
+views/system/menu/modules/menu-operate-drawer.vue (1)
+  L428: :label="isInternalType ? $t('page.system.menu.query') : $t('page.system.menu.iframeQuery')"
+
+views/wms/_prototype/configs.ts (1)
+  L1: /** PRD V1.0 ?????????????????? Mock?? */
+
+views/wms/devanning-dock-qr/index.vue (2)
+  L205: {{ d.dockCode }}<span v-if="d.zoneCode"> ?? {{ d.zoneCode }}</span>
+  L213: <div class="text-11px text-blue-400 mt-6px">Σ║║σ╖Ñµïåµƒ£ ?? Dock {{ d.id }}</div>
+
+views/wms/devanning-order/modules/devanning-order-detail-drawer.vue (1)
+  L103: const progressPercent = computed(() => detail.value?.progress ?? 0);
+
+views/wms/devanning-work/modules/pallet-history-drawer.vue (1)
+  L18: const palletList = computed(() => session.value?.pallets ?? []);
+
+views/wms/inventory-visualization/index.vue (1)
+  L427: <span class="font-600 tabular-nums">{{ loc.currentQty }}/{{ loc.capacity ?? 'ΓÇö' }}</span>
+
+views/wms/inventory/index.vue (3)
+  L281: <div>Θöüσ«Ü∩╝Ü{{ currentInventory?.lockedBoxQty ?? 0 }}</div>
+  L282: <div>σÅ»τö¿∩╝Ü{{ currentInventory?.availableBoxQty ?? 0 }}</div>
+  L283: <div>σ╝éσ╕╕∩╝Ü{{ currentInventory?.exceptionBoxQty ?? 0 }}</div>
+
+views/wms/location/index.vue (1)
+  L100: { key: 'capacity', title: 'σ║ôΣ╜ìσ«╣ΘçÅ', width: 100, align: 'right', render: row => row.capacity ?? 'ΓÇö' },
+
+views/wms/location/modules/location-import-modal.vue (1)
+  L81: uploadAction.value = `${baseURL}/wms/location/importData?warehouseId=${props.warehouseId}&companyId=${props.companyId ?? 4000001}`;
+
+views/yard/dock/index.vue (2)
+  L116: { key: 'gridRow', title: 'Φíî', align: 'right', width: 70, render: row => row.gridRow ?? '--' },
+  L117: { key: 'gridCol', title: 'σêù', align: 'right', width: 70, render: row => row.gridCol ?? '--' },
+
+views/yard/zone/index.vue (1)
+  L29: render: row => <NTag>{zoneTypeRecord.value[row.zoneType]?.dictLabel ?? row.zoneType}</NTag>
+
+views/yms/dispatch-detail/index.vue (9)
+  L69: const isTerminal = computed(() => TERMINAL.has(task.value?.yardStatus ?? ''));
+  L70: const s = computed(() => task.value?.yardStatus ?? '');
+  L268: watch(task, t => { if (t) editPriority.value = t.priority ?? 5; }, { immediate: true });
+  L305: <span class="text-13px text-gray-400">{{ TASK_TYPE_LABEL[task.taskType] ?? task.taskType }}</span>
+  L332: <NTag :type="(WMS_READY_META[task.wmsReadyStatus ?? 'NOT_REQUIRED']?.type ?? 'default') as any" size="small">
+  L337: <NDescriptionsItem label="Σ╝ÿσàêτ║º">{{ task.priority ?? 5 }}</NDescriptionsItem>
+  L371: <span>σ╖▓Φúà/σì╕∩╝Ü{{ task.loadedQty ?? '--' }} / {{ task.totalQty ?? '--' }}</span>
+  L372: <span>µëÿτ¢ÿ∩╝Ü{{ task.loadedPalletQty ?? '--' }} / {{ task.totalPalletQty ?? '--' }}</span>
+  L525: log.beforeStatus ? `${STATUS_META[log.beforeStatus]?.label ?? log.beforeStatus} ΓåÆ ${STATUS_META[log.afterStatus ?? '']?.label ?? log.afterSt
+
+views/yms/dispatch/modules/DispatchLayout.vue (1)
+  L45: const selectedTaskId = computed(() => _selectedTask.value?.id ?? null);
+
+views/yms/dispatch/modules/DockBoardPanel.vue (1)
+  L340: <span v-if="dock.dockType" class="text-10px text-gray-500">{{ DOCK_TYPE_LABEL[dock.dockType] ?? dock.dockType }}</span>
+
+views/yms/dispatch/modules/TaskListPanel.vue (5)
+  L108: return tab.statuses.reduce((sum, s) => sum + (props.statusCounts[s] ?? 0), 0);
+  L237: <span class="text-11px">{TASK_TYPE_SHORT[row.taskType] ?? row.taskType}</span>
+  L243: <span class="text-12px font-semibold">{row.priority ?? 5}</span>
+  L251: const m = WMS_READY_META[row.wmsReadyStatus ?? 'NOT_REQUIRED'] ?? { label: row.wmsReadyStatus, type: 'default' };
+  L284: const task = taskList.value.find(t => t.id === id) ?? null;
+
+views/yms/gate-check-out/modules/checkout-result-card.vue (7)
+  L57: <NDescriptionsItem label="Φ╡äµ║ÉΦ╜ªτëî">{{ result.plateNo ?? 'ΓÇö' }}</NDescriptionsItem>
+  L58: <NDescriptionsItem label="σàÑσ£║Φ╜ªτëî">{{ result.gateInPlateNo ?? 'ΓÇö' }}</NDescriptionsItem>
+  L59: <NDescriptionsItem label="σàÑσ£║σÅ╕µ£║">{{ result.gateInDriverName ?? 'ΓÇö' }}</NDescriptionsItem>
+  L60: <NDescriptionsItem label="σàÑσ£║τö╡Φ»¥">{{ result.gateInDriverPhone ?? 'ΓÇö' }}</NDescriptionsItem>
+  L73: <NDescriptionsItem label="Σ╜ìτ╜«">{{ result.areaLabel ?? 'ΓÇö' }}</NDescriptionsItem>
+  L74: <NDescriptionsItem label="σê░σ£║µù╢Θù┤">{{ result.gateInTime ?? 'ΓÇö' }}</NDescriptionsItem>
+  L87: <span>{{ result.openInternalTaskNo ?? 'ΓÇö' }}</span>
+
+views/yms/gate-checkin/index.vue (2)
+  L224: message.error('Check-in µïÆτ╗¥∩╝Ü' + (data.rejectReason ?? ''));
+  L226: message.warning('Check-in σ╛àτí«Φ«ñ∩╝Ü' + (data.rejectReason ?? ''));
+
+views/yms/gate-checkin/modules/photo-capture.vue (1)
+  L28: <div class="text-13px text-gray-400 mb-8px">{{ label ?? 'τÄ░σ£║µïìτàº∩╝êσÅ»ΘÇë∩╝ë' }}</div>
+
+views/yms/gate-in-yard/index.vue (6)
+  L76: { key: 'plateNo', title: 'Φ╜ªτëî', width: 110, render: row => row.plateNo ?? 'ΓÇö' },
+  L77: { key: 'trailerNo', title: 'Φ╜ªσÄóσÅ╖', width: 130, ellipsis: { tooltip: true }, render: row => row.trailerNo ?? 'ΓÇö' },
+  L78: { key: 'containerNo', title: 'µƒ£σÅ╖', width: 150, ellipsis: { tooltip: true }, render: row => row.containerNo ?? 'ΓÇö' },
+  L93: render: row => AREA_LABEL[row.currentArea] ?? row.currentArea
+  L103: { key: 'relatedOrderNo', title: 'σà│ΦüöσìòσÅ╖', width: 140, ellipsis: { tooltip: true }, render: row => row.relatedOrderNo ?? 'ΓÇö' },
+  L104: { key: 'driverName', title: 'σÅ╕µ£║', width: 90, render: row => row.driverName ?? 'ΓÇö' },
+
+views/yms/gate/index.vue (1)
+  L64: return <NTag type={type} size="small">{RESULT_LABEL[row.checkResult] ?? row.checkResult}</NTag>;
+
+views/yms/gate/modules/check-in-result-card.vue (9)
+  L37: <p>σ░ÅτÑ¿σÅ╖∩╝Ü${data.receiptNo ?? 'ΓÇö'}</p>
+  L38: <p>µù╢Θù┤∩╝Ü${data.checkInTime ?? 'ΓÇö'}</p>
+  L39: <p>Φ╜ªτëî∩╝Ü${data.plateNo ?? 'ΓÇö'}</p>
+  L40: <p>σÅ╕µ£║∩╝Ü${data.driverName ?? 'ΓÇö'}</p>
+  L41: <p>µƒ£σÅ╖∩╝Ü${data.containerNo ?? 'ΓÇö'}</p>
+  L42: <p>Φ╜ªσÄó∩╝Ü${data.trailerNo ?? 'ΓÇö'}</p>
+  L43: <p>Θóäτ║ª∩╝Ü${data.aptNo ?? 'ΓÇö'}</p>
+  L44: <p>τ╗ôµ₧£∩╝Ü${data.checkResult ?? 'ΓÇö'}</p>
+  L63: <NDescriptionsItem label="σÅ╕µ£║">{{ result.driverName ?? 'ΓÇö' }}</NDescriptionsItem>
+
+views/yms/h5-task-execute/index.vue (8)
+  L56: const canAccept = computed(() => ['PENDING', 'ASSIGNED'].includes(task.value?.taskStatus ?? ''));
+  L60: ['COMPLETED', 'FAILED', 'CANCELLED'].includes(task.value?.taskStatus ?? '')
+  L84: taskList.value = (data ?? []).flatMap(item => item.tasks ?? []);
+  L159: Σ╗ôσ║ôID∩╝Ü{{ warehouseId ?? '-' }}πÇÇτºƒµê╖ID∩╝Ü{{ tenantId ?? '-' }}
+  L179: <div class="font-semibold text-gray-800">{{ item.objectNo ?? item.taskNo }}</div>
+  L184: <div class="mb-6px text-13px text-gray-500">{{ TYPE_LABEL[item.internalTaskType] ?? item.internalTaskType }}</div>
+  L186: {{ item.fromPositionCode ?? '-' }} ΓåÆ {{ item.toDockCode ?? item.toPositionCode ?? '-' }}
+  L226: <span class="font-medium text-gray-700">{{ task.objectNo ?? '-' }}</span>
+
+views/yms/h5-trailer-checkin/index.vue (2)
+  L244: <td class="px-16px py-10px text-gray-800">{{ lookupResult.truckRouteNo ?? '-' }}</td>
+  L289: <td class="px-16px py-10px text-gray-800">{{ lookupResult.scheduledTime ?? '-' }}</td>
+
+views/yms/internal-task/index.vue (1)
+  L169: <span class="ml-6px">{{ task.objectNo ?? '-' }}</span>
+
+views/yms/task/index.vue (5)
+  L116: return tab.statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
+  L287: <span class="text-12px">{TASK_TYPE_LABEL[row.taskType] ?? row.taskType}</span>
+  L318: const m = WMS_READY_META[row.wmsReadyStatus ?? 'NOT_REQUIRED'] ?? { label: row.wmsReadyStatus, type: 'default' };
+  L324: render: (row: Api.Yms.YardTask) => <span class="text-12px font-semibold">{row.priority ?? 5}</span>
+  L353: render: (row: Api.Yms.YardTask) => row.visitNo ?? 1
+
+views/yms/yard-inventory/modules/scan-drawer.vue (1)
+  L126: <div><span class="text-gray-500">µôìΣ╜£Σ║║∩╝Ü</span>{{ task.operatorName ?? 'ΓÇö' }}</div>
+
+views/yms/yard-position/index.vue (1)
+  L70: render: row => (row.gridRow != null ? `${row.gridRow},${row.gridCol ?? '-'}` : '-')
+
+Total lines: 238

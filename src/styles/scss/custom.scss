@@ -1,0 +1,63 @@
+.table-search {
+  .n-collapse {
+    --n-title-font-size: 15px !important;
+  }
+}
+
+/* OMS 详情抽屉：下拉/输入撑满描述列表内容列 */
+.oms-detail-drawer {
+  .n-card {
+    overflow: visible;
+  }
+
+  .n-descriptions-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .n-descriptions-table-wrapper {
+    overflow: visible;
+  }
+
+  .n-descriptions-table-row td {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    vertical-align: top;
+  }
+
+  .n-descriptions-table-content {
+    width: 100%;
+    overflow: visible !important;
+  }
+
+  /* 描述列表内表单控件留边距，不占满整格 */
+  .oms-desc-field,
+  .n-descriptions-table-content .n-select,
+  .n-descriptions-table-content .n-date-picker,
+  .n-descriptions-table-content .n-input,
+  .n-descriptions-table-content .n-auto-complete {
+    display: block;
+    width: 90% !important;
+    max-width: 90%;
+    box-sizing: border-box;
+  }
+
+  .oms-desc-field .n-base-selection,
+  .oms-desc-field.n-date-picker,
+  .oms-desc-field.n-auto-complete .n-input,
+  .n-descriptions-table-content .n-base-selection {
+    width: 100% !important;
+  }
+
+  .n-base-selection--multiple .n-base-selection-tags {
+    flex-wrap: wrap;
+  }
+}
+
+/* 抽屉内下拉/日期面板 z-index 高于抽屉本身 */
+.n-base-select-menu,
+.n-date-panel,
+.n-time-picker-panel,
+.n-cascader-menu {
+  z-index: 4000 !important;
+}
