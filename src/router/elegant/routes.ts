@@ -656,6 +656,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'wms_devanning-dock-qr',
+        path: '/wms/devanning-dock-qr',
+        component: 'view.wms_devanning-dock-qr',
+        meta: {
+          title: 'wms_devanning-dock-qr',
+          i18nKey: 'route.wms_devanning-dock-qr'
+        }
+      },
+      {
         name: 'wms_devanning-order',
         path: '/wms/devanning-order',
         component: 'view.wms_devanning-order',
@@ -695,15 +704,6 @@ export const generatedRoutes: GeneratedRoute[] = [
           hideInMenu: true,
           activeMenu: 'wms_devanning-work',
           multiTab: true
-        }
-      },
-      {
-        name: 'wms_devanning-dock-qr',
-        path: '/wms/devanning-dock-qr',
-        component: 'view.wms_devanning-dock-qr',
-        meta: {
-          title: 'wms_devanning-dock-qr',
-          i18nKey: 'route.wms_devanning-dock-qr'
         }
       },
       {
