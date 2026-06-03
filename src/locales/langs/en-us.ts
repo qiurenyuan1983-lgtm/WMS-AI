@@ -342,6 +342,7 @@ const local: App.I18n.Schema = {
     'oms_container-order': 'Container Orders',
     'oms_inbound-plan': 'Inbound Plan',
     'oms_outbound-pool': 'Outbound Pool',
+    'oms_platform-appointment': 'Platform Appointments',
     'oms_pre-outbound': 'Pre Outbound',
     'oms_outbound-order': 'Outbound Orders',
     wms: 'WMS',

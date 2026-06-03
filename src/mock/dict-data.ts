@@ -125,6 +125,15 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: '异常', value: 'EXCEPTION', listClass: 'error' },
     { label: '取消', value: 'CANCELLED' }
   ],
+  wms_timeliness_level: [
+    { label: 'A级', value: 'A', listClass: 'error' },
+    { label: 'B级', value: 'B', listClass: 'warning' },
+    { label: 'C级', value: 'C', listClass: 'default' }
+  ],
+  wms_devanning_operation_status: [
+    { label: '已打拆柜单', value: 'ORDER_PRINTED', listClass: 'success' },
+    { label: '未打拆柜单', value: 'NOT_PRINTED', listClass: 'default' }
+  ],
   oms_address_type: [
     { label: "平台仓", value: 'PLATFORM_WH' },
     { label: "私仓", value: 'PRIVATE' },
@@ -138,6 +147,22 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: "OnTrac", value: 'OnTrac' },
     { label: "LaserShip", value: 'LaserShip' },
     { label: "Amazon Shipping", value: 'Amazon Shipping' },
+  ],
+  oms_platform_appointment_status: [
+    { label: '未使用', value: 'UNUSED' },
+    { label: '已使用', value: 'USED', listClass: 'info' },
+    { label: '已交仓', value: 'DELIVERED', listClass: 'success' },
+    { label: '已取消', value: 'CANCELLED', listClass: 'default' }
+  ],
+  oms_platform_appointment_type: [
+    { label: 'FBA送仓', value: 'FBA_DELIVERY', listClass: 'primary' },
+    { label: '转运', value: 'TRANSFER', listClass: 'info' },
+    { label: '提空', value: 'EMPTY_PICKUP', listClass: 'warning' }
+  ],
+  oms_platform_appointment_tag: [
+    { label: '推约', value: 'PUSH_APPOINTMENT', listClass: 'warning' },
+    { label: '删约', value: 'DELETE_APPOINTMENT', listClass: 'error' },
+    { label: '平台删约', value: 'PLATFORM_DELETE', listClass: 'default' }
   ],
   oms_devanning_method: [
     { label: "人工拆柜", value: 'MANUAL' },

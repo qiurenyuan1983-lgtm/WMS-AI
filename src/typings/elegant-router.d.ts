@@ -65,9 +65,13 @@ declare module "@elegant-router/types" {
     "oms_inbound-plan": "/oms/inbound-plan";
     "oms_outbound-order": "/oms/outbound-order";
     "oms_outbound-pool": "/oms/outbound-pool";
+    "oms_platform-appointment": "/oms/platform-appointment";
     "oms_pre-outbound": "/oms/pre-outbound";
     "pda": "/pda";
+    "pda_business": "/pda/business";
     "pda_home": "/pda/home";
+    "pda_inbound": "/pda/inbound";
+    "pda_outbound": "/pda/outbound";
     "pda_task": "/pda/task";
     "social-callback": "/social-callback";
     "system": "/system";
@@ -92,7 +96,7 @@ declare module "@elegant-router/types" {
     "wms_devanning-order": "/wms/devanning-order";
     "wms_devanning-order-detail": "/wms/devanning-order-detail";
     "wms_devanning-work": "/wms/devanning-work";
-    "wms_devanning-work-exec": "/wms/devanning-work/execute";
+    "wms_devanning-work-exec": "/wms/devanning-work-exec";
     "wms_inbound-order": "/wms/inbound-order";
     "wms_inbound-task": "/wms/inbound-task";
     "wms_inventory": "/wms/inventory";
@@ -253,8 +257,12 @@ declare module "@elegant-router/types" {
     | "oms_inbound-plan"
     | "oms_outbound-order"
     | "oms_outbound-pool"
+    | "oms_platform-appointment"
     | "oms_pre-outbound"
+    | "pda_business"
     | "pda_home"
+    | "pda_inbound"
+    | "pda_outbound"
     | "pda_task"
     | "system_client"
     | "system_config"
@@ -273,8 +281,8 @@ declare module "@elegant-router/types" {
     | "wms_devanning-dock-qr"
     | "wms_devanning-order-detail"
     | "wms_devanning-order"
-    | "wms_devanning-work"
     | "wms_devanning-work-exec"
+    | "wms_devanning-work"
     | "wms_inbound-order"
     | "wms_inbound-task"
     | "wms_inventory-lock"

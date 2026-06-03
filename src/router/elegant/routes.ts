@@ -426,6 +426,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'oms_platform-appointment',
+        path: '/oms/platform-appointment',
+        component: 'view.oms_platform-appointment',
+        meta: {
+          title: 'oms_platform-appointment',
+          i18nKey: 'route.oms_platform-appointment'
+        }
+      },
+      {
         name: 'oms_pre-outbound',
         path: '/oms/pre-outbound',
         component: 'view.oms_pre-outbound',
@@ -446,12 +455,45 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'pda_business',
+        path: '/pda/business',
+        component: 'view.pda_business',
+        meta: {
+          title: 'pda_business',
+          i18nKey: 'route.pda_business',
+          hideInMenu: true,
+          activeMenu: 'pda_home'
+        }
+      },
+      {
         name: 'pda_home',
         path: '/pda/home',
         component: 'view.pda_home',
         meta: {
           title: 'pda_home',
           i18nKey: 'route.pda_home'
+        }
+      },
+      {
+        name: 'pda_inbound',
+        path: '/pda/inbound',
+        component: 'view.pda_inbound',
+        meta: {
+          title: 'pda_inbound',
+          i18nKey: 'route.pda_inbound',
+          hideInMenu: true,
+          activeMenu: 'pda_home'
+        }
+      },
+      {
+        name: 'pda_outbound',
+        path: '/pda/outbound',
+        component: 'view.pda_outbound',
+        meta: {
+          title: 'pda_outbound',
+          i18nKey: 'route.pda_outbound',
+          hideInMenu: true,
+          activeMenu: 'pda_home'
         }
       },
       {
@@ -696,7 +738,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       },
       {
         name: 'wms_devanning-work-exec',
-        path: '/wms/devanning-work/execute',
+        path: '/wms/devanning-work-exec',
         component: 'view.wms_devanning-work-exec',
         meta: {
           title: 'wms_devanning-work-exec',

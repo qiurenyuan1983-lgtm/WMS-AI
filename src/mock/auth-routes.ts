@@ -1,17 +1,11 @@
 import type { ElegantRoute } from '@elegant-router/types';
 import { generatedRoutes } from '@/router/elegant/routes';
+import { findRouteInTree, getRoutesWithPersistentChildren } from '@/router/persistent-routes';
 
 type RouteMeta = ElegantRoute['meta'];
 
-function findRoute(name: string, routes: ElegantRoute[] = generatedRoutes): ElegantRoute | undefined {
-  for (const route of routes) {
-    if (route.name === name) return route;
-    if (route.children?.length) {
-      const found = findRoute(name, route.children);
-      if (found) return found;
-    }
-  }
-  return undefined;
+function findRoute(name: string, routes: ElegantRoute[] = getRoutesWithPersistentChildren(generatedRoutes)): ElegantRoute | undefined {
+  return findRouteInTree(name, routes);
 }
 
 function cloneRoute(route: ElegantRoute, extraMeta?: Partial<RouteMeta>): ElegantRoute {
@@ -30,7 +24,7 @@ function menuGroup(
   order?: number,
   hiddenNames: string[] = []
 ): ElegantRoute {
-  // hiddenNames 一并挂载为子路由，详情页走 Tab 且高�?对应菜单�?
+  // hiddenNames ????????????? Tab ??�?????�?
   const allChildNames = [...childNames, ...hiddenNames.filter(n => !childNames.includes(n))];
   const menuActiveKey = childNames[0];
 
@@ -159,6 +153,9 @@ const WMS_HIDDEN_MENU = [
   'wms_stock-prep-exec',
   'wms_outbound-exec',
   'wms_outbound-loading',
+  'pda_business',
+  'pda_inbound',
+  'pda_outbound',
   'pda_task'
 ];
 
@@ -271,6 +268,7 @@ function buildOmsRoutes(): ElegantRoute {
         [
           'oms_container-order',
           'oms_cargo-order',
+          'oms_platform-appointment',
           'oms_pre-outbound',
           'oms_outbound-order',
           'oms_outbound-pool'

@@ -13,6 +13,7 @@ import {
 } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { fetchDeleteDevanningWorkPallet } from '@/service/api/wms/devanning-work';
+import { printPalletLabel } from '../utils/print-pallet-label';
 
 defineOptions({ name: 'DevanningPalletHistoryDrawer' });
 
@@ -34,49 +35,6 @@ function openDetail(row: Api.Wms.DevanningWorkPallet) {
   detailVisible.value = true;
 }
 
-function printPalletLabel(row: Api.Wms.DevanningWorkPallet) {
-  const win = window.open('', '_blank');
-  if (!win) {
-    window.$message?.error('打印失败，请允许弹窗');
-    return;
-  }
-  const orderLines = (row.items || [])
-    .map(
-      item =>
-        `<div class="row">${item.cargoOrderNo}：${item.receiveQty} ${item.receiveUnitLabel} / ${item.boxQty} 箱</div>`
-    )
-    .join('');
-  win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>卡板标签 - ${row.palletNo}</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, 'PingFang SC', sans-serif; padding: 24px; }
-        .label { width: 320px; border: 2px solid #111; padding: 16px; }
-        .no { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
-        .row { font-size: 14px; margin: 6px 0; color: #333; }
-        .bar { height: 48px; background: #f0f0f0; margin-top: 12px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; }
-      </style>
-    </head>
-    <body>
-      <div class="label">
-        <div class="no">${row.palletNo}</div>
-        <div class="row">分组：${row.groupCode}</div>
-        <div class="row">订单数：${row.orderCount}</div>
-        ${orderLines}
-        <div class="row">合计：${row.boxQty} 箱</div>
-        <div class="bar">${row.palletNo}</div>
-      </div>
-      <script>window.onload = () => window.print();<\/script>
-    </body>
-    </html>
-  `);
-  win.document.close();
-}
-
 async function handleDelete(row: Api.Wms.DevanningWorkPallet) {
   const { data, error } = await fetchDeleteDevanningWorkPallet(props.taskId, row.id);
   if (error) return;
@@ -91,7 +49,6 @@ async function handleDelete(row: Api.Wms.DevanningWorkPallet) {
 
 const detailItemColumns: DataTableColumns<Api.Wms.DevanningWorkPalletItem> = [
   { title: '货物订单号', key: 'cargoOrderNo', width: 140 },
-  { title: '客户', key: 'customerName', width: 100, ellipsis: { tooltip: true } },
   {
     title: '收货量',
     key: 'receiveQty',
@@ -169,6 +126,10 @@ const columns = buildColumns();
         <NDescriptionsItem label="分组">{{ detailPallet.groupCode }}</NDescriptionsItem>
         <NDescriptionsItem label="订单数">{{ detailPallet.orderCount ?? detailPallet.items?.length ?? 0 }}</NDescriptionsItem>
         <NDescriptionsItem label="箱数合计">{{ detailPallet.boxQty }}</NDescriptionsItem>
+        <NDescriptionsItem v-if="detailPallet.lengthCm" label="尺寸">
+          {{ detailPallet.lengthCm }} × {{ detailPallet.widthCm }} × {{ detailPallet.heightCm }} cm
+        </NDescriptionsItem>
+        <NDescriptionsItem v-if="detailPallet.weightKg" label="重量">{{ detailPallet.weightKg }} kg</NDescriptionsItem>
         <NDescriptionsItem label="打板时间" :span="2">{{ detailPallet.createTime }}</NDescriptionsItem>
       </NDescriptions>
       <p class="mb-8px text-14px font-600">订单明细</p>

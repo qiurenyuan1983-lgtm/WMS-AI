@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'vue-router';
 import { fetchCheckIn, fetchGetYardTaskList } from '@/service/api/yms/dispatch';
 import { useAuth } from '@/hooks/business/auth';
-import { WMS_READY_META } from './dispatch-meta';
+import { WMS_READY_META, getTaskDisplayNo } from './dispatch-meta';
 import { YMS_ROUTE, ymsTo } from '../../shared/yms-route';
 
 const props = withDefaults(defineProps<{
@@ -221,13 +221,19 @@ async function handleCheckIn(id: CommonType.IdType) {
 // ─── 表格列 ─────────────────────────────────────────────────────────
 
 const taskColumns = computed(() => {
+  const isLoading = props.taskGroup === 'LOADING';
   const cols: any[] = [
   {
-    key: 'containerNo', title: '柜号', width: 116, ellipsis: { tooltip: true },
+    key: isLoading ? 'yardTaskNo' : 'containerNo',
+    title: isLoading ? '车次号' : '柜号',
+    width: 116,
+    ellipsis: { tooltip: true },
     render: (row: Api.Yms.YardTask) => (
       <span class="text-primary cursor-pointer hover:underline font-mono text-12px"
         onClick={() => router.push(ymsTo(YMS_ROUTE.dispatchDetail, { id: row.id }))}>
-        {row.containerNo || row.sourceOrderNo || '--'}
+        {isLoading
+          ? getTaskDisplayNo(row, 'LOADING')
+          : getTaskDisplayNo(row, 'DEVANNING')}
       </span>
     )
   },
@@ -346,7 +352,7 @@ defineExpose({ reload });
       <NFormItem>
         <NInput
           v-model:value="keyword"
-          placeholder="柜号/单号/司机"
+          :placeholder="taskGroup === 'LOADING' ? '车次号/单号/司机' : '柜号/单号/司机'"
           clearable
           class="w-130px"
           @keydown.enter="handleSearch"

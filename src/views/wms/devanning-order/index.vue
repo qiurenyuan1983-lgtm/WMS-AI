@@ -12,6 +12,7 @@ import {
   NFormItem,
   NInput,
   NModal,
+  NProgress,
   NSelect,
   NTag
 } from 'naive-ui';
@@ -37,6 +38,8 @@ const { hasAuth } = useAuth();
 const dictStore = useDictStore();
 const { record: statusRecord, reload: reloadStatusDict } = useDict('wms_devanning_status');
 const { record: methodRecord, reload: reloadMethodDict } = useDict('wms_devanning_method');
+const { record: timelinessRecord, reload: reloadTimelinessDict } = useDict('wms_timeliness_level');
+const { record: operationStatusRecord, reload: reloadOperationStatusDict } = useDict('wms_devanning_operation_status');
 
 const STATUS_TAG: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
   UNPICKEDUP: 'default',
@@ -135,6 +138,38 @@ const EXAM_STATUS_LABEL: Record<string, string> = {
   EXAMINED: '\u67e5\u9a8c\u5b8c\u6210'
 };
 
+const TIMELINESS_TAG: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+  A: 'error',
+  B: 'warning',
+  C: 'default'
+};
+
+const OPERATION_STATUS_TAG: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+  ORDER_PRINTED: 'success',
+  NOT_PRINTED: 'default'
+};
+
+function timelinessLabel(value?: string | null) {
+  if (!value) return '—';
+  const fromDict = timelinessRecord.value[value]?.dictLabel;
+  if (fromDict && !isGarbledLabel(fromDict)) return fromDict;
+  return value;
+}
+
+function operationStatusLabel(value?: string | null) {
+  if (!value) return '—';
+  const fromDict = operationStatusRecord.value[value]?.dictLabel;
+  if (fromDict && !isGarbledLabel(fromDict)) return fromDict;
+  if (value === 'ORDER_PRINTED') return '已打拆柜单';
+  if (value === 'NOT_PRINTED') return '未打拆柜单';
+  return value;
+}
+
+function fmtFee(v?: number | null) {
+  if (v === null || v === undefined) return '—';
+  return `$${Number(v).toFixed(2)}`;
+}
+
 function examStatusLabel(value?: string | null) {
   if (!value || value === 'NONE') return '\u65e0';
   return EXAM_STATUS_LABEL[value] || value;
@@ -189,6 +224,66 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
             {statusLabel(row.status)}
           </NTag>
         )
+      },
+      {
+        key: 'timelinessLevel',
+        title: '时效等级',
+        width: 90,
+        render: row => (
+          <NTag size="small" type={TIMELINESS_TAG[row.timelinessLevel || ''] || 'default'}>
+            {timelinessLabel(row.timelinessLevel)}
+          </NTag>
+        )
+      },
+      {
+        key: 'devanningRemark',
+        title: '拆柜备注',
+        width: 160,
+        ellipsis: { tooltip: true },
+        render: row => valueText(row.devanningRemark)
+      },
+      {
+        key: 'devanningFee',
+        title: '拆柜费用',
+        width: 100,
+        render: row => fmtFee(row.devanningFee)
+      },
+      {
+        key: 'operationStatus',
+        title: '操作状态',
+        width: 110,
+        render: row => (
+          <NTag size="small" type={OPERATION_STATUS_TAG[row.operationStatus || ''] || 'default'}>
+            {operationStatusLabel(row.operationStatus)}
+          </NTag>
+        )
+      },
+      {
+        key: 'devanningSupplier',
+        title: '拆柜供应商',
+        width: 140,
+        ellipsis: { tooltip: true },
+        render: row => valueText(row.devanningSupplier)
+      },
+      {
+        key: 'devanningTeam',
+        title: '拆柜组别',
+        width: 90,
+        render: row => valueText(row.devanningTeam)
+      },
+      {
+        key: 'devanningProgressPercent',
+        title: '拆柜进度',
+        width: 120,
+        render: row => {
+          const percent = row.devanningProgressPercent ?? 0;
+          return (
+            <div class="min-w-90px">
+              <div class="mb-2px text-right text-11px text-gray-500">{percent}%</div>
+              <NProgress type="line" percentage={percent} height={6} border-radius={3} show-indicator={false} />
+            </div>
+          );
+        }
       },
       { key: 'customerName', title: '客户', width: 120, ellipsis: { tooltip: true } },
       { key: 'channelName', title: '渠道', width: 100 },
@@ -338,8 +433,12 @@ onMounted(async () => {
   if (!isMockMode()) return;
   dictStore.removeDict('wms_devanning_status');
   dictStore.removeDict('wms_devanning_method');
+  dictStore.removeDict('wms_timeliness_level');
+  dictStore.removeDict('wms_devanning_operation_status');
   await reloadStatusDict();
   await reloadMethodDict();
+  await reloadTimelinessDict();
+  await reloadOperationStatusDict();
   reloadColumns();
 });
 

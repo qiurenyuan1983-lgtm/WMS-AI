@@ -64,20 +64,26 @@ export const MOCK_YMS_DISPATCH: Api.Yms.YardTask[] = [
     id: 100001,
     yardTaskNo: 'YT-2026-0001',
     taskType: 'DEVANNING',
-    yardStatus: 'DOCK_WORKING',
-    dockId: 3010002,
-    dockCode: 'DOC-LA-002',
+    yardStatus: 'DEVANNING',
+    dockId: 3010001,
+    dockCode: 'DOC-LA-001',
     gateInTime: '2026-05-28 08:30:00',
-    dockStartTime: '2026-05-28 09:00:00'
+    dockStartTime: '2026-05-28 09:00:00',
+    operationProgress: 35
   }),
   task({
     id: 100002,
     yardTaskNo: 'YT-2026-0002',
     taskType: 'DELIVERY_LOADING',
-    yardStatus: 'WAITING',
+    yardStatus: 'LOADING',
+    dockId: 3010002,
+    dockCode: 'DOC-LA-002',
     containerNo: null,
     truckNo: 'CA-TRK-002',
-    remark: '院内搬运'
+    gateInTime: '2026-05-28 08:45:00',
+    dockStartTime: '2026-05-28 09:10:00',
+    operationProgress: 45,
+    remark: '派送装车'
   }),
   task({
     id: 100003,
@@ -166,28 +172,41 @@ export function getYmsInternalTaskList(params?: Record<string, any>) {
   return mockPage(MOCK_YMS_INTERNAL_TASKS, params);
 }
 
-export function getYmsDispatchStats(): Api.Yms.DispatchStats {
+function filterTasksByGroup(taskGroup?: string) {
+  if (taskGroup === 'LOADING') {
+    return MOCK_YMS_DISPATCH.filter(t => t.taskType.includes('LOADING'));
+  }
+  if (taskGroup === 'DEVANNING') {
+    return MOCK_YMS_DISPATCH.filter(t => t.taskType === 'DEVANNING');
+  }
+  return MOCK_YMS_DISPATCH;
+}
+
+export function getYmsDispatchStats(params?: Record<string, any>): Api.Yms.DispatchStats {
+  const rows = filterTasksByGroup(params?.taskGroup);
   const devanning = MOCK_YMS_DISPATCH.filter(t => t.taskType === 'DEVANNING').length;
   const loading = MOCK_YMS_DISPATCH.filter(t => t.taskType.includes('LOADING')).length;
-  const working = MOCK_YMS_DISPATCH.filter(t =>
+  const working = rows.filter(t =>
     ['DOCK_WORKING', 'DEVANNING', 'LOADING', 'OPERATION_PAUSED'].includes(t.yardStatus)
   ).length;
-  const waiting = MOCK_YMS_DISPATCH.filter(t =>
+  const waiting = rows.filter(t =>
     ['ARRIVED', 'WAITING', 'QUEUED', 'DOCK_ASSIGNED'].includes(t.yardStatus)
   ).length;
-  const finished = MOCK_YMS_DISPATCH.filter(t =>
+  const finished = rows.filter(t =>
     ['OPERATION_FINISHED', 'RELEASED', 'LEFT_YARD'].includes(t.yardStatus)
   ).length;
+  const totalDocks = params?.taskGroup === 'LOADING' ? 2 : params?.taskGroup === 'DEVANNING' ? 2 : 4;
+  const occupiedDocks = params?.taskGroup === 'LOADING' ? 1 : params?.taskGroup === 'DEVANNING' ? 1 : 2;
   return {
-    totalTasks: MOCK_YMS_DISPATCH.length,
+    totalTasks: rows.length,
     waitingTasks: waiting,
     workingTasks: working,
     devanningTasks: devanning,
     loadingTasks: loading,
     finishedTasks: finished,
     inYardVehicles: 3,
-    totalDocks: 4,
-    occupiedDocks: 1
+    totalDocks,
+    occupiedDocks
   };
 }
 
@@ -216,44 +235,84 @@ export function getYmsOverview(): Api.Yms.Overview {
   };
 }
 
-export function getYmsDockBoard(): Api.Yms.DockBoard[] {
-  const active = MOCK_YMS_DISPATCH.find(t => t.dockId === 3010002);
-  return [
-    {
-      id: 3010001,
-      dockCode: 'DOC-LA-001',
-      dockName: 'LA 装车口 2',
-      dockType: 'DEVANNING',
-      dockLocation: '前院',
-      gridRow: 1,
-      gridCol: 1,
-      dockStatus: 'IDLE',
-      enableQueue: 1,
-      maxQueueCount: 3,
-      sortOrder: 1,
-      enabledFlag: 1,
-      activeTask: null,
-      incomingTasks: [],
-      queuedTasks: []
-    },
-    {
-      id: 3010002,
-      dockCode: 'DOC-LA-002',
-      dockName: 'LA 装车口 2',
-      dockType: 'LOADING',
-      dockLocation: '前院',
-      gridRow: 1,
-      gridCol: 2,
-      dockStatus: 'OCCUPIED',
-      enableQueue: 1,
-      maxQueueCount: 2,
-      sortOrder: 2,
-      enabledFlag: 1,
-      activeTask: active ?? null,
-      incomingTasks: [],
-      queuedTasks: MOCK_YMS_DISPATCH.filter(t => t.yardStatus === 'WAITING').slice(0, 1)
-    }
-  ];
+const DEVANNING_DOCK_BOARD: Api.Yms.DockBoard[] = [
+  {
+    id: 3010001,
+    dockCode: 'DOC-LA-001',
+    dockName: 'LA 拆柜口 1',
+    dockType: 'DEVANNING',
+    dockLocation: '前院',
+    gridRow: 1,
+    gridCol: 1,
+    dockStatus: 'OCCUPIED',
+    enableQueue: 1,
+    maxQueueCount: 3,
+    sortOrder: 1,
+    enabledFlag: 1,
+    activeTask: MOCK_YMS_DISPATCH.find(t => t.id === 100001) ?? null,
+    incomingTasks: [],
+    queuedTasks: MOCK_YMS_DISPATCH.filter(t => t.taskType === 'DEVANNING' && t.yardStatus === 'ARRIVED')
+  },
+  {
+    id: 3010005,
+    dockCode: 'DOC-LA-005',
+    dockName: 'LA 拆柜口 2',
+    dockType: 'CONTAINER_DOCK',
+    dockLocation: '前院',
+    gridRow: 1,
+    gridCol: 2,
+    dockStatus: 'IDLE',
+    enableQueue: 1,
+    maxQueueCount: 2,
+    sortOrder: 2,
+    enabledFlag: 1,
+    activeTask: null,
+    incomingTasks: [],
+    queuedTasks: []
+  }
+];
+
+const LOADING_DOCK_BOARD: Api.Yms.DockBoard[] = [
+  {
+    id: 3010002,
+    dockCode: 'DOC-LA-002',
+    dockName: 'LA 装车口 1',
+    dockType: 'TRUCK_DOCK',
+    dockLocation: '前院',
+    gridRow: 1,
+    gridCol: 1,
+    dockStatus: 'OCCUPIED',
+    enableQueue: 1,
+    maxQueueCount: 2,
+    sortOrder: 1,
+    enabledFlag: 1,
+    activeTask: MOCK_YMS_DISPATCH.find(t => t.id === 100002) ?? null,
+    incomingTasks: [],
+    queuedTasks: []
+  },
+  {
+    id: 3010003,
+    dockCode: 'DOC-LA-003',
+    dockName: 'LA 装车口 2',
+    dockType: 'TRUCK_DOCK',
+    dockLocation: '前院',
+    gridRow: 1,
+    gridCol: 2,
+    dockStatus: 'IDLE',
+    enableQueue: 1,
+    maxQueueCount: 3,
+    sortOrder: 2,
+    enabledFlag: 1,
+    activeTask: null,
+    incomingTasks: [],
+    queuedTasks: MOCK_YMS_DISPATCH.filter(t => t.taskType.includes('LOADING') && t.yardStatus === 'PRE_ARRIVAL')
+  }
+];
+
+export function getYmsDockBoard(params?: Record<string, any>): Api.Yms.DockBoard[] {
+  if (params?.taskGroup === 'LOADING') return LOADING_DOCK_BOARD;
+  if (params?.taskGroup === 'DEVANNING') return DEVANNING_DOCK_BOARD;
+  return [...DEVANNING_DOCK_BOARD, ...LOADING_DOCK_BOARD];
 }
 
 export function getYmsInternalTaskBoard(): Api.Yms.InternalTaskBoardColumn[] {

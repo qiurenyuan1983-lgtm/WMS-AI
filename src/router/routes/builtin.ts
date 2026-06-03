@@ -1,5 +1,5 @@
 import type { CustomRoute } from '@elegant-router/types';
-import { layouts, views } from '../elegant/imports';
+import { layouts, views } from '../elegant/view-registry';
 import { getRoutePath, transformElegantRoutesToVueRoutes } from '../elegant/transform';
 
 export const ROOT_ROUTE: CustomRoute = {

@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router';
 import DockBoardPanel from './DockBoardPanel.vue';
 import TaskListPanel from './TaskListPanel.vue';
 import { YMS_ROUTE, ymsTo } from '../../shared/yms-route';
+import { getTaskDisplayNo } from './dispatch-meta';
 
 const props = defineProps<{
   taskGroup: 'DEVANNING' | 'LOADING';
@@ -149,7 +150,7 @@ const statItems = computed(() => {
       class="flex-shrink-0 px-16px py-8px rounded-6px bg-blue-50 border border-blue-200 text-sm flex items-center gap-8px"
     >
       <span class="text-blue-600 font-medium">
-        已选中：{{ _selectedTask.containerNo || _selectedTask.sourceOrderNo || _selectedTask.yardTaskNo }}
+        已选中：{{ getTaskDisplayNo(_selectedTask, taskGroup) }}
       </span>
       <span class="text-gray-500">点击空闲Dock可直接分配</span>
       <NButton size="tiny" @click="_selectedTask = null">取消选中</NButton>

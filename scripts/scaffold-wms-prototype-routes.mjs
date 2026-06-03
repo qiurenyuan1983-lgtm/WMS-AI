@@ -49,6 +49,7 @@ const newRoutes = [
   { name: 'wms_stock-prep-exec', path: '/wms/stock-prep-exec', folder: 'wms/stock-prep-exec', layout: 'blank' },
   { name: 'wms_devanning-order-detail', path: '/wms/devanning-order/detail', folder: 'wms/devanning-order-detail' },
   { name: 'wms_devanning-work', path: '/wms/devanning-work', folder: 'wms/devanning-work', layout: 'blank' },
+  { name: 'wms_devanning-work-exec', path: '/wms/devanning-work-exec', folder: 'wms/devanning-work-exec' },
   { name: 'wms_outbound-exec', path: '/wms/outbound-exec', folder: 'wms/outbound-exec', layout: 'blank' },
   { name: 'wms_outbound-loading', path: '/wms/outbound-loading', folder: 'wms/outbound-loading', layout: 'blank' },
   { name: 'pda_home', path: '/pda/home', folder: 'pda/home', layout: 'blank' },

@@ -8,12 +8,37 @@ defineOptions({ name: 'PdaTask' });
 const route = useRoute();
 const router = useRouter();
 
+const TASK_TITLES: Record<string, string> = {
+  receive: '收货',
+  move: '库位变更',
+  merge: '合板',
+  split: '拆板',
+  operation: '订单操作',
+  count: '盘点',
+  pick: '指令拣货',
+  exception: '异常处理'
+};
+
+const BIZ_LABELS: Record<string, string> = {
+  transfer: '转运',
+  transit: '中转',
+  dropship: '一件代发'
+};
+
 const pageTitle = computed(() => {
   const t = String(route.query.taskType || '');
-  return ({"receive":"收货","move":"库位变更","merge":"合板","split":"拆板","operation":"指令操作","count":"库存盘点","pick":"拣货","default":"统一任务"} as Record<string, string>)[t] || titles.default;
+  const biz = String(route.query.biz || '');
+  const taskLabel = TASK_TITLES[t] || '统一任务';
+  const bizLabel = BIZ_LABELS[biz];
+  return bizLabel ? `${bizLabel} · ${taskLabel}` : taskLabel;
 });
 
-function goHome() {
+function goBack() {
+  const biz = String(route.query.biz || '');
+  if (biz) {
+    router.push({ name: 'pda_business', query: { biz } });
+    return;
+  }
   router.push({ name: 'pda_home' });
 }
 </script>
@@ -22,7 +47,7 @@ function goHome() {
   <PdaPhoneShell>
     <div class="pda-task-app">
       <header class="pda-task-header">
-        <button type="button" class="pda-task-back" @click="goHome">&larr; 返回</button>
+        <button type="button" class="pda-task-back" @click="goBack">&larr; 返回</button>
         <h2 class="pda-task-title">{{ pageTitle }}</h2>
       </header>
       <section class="pda-task-card">

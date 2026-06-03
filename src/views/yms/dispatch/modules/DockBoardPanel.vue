@@ -6,7 +6,7 @@ import {
   fetchGetFreeDocks, fetchPauseWork, fetchRelease, fetchResumeWork, fetchStartWork
 } from '@/service/api/yms/dispatch';
 import { useAuth } from '@/hooks/business/auth';
-import { DOCK_TYPE_LABEL } from './dispatch-meta';
+import { DOCK_TYPE_LABEL, getTaskDisplayNo } from './dispatch-meta';
 
 const props = withDefaults(defineProps<{
   warehouseId: CommonType.IdType | null;
@@ -44,6 +44,13 @@ const TASK_TYPE_LABEL: Record<string, string> = {
   TRANSFER_LOADING: '调拨装车', PICKUP_LOADING: '自提装车',
   RETURN_LOADING: '退货装车', OTHER: '其他',
 };
+
+function taskTypeLabel(task: Api.Yms.YardTask) {
+  if (props.taskGroup === 'LOADING' && task.taskType !== 'DEVANNING') {
+    return TASK_TYPE_LABEL[task.taskType] || '装车任务';
+  }
+  return TASK_TYPE_LABEL[task.taskType] || task.taskType;
+}
 
 // ─── 数据 ────────────────────────────────────────────────────────────
 
@@ -295,7 +302,7 @@ async function onDrop(e: DragEvent, dock: Api.Yms.DockBoard) {
   const task = JSON.parse(raw);
   const { error } = await fetchAssignDock({ yardTaskId: task.id, dockId: dock.id });
   if (!error) {
-    window.$message?.success(`已将 ${task.containerNo || task.sourceOrderNo || task.yardTaskNo} 分配至 ${dock.dockCode}；如资源不在道口会生成 YardGo 上口任务`);
+    window.$message?.success(`已将 ${getTaskDisplayNo(task, props.taskGroup)} 分配至 ${dock.dockCode}；如资源不在道口会生成 YardGo 上口任务`);
     emit('assigned');
     reload();
   }
@@ -364,10 +371,10 @@ defineExpose({ reload });
           <!-- 作业中 -->
           <div v-else-if="dock.activeTask" class="active-task">
             <div class="font-mono font-semibold text-12px text-orange-700 truncate">
-              {{ dock.activeTask.containerNo || dock.activeTask.sourceOrderNo }}
+              {{ getTaskDisplayNo(dock.activeTask, taskGroup) }}
             </div>
             <div class="text-11px text-gray-500 mt-1px truncate">
-              {{ TASK_TYPE_LABEL[dock.activeTask.taskType] }}
+              {{ taskTypeLabel(dock.activeTask) }}
               <span v-if="dock.activeTask.dockStartTime" class="ml-4px text-orange-500">
                 {{ formatElapsed(dock.activeTask.dockStartTime) }}
               </span>
@@ -414,7 +421,7 @@ defineExpose({ reload });
             <div class="text-10px text-blue-500 mb-2px">YardGo调入 {{ dock.incomingTasks.length }}</div>
             <div v-for="(it, i) in dock.incomingTasks" :key="it.id"
               class="text-11px text-blue-700 font-mono py-1px">
-              {{ i + 1 }}. {{ it.containerNo || it.sourceOrderNo }}
+              {{ i + 1 }}. {{ getTaskDisplayNo(it, taskGroup) }}
               <span class="text-10px text-gray-500">
                 · {{ INTERNAL_TASK_STATUS_LABEL[it.openInternalTaskStatus || ''] || it.openInternalTaskStatus || '待处理' }}
               </span>
@@ -428,7 +435,7 @@ defineExpose({ reload });
             </div>
             <div v-for="(qt, i) in dock.queuedTasks" :key="qt.id"
               class="text-11px text-gray-600 font-mono py-1px">
-              {{ i + 1 }}. {{ qt.containerNo || qt.sourceOrderNo }}
+              {{ i + 1 }}. {{ getTaskDisplayNo(qt, taskGroup) }}
             </div>
           </div>
         </div>
@@ -459,10 +466,10 @@ defineExpose({ reload });
             <div class="flex items-start justify-between mb-8px">
               <div>
                 <div class="font-mono font-semibold text-14px text-orange-700">
-                  {{ drawerDock.activeTask.containerNo || drawerDock.activeTask.sourceOrderNo || drawerDock.activeTask.yardTaskNo }}
+                  {{ getTaskDisplayNo(drawerDock.activeTask, taskGroup) }}
                 </div>
                 <div class="text-12px text-gray-500 mt-2px">
-                  {{ TASK_TYPE_LABEL[drawerDock.activeTask.taskType] || drawerDock.activeTask.taskType }}
+                  {{ taskTypeLabel(drawerDock.activeTask) }}
                   <span v-if="drawerDock.activeTask.dockStartTime" class="ml-6px text-orange-500">
                     {{ formatElapsed(drawerDock.activeTask.dockStartTime) }}
                   </span>
@@ -521,7 +528,7 @@ defineExpose({ reload });
               <div>
                 <span class="text-12px text-gray-400 mr-6px">{{ i + 1 }}.</span>
                 <span class="font-mono font-semibold text-13px">
-                  {{ it.containerNo || it.sourceOrderNo || it.yardTaskNo }}
+                  {{ getTaskDisplayNo(it, taskGroup) }}
                 </span>
                 <div class="text-11px text-gray-400 mt-2px">
                   目标 {{ it.openInternalTaskTargetCode || drawerDock.dockCode }}
@@ -540,10 +547,10 @@ defineExpose({ reload });
               <div>
                 <span class="text-12px text-gray-400 mr-6px">{{ i + 1 }}.</span>
                 <span class="font-mono font-semibold text-13px">
-                  {{ qt.containerNo || qt.sourceOrderNo || qt.yardTaskNo }}
+                  {{ getTaskDisplayNo(qt, taskGroup) }}
                 </span>
                 <div class="text-11px text-gray-400 mt-2px">
-                  {{ TASK_TYPE_LABEL[qt.taskType] || qt.taskType }}
+                  {{ taskTypeLabel(qt) }}
                 </div>
               </div>
               <NPopconfirm @positive-click="handleCancelQueue(qt.id)">
@@ -593,14 +600,14 @@ defineExpose({ reload });
 <style scoped>
 .dock-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
 }
 .dock-card {
   border: 1.5px solid #e5e7eb;
   border-radius: 6px;
-  padding: 7px 9px;
-  min-height: 70px;
+  padding: 8px 12px;
+  min-height: 72px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .dock-card.dock-selectable { cursor: pointer; border-style: dashed !important; }

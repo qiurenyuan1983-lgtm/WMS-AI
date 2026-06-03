@@ -67,6 +67,10 @@ export type WorkPallet = {
   status: 'DONE';
   statusLabel: string;
   createTime: string;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  weightKg?: number;
 };
 
 export type DevanningWorkSession = {
@@ -686,6 +690,95 @@ export function palletizeSelection(
     items: palletItems
   });
   return getDevanningWorkSession(tid);
+}
+
+/** 人工拆柜：按目的地分组录入尺寸重量后生成板贴 */
+export function createGroupPalletLabel(
+  taskId: number | string,
+  payload: {
+    groupCode: string;
+    qty: number;
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    weightKg: number;
+  }
+) {
+  const tid = Number(taskId);
+  const devanningOrder = MOCK_WMS_DEVANNING_ORDERS.find(d => d.id === tid) as any;
+  if (!devanningOrder) throw new Error('\u4efb\u52a1\u4e0d\u5b58\u5728');
+  if (devanningOrder.devanningFinishTime || devanningOrder.status === 'DEVANNED') {
+    throw new Error('\u62c6\u67dc\u5df2\u5b8c\u6210');
+  }
+  if (!devanningOrder.devanningStartTime && devanningOrder.status !== 'DEVANNING') {
+    devanningOrder.devanningStartTime = nowStr();
+    devanningOrder.status = 'DEVANNING';
+  }
+
+  const containerOrderId = Number(devanningOrder.sourceOrderId ?? 70001);
+  const session = getDevanningWorkSession(tid);
+  const group = session?.groups.find(g => g.groupCode === payload.groupCode);
+  if (!group) throw new Error('\u5206\u7ec4\u4e0d\u5b58\u5728');
+
+  let targetOrd: WorkOrder | null = null;
+  for (const ord of group.orders) {
+    const key = orderKey(tid, payload.groupCode, ord.cargoOrderId);
+    const received = orderReceiveState.get(key) || 0;
+    if (received < ord.expectedQty) {
+      targetOrd = ord;
+      break;
+    }
+  }
+  targetOrd = targetOrd || group.orders[0];
+  if (!targetOrd) throw new Error('\u65e0\u53ef\u6536\u8d27\u8ba2\u5355');
+
+  const key = orderKey(tid, payload.groupCode, targetOrd.cargoOrderId);
+  const received = orderReceiveState.get(key) || 0;
+  const remain = targetOrd.expectedQty - received;
+  if (payload.qty <= 0) throw new Error('\u8bf7\u8f93\u5165\u6709\u6548\u6570\u91cf');
+  if (payload.qty > remain) {
+    throw new Error(
+      `\u6570\u91cf\u4e0d\u80fd\u8d85\u8fc7\u5269\u4f59 ${remain} ${targetOrd.qtyUnitLabel}`
+    );
+  }
+
+  const item = buildPalletItem(
+    containerOrderId,
+    payload.groupCode,
+    targetOrd.cargoOrderId,
+    payload.qty,
+    targetOrd
+  );
+
+  const pallets = ensurePallets(tid);
+  const newId = ++palletIdSeq;
+  const palletNo = `PLT-LBL-${String(tid).slice(-4)}-${String(newId).slice(-4)}`;
+  const pallet = normalizePallet({
+    id: newId,
+    palletNo,
+    groupCode: payload.groupCode,
+    items: [item],
+    orderCount: 1,
+    boxQty: item.boxQty,
+    receiveQty: item.receiveQty,
+    receiveUnitLabel: item.receiveUnitLabel,
+    status: 'DONE',
+    statusLabel: '\u5df2\u5b8c\u6210',
+    createTime: nowStr(),
+    lengthCm: payload.lengthCm,
+    widthCm: payload.widthCm,
+    heightCm: payload.heightCm,
+    weightKg: payload.weightKg
+  });
+  pallets.push(pallet);
+
+  orderReceiveState.set(key, received + payload.qty);
+  orderPalletizedState.set(key, (orderPalletizedState.get(key) || 0) + payload.qty);
+
+  return {
+    session: getDevanningWorkSession(tid),
+    pallet
+  };
 }
 
 export function receiveByBox(

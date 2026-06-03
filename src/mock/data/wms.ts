@@ -48,7 +48,7 @@ export const MOCK_WMS_DEVANNING_ORDERS = [
     actualPickupTime: '2026-05-25 09:30:00',
     plannedArrivalTime: '2026-05-25 14:00:00',
     actualArrivalTime: '2026-05-25 15:00:00',
-    remark: '?±√?????????',
+    remark: '?ùù?????????',
     customerName: '?????? A',
     channelName: '??????',
     customerServiceName: '???????',
@@ -229,19 +229,65 @@ export const MOCK_WMS_DEVANNING_ORDERS = [
 ];
 
 const DEVANNING_EXTRA: Record<number, Record<string, unknown>> = {
-  60401: { totalWeight: 12500, totalCbm: 68.5, inboundedPalletQty: 28, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE', plannedTruckQty: 3, plannedCbm: 65.2, devanningRound: 1, attachmentCount: 2 },
-  60402: { totalWeight: 8000, totalCbm: 42.3, inboundedPalletQty: 0, examStatus: 'EXAMINING', terminalReleaseStatus: 'HOLD', plannedTruckQty: 2, plannedCbm: 40, devanningRound: 1, attachmentCount: 1 },
-  60403: { totalWeight: 7000, totalCbm: 36.8, inboundedPalletQty: 0, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE', plannedTruckQty: 2, plannedCbm: 35, devanningRound: 1, attachmentCount: 2 },
-  60404: { totalWeight: 10000, totalCbm: 52, inboundedPalletQty: 0, examStatus: 'EXAMINING', terminalReleaseStatus: 'HOLD', plannedTruckQty: 3, plannedCbm: 50, devanningRound: 1, attachmentCount: 1 },
-  60405: { totalWeight: 9000, totalCbm: 48.6, inboundedPalletQty: 30, examStatus: 'EXAMINED', terminalReleaseStatus: 'RELEASE', plannedTruckQty: 2, plannedCbm: 46, devanningRound: 1, attachmentCount: 3 },
-  60406: { totalWeight: 5000, totalCbm: 26.4, inboundedPalletQty: 4, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE', plannedTruckQty: 1, plannedCbm: 24, devanningRound: 2, attachmentCount: 1 },
-  60407: { totalWeight: 3750, totalCbm: 19.5, inboundedPalletQty: 0, examStatus: 'NONE', terminalReleaseStatus: 'NONE', plannedTruckQty: 1, plannedCbm: 18, devanningRound: 1, attachmentCount: 0 }
+  60401: {
+    totalWeight: 12500, totalCbm: 68.5, inboundedPalletQty: 28, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE',
+    plannedTruckQty: 3, plannedCbm: 65.2, devanningRound: 1, attachmentCount: 2,
+    timelinessLevel: 'A', devanningRemark: '?????????????', devanningFee: 350,
+    operationStatus: 'ORDER_PRINTED', devanningSupplier: 'LA ????', devanningTeam: 'A ?'
+  },
+  60402: {
+    totalWeight: 8000, totalCbm: 42.3, inboundedPalletQty: 0, examStatus: 'EXAMINING', terminalReleaseStatus: 'HOLD',
+    plannedTruckQty: 2, plannedCbm: 40, devanningRound: 1, attachmentCount: 1,
+    timelinessLevel: 'B', devanningRemark: '???????', devanningFee: 280,
+    operationStatus: 'ORDER_PRINTED', devanningSupplier: 'West Coast Devanning', devanningTeam: 'B ?'
+  },
+  60403: {
+    totalWeight: 7000, totalCbm: 36.8, inboundedPalletQty: 0, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE',
+    plannedTruckQty: 2, plannedCbm: 35, devanningRound: 1, attachmentCount: 2,
+    timelinessLevel: 'A', devanningRemark: null, devanningFee: 320,
+    operationStatus: 'NOT_PRINTED', devanningSupplier: 'LA ????', devanningTeam: 'A ?'
+  },
+  60404: {
+    totalWeight: 10000, totalCbm: 52, inboundedPalletQty: 0, examStatus: 'EXAMINING', terminalReleaseStatus: 'HOLD',
+    plannedTruckQty: 3, plannedCbm: 50, devanningRound: 1, attachmentCount: 1,
+    timelinessLevel: 'C', devanningRemark: '??? Dock', devanningFee: 260,
+    operationStatus: 'NOT_PRINTED', devanningSupplier: 'Harbor Devanning Co.', devanningTeam: 'C ?'
+  },
+  60405: {
+    totalWeight: 9000, totalCbm: 48.6, inboundedPalletQty: 30, examStatus: 'EXAMINED', terminalReleaseStatus: 'RELEASE',
+    plannedTruckQty: 2, plannedCbm: 46, devanningRound: 1, attachmentCount: 3,
+    timelinessLevel: 'B', devanningRemark: '????????', devanningFee: 310,
+    operationStatus: 'ORDER_PRINTED', devanningSupplier: 'LA ????', devanningTeam: 'B ?', devanningProgressPercent: 100
+  },
+  60406: {
+    totalWeight: 5000, totalCbm: 26.4, inboundedPalletQty: 4, examStatus: 'NONE', terminalReleaseStatus: 'RELEASE',
+    plannedTruckQty: 1, plannedCbm: 24, devanningRound: 2, attachmentCount: 1,
+    timelinessLevel: 'B', devanningRemark: '????', devanningFee: 180,
+    operationStatus: 'ORDER_PRINTED', devanningSupplier: 'Inland Devanning', devanningTeam: 'A ?', devanningProgressPercent: 35
+  },
+  60407: {
+    totalWeight: 3750, totalCbm: 19.5, inboundedPalletQty: 0, examStatus: 'NONE', terminalReleaseStatus: 'NONE',
+    plannedTruckQty: 1, plannedCbm: 18, devanningRound: 1, attachmentCount: 0,
+    timelinessLevel: 'C', devanningRemark: null, devanningFee: 150,
+    operationStatus: 'NOT_PRINTED', devanningSupplier: null, devanningTeam: null, devanningProgressPercent: 0
+  }
 };
 
 function enrichDevanningRow(row: (typeof MOCK_WMS_DEVANNING_ORDERS)[number]) {
   const extra = DEVANNING_EXTRA[row.id] || {};
   const boxQty = Number(row.totalBoxQty || 0);
   const inbounded = Number(row.inboundedBoxQty || 0);
+  const explicitProgress = (row as any).devanningProgressPercent ?? extra.devanningProgressPercent;
+  let devanningProgressPercent: number;
+  if (explicitProgress != null) {
+    devanningProgressPercent = Number(explicitProgress);
+  } else if (row.status === 'DEVANNED') {
+    devanningProgressPercent = 100;
+  } else if (boxQty > 0) {
+    devanningProgressPercent = Math.min(100, Math.round((inbounded / boxQty) * 100));
+  } else {
+    devanningProgressPercent = 0;
+  }
   return {
     ...row,
     totalWeight: (row as any).totalWeight ?? extra.totalWeight ?? Math.round(boxQty * 25),
@@ -252,7 +298,14 @@ function enrichDevanningRow(row: (typeof MOCK_WMS_DEVANNING_ORDERS)[number]) {
     plannedTruckQty: (row as any).plannedTruckQty ?? extra.plannedTruckQty ?? 2,
     plannedCbm: (row as any).plannedCbm ?? extra.plannedCbm ?? Number((boxQty * 0.07).toFixed(2)),
     devanningRound: (row as any).devanningRound ?? extra.devanningRound ?? 1,
-    attachmentCount: (row as any).attachmentCount ?? extra.attachmentCount ?? (row.sourceOrderType === 'CONTAINER_ORDER' ? 2 : 0)
+    attachmentCount: (row as any).attachmentCount ?? extra.attachmentCount ?? (row.sourceOrderType === 'CONTAINER_ORDER' ? 2 : 0),
+    timelinessLevel: (row as any).timelinessLevel ?? extra.timelinessLevel ?? 'B',
+    devanningRemark: (row as any).devanningRemark ?? extra.devanningRemark ?? null,
+    devanningFee: (row as any).devanningFee ?? extra.devanningFee ?? null,
+    operationStatus: (row as any).operationStatus ?? extra.operationStatus ?? 'NOT_PRINTED',
+    devanningSupplier: (row as any).devanningSupplier ?? extra.devanningSupplier ?? null,
+    devanningTeam: (row as any).devanningTeam ?? extra.devanningTeam ?? null,
+    devanningProgressPercent
   };
 }
 

@@ -87,6 +87,24 @@ export function fetchCreateDevanningWorkPallet(
   });
 }
 
+export function fetchCreateDevanningGroupPalletLabel(
+  taskId: CommonType.IdType,
+  data: {
+    groupCode: string;
+    qty: number;
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    weightKg: number;
+  }
+) {
+  return request<Api.Wms.DevanningGroupPalletLabelResult>({
+    url: '/wms/devanning-work/pallet/label',
+    method: 'post',
+    data: { taskId, ...data }
+  });
+}
+
 export function fetchDeleteDevanningWorkPallet(taskId: CommonType.IdType, palletId: number) {
   return request<Api.Wms.DevanningWorkSession>({
     url: `/wms/devanning-work/pallet/${palletId}`,

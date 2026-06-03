@@ -12,10 +12,20 @@ export const DOCK_TYPE_LABEL: Record<string, string> = {
   SELF_PICKUP_DOCK: '自提Dock',
   MIXED_DOCK:       '混合Dock',
   UNLOADING:        '卸货Dock',
-  LOADING:          '装货Dock',
+  LOADING:          '装车Dock',
   DEVANNING:        '拆柜Dock',
 };
 
 export function isLoadingTaskType(taskType: string | null | undefined): boolean {
   return !!taskType && taskType !== 'DEVANNING' && taskType !== 'OTHER';
+}
+
+/** 列表 / Dock 看板主标识：装车用车次号，拆柜用柜号 */
+export function getTaskDisplayNo(
+  task: Pick<Api.Yms.YardTask, 'yardTaskNo' | 'truckNo' | 'sourceOrderNo' | 'containerNo' | 'taskType'>,
+  taskGroup?: '' | 'DEVANNING' | 'LOADING'
+): string {
+  const loading = taskGroup === 'LOADING' || (taskGroup !== 'DEVANNING' && isLoadingTaskType(task.taskType));
+  if (loading) return task.yardTaskNo || task.truckNo || task.sourceOrderNo || '--';
+  return task.containerNo || task.sourceOrderNo || task.yardTaskNo || '--';
 }

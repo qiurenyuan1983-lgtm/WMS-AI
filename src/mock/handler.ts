@@ -5,6 +5,7 @@ import * as baseData from './data/base';
 import * as wmsData from './data/wms';
 import * as wmsPrototypeData from './data/wms-prototype';
 import * as omsData from './data/oms';
+import * as omsPlatformAppointmentData from './data/oms-platform-appointment';
 import * as omsContainerCargo from './data/oms-container-cargo';
 import * as inboundPlanData from './data/inbound-plan';
 import * as ymsData from './data/yms';
@@ -122,6 +123,12 @@ const EXACT_HANDLERS: Record<string, MockHandler> = {
   '/oms/outbound-pool/list': config => omsData.getCargoOrderList(getParams(config)),
   '/oms/outbound-pool/stats': () => omsData.getOutboundPoolStats(),
   '/oms/pre-outbound/list': config => mockEmptyPage(getParams(config)),
+  '/oms/platform-appointment/list': config => omsPlatformAppointmentData.getPlatformAppointmentList(getParams(config)),
+  '/oms/platform-appointment/status-count': config => {
+    const params = getParams(config);
+    const { status: _status, ...rest } = params || {};
+    return omsPlatformAppointmentData.getPlatformAppointmentStatusCount(rest);
+  },
   '/wms/inbound-plan/list': config => mockEmptyPage(getParams(config)),
   '/wms/inbound-plan/get-or-create': config => inboundPlanData.getOrCreateInboundPlan(getParams(config)),
   '/oms/cargoGroupingRule/list': config => inboundPlanData.getCargoGroupingRuleList(getParams(config)),
@@ -130,8 +137,8 @@ const EXACT_HANDLERS: Record<string, MockHandler> = {
 
   // ---------- YMS ----------
   '/yms/dispatch/list': config => ymsData.getYmsDispatchList(getParams(config)),
-  '/yms/dispatch/stats': () => ymsData.getYmsDispatchStats(),
-  '/yms/dispatch/dock-board': () => ymsData.getYmsDockBoard(),
+  '/yms/dispatch/stats': config => ymsData.getYmsDispatchStats(getParams(config)),
+  '/yms/dispatch/dock-board': config => ymsData.getYmsDockBoard(getParams(config)),
   '/yms/internal-task/board': () => ymsData.getYmsInternalTaskBoard(),
   '/yms/gate/list': config => mockEmptyPage(getParams(config)),
   '/yms/gate/in-yard': config => mockEmptyPage(getParams(config)),
@@ -276,6 +283,17 @@ function matchPattern(url: string, config: CustomAxiosRequestConfig): any {
     return session;
   }
 
+  if (method === 'post' && url === '/wms/devanning-work/pallet/label') {
+    return devanningWorkData.createGroupPalletLabel(body?.taskId, {
+      groupCode: String(body?.groupCode || ''),
+      qty: Number(body?.qty || 0),
+      lengthCm: Number(body?.lengthCm || 0),
+      widthCm: Number(body?.widthCm || 0),
+      heightCm: Number(body?.heightCm || 0),
+      weightKg: Number(body?.weightKg || 0)
+    });
+  }
+
   const devanningPalletDelete = url.match(/^\/wms\/devanning-work\/pallet\/(\d+)$/);
   if (devanningPalletDelete && method === 'delete') {
     const session = devanningWorkData.deleteWorkPallet(
@@ -321,6 +339,29 @@ function matchPattern(url: string, config: CustomAxiosRequestConfig): any {
     const session = devanningWorkData.completeDevanningWork(body?.taskId);
     if (!session) throw new Error('complete failed');
     return session;
+  }
+
+  const platformApptInboundLines = url.match(/^\/oms\/platform-appointment\/(\d+)\/inbound-lines$/);
+  if (platformApptInboundLines && method === 'get') {
+    return omsPlatformAppointmentData.getPlatformAppointmentInboundLines(platformApptInboundLines[1]);
+  }
+
+  const platformApptPreOutboundLines = url.match(/^\/oms\/platform-appointment\/(\d+)\/pre-outbound-lines$/);
+  if (platformApptPreOutboundLines && method === 'get') {
+    return omsPlatformAppointmentData.getPlatformAppointmentPreOutboundLines(
+      platformApptPreOutboundLines[1],
+      getParams(config)
+    );
+  }
+
+  const platformApptCreateOutbound = url.match(/^\/oms\/platform-appointment\/(\d+)\/create-outbound$/);
+  if (platformApptCreateOutbound && method === 'post') {
+    return omsPlatformAppointmentData.createPlatformAppointmentOutbound(platformApptCreateOutbound[1], body);
+  }
+
+  const platformApptCreatePreOutbound = url.match(/^\/oms\/platform-appointment\/(\d+)\/create-pre-outbound$/);
+  if (platformApptCreatePreOutbound && method === 'post') {
+    return omsPlatformAppointmentData.createPlatformAppointmentPreOutbound(platformApptCreatePreOutbound[1], body);
   }
 
   // ???????
@@ -416,6 +457,7 @@ function findDetailMock(url: string, id: string) {
     return omsContainerCargo.getCargoOrderDetail(id) ?? omsData.MOCK_CARGO_ORDERS.find(c => c.id === numId);
   }
   if (url.startsWith('/oms/outbound-order/')) return omsData.MOCK_OUTBOUND_ORDERS.find(o => o.id === numId);
+  if (url.startsWith('/oms/platform-appointment/')) return omsPlatformAppointmentData.getPlatformAppointmentDetail(id);
   if (url.startsWith('/yms/dispatch/')) return ymsData.MOCK_YMS_DISPATCH.find(t => t.id === numId);
   if (url.startsWith('/yms/internal-task/')) return ymsData.MOCK_YMS_INTERNAL_TASKS.find(t => t.id === numId);
   if (url.startsWith('/yms/trailer/')) return ymsData.MOCK_YMS_TRAILERS.find(t => t.id === numId);

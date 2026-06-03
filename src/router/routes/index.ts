@@ -2,8 +2,9 @@ import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-rout
 import { isMockMode } from '@/mock/enable';
 import { buildPrototypeAuthRoutes } from '@/mock/auth-routes';
 import { generatedRoutes } from '../elegant/routes';
-import { layouts, views } from '../elegant/imports';
+import { layouts, views } from '../elegant/view-registry';
 import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
+import { getRoutesWithPersistentChildren } from '../persistent-routes';
 
 /**
  * custom routes
@@ -18,7 +19,7 @@ export function createStaticRoutes() {
 
   const authRoutes: ElegantRoute[] = [];
 
-  const sourceRoutes = isMockMode() ? buildPrototypeAuthRoutes() : generatedRoutes;
+  const sourceRoutes = isMockMode() ? buildPrototypeAuthRoutes() : getRoutesWithPersistentChildren(generatedRoutes);
 
   [...customRoutes, ...sourceRoutes].forEach(item => {
     if (item.meta?.constant) {

@@ -4,9 +4,7 @@ import type { SelectOption } from 'naive-ui';
 import { useLoading } from '@sa/hooks';
 import CryptoJS from 'crypto-js';
 import { fetchCaptchaCode, fetchTenantList } from '@/service/api';
-import { fetchSocialAuthBinding } from '@/service/api/system';
 import { useAuthStore } from '@/store/modules/auth';
-import { useRouterPush } from '@/hooks/common/router';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { localStg } from '@/utils/storage';
 import { decryptWithAes, encryptWithAes } from '@/utils/crypto';
@@ -19,18 +17,14 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
-const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useNaiveForm();
 const { loading: codeLoading, startLoading: startCodeLoading, endLoading: endCodeLoading } = useLoading();
 const { loading: tenantLoading, startLoading: startTenantLoading, endLoading: endTenantLoading } = useLoading();
 
 const codeUrl = ref<string>();
 const captchaEnabled = ref<boolean>(false);
-const registerEnabled = ref<boolean>(false);
 const remberMe = ref<boolean>(false);
-
 const tenantEnabled = ref<boolean>(false);
-
 const tenantOption = ref<SelectOption[]>([]);
 
 const model: Api.Auth.PwdLoginForm = reactive({
@@ -42,17 +36,14 @@ const model: Api.Auth.PwdLoginForm = reactive({
 type RuleKey = Extract<keyof Api.Auth.PwdLoginForm, 'username' | 'password' | 'code' | 'tenantId'>;
 
 const rules = computed<Record<RuleKey, App.Global.FormRule[]>>(() => {
-  // inside computed to make locale reactive, if not apply i18n, you can define it without computed
   const { formRules, createRequiredRule } = useFormRules();
 
-  const loginRules: Record<RuleKey, App.Global.FormRule[]> = {
+  return {
     username: [createRequiredRule($t('form.userName.required'))],
     password: [createRequiredRule($t('form.pwd.required'))],
     code: captchaEnabled.value ? [createRequiredRule($t('form.code.required'))] : [],
     tenantId: tenantEnabled.value ? formRules.tenantId : []
   };
-
-  return loginRules;
 });
 
 async function handleFetchTenantList() {
@@ -61,12 +52,10 @@ async function handleFetchTenantList() {
   if (error) return;
   tenantEnabled.value = data.tenantEnabled;
   if (data.tenantEnabled) {
-    tenantOption.value = data.voList.map(tenant => {
-      return {
-        label: tenant.companyName,
-        value: tenant.tenantId
-      };
-    });
+    tenantOption.value = data.voList.map(tenant => ({
+      label: tenant.companyName,
+      value: tenant.tenantId
+    }));
   }
   endTenantLoading();
 }
@@ -75,12 +64,10 @@ handleFetchTenantList();
 
 async function handleSubmit() {
   await validate();
-  // 勾选了需要记住密码设置在 localStorage 中设置记住用户名和密码
   if (remberMe.value) {
     const { tenantId, username, password } = model;
     localStg.set('loginRember', encryptWithAes(JSON.stringify({ tenantId, username, password }), aesKey));
   } else {
-    // 否则移除
     localStg.remove('loginRember');
   }
   try {
@@ -116,34 +103,29 @@ function handleLoginRember() {
 
 handleLoginRember();
 
-// async function handleRegister() {
-//   const { data, error } = await fetchGetConfigDetail('sys.account.registerUser');
-//   if (error) return;
-//   registerEnabled.value = data.configValue === 'true';
-// }
-
-// handleRegister();
-
-async function handleSocialLogin(type: Api.System.SocialSource) {
-  const { data, error } = await fetchSocialAuthBinding(type, model.tenantId);
-  if (error) return;
-  window.location.href = data;
+function handleSupplierPortal() {
+  window.$message?.info('供应商门户功能即将开放');
 }
 </script>
 
 <template>
-  <div>
-    <div class="mb-5px text-32px text-black font-600 dark:text-white">登录到您的账户</div>
-    <div class="pb-18px text-16px text-#858585">欢迎回来！请输入您的账户信息</div>
+  <div class="forest-pwd-login">
+    <div class="forest-pwd-login-head">
+      <h2 class="forest-pwd-login-title">欢迎登录</h2>
+      <p class="forest-pwd-login-desc">使用企业账号登录系统</p>
+    </div>
+
     <NForm
       ref="formRef"
+      class="forest-pwd-login-form"
       :model="model"
       :rules="rules"
       size="large"
-      :show-label="false"
+      label-placement="top"
+      :show-require-mark="false"
       @keyup.enter="() => !authStore.loginLoading && handleSubmit()"
     >
-      <NFormItem v-if="tenantEnabled" path="tenantId">
+      <NFormItem v-if="tenantEnabled" path="tenantId" label="租户">
         <NSelect
           v-model:value="model.tenantId"
           placeholder="请选择租户"
@@ -151,108 +133,210 @@ async function handleSocialLogin(type: Api.System.SocialSource) {
           :loading="tenantLoading"
         />
       </NFormItem>
-      <NFormItem path="username">
-        <NInput v-model:value="model.username" :placeholder="$t('page.login.common.userNamePlaceholder')" />
-      </NFormItem>
-      <NFormItem path="password">
+
+      <NFormItem path="username" label="账号">
         <NInput
-          v-model:value="model.password"
-          type="password"
-          show-password-on="click"
-          :placeholder="$t('page.login.common.passwordPlaceholder')"
+          v-model:value="model.username"
+          class="forest-field-input"
+          placeholder="请输入账号"
         />
       </NFormItem>
-      <NFormItem v-if="captchaEnabled" path="code">
-        <div class="w-full flex-y-center gap-16px">
-          <NInput v-model:value="model.code" :placeholder="$t('page.login.common.codePlaceholder')" />
-          <NSpin :show="codeLoading" :size="28" class="h-42px">
-            <NButton :focusable="false" class="login-code h-42px w-114px" @click="handleFetchCaptchaCode">
-              <img v-if="codeUrl" :src="codeUrl" />
+
+      <NFormItem path="password" label="密码">
+        <NInput
+          v-model:value="model.password"
+          class="forest-field-input"
+          type="password"
+          show-password-on="click"
+          placeholder="请输入密码"
+        />
+      </NFormItem>
+
+      <NFormItem v-if="captchaEnabled" path="code" label="验证码">
+        <div class="w-full flex-y-center gap-12px">
+          <NInput v-model:value="model.code" class="forest-field-input" placeholder="请输入验证码" />
+          <NSpin :show="codeLoading" :size="28" class="h-48px">
+            <NButton :focusable="false" class="login-code h-48px w-120px" @click="handleFetchCaptchaCode">
+              <img v-if="codeUrl" :src="codeUrl" alt="验证码" />
               <NEmpty v-else :show-icon="false" description="暂无验证码" />
             </NButton>
           </NSpin>
         </div>
       </NFormItem>
-      <NSpace vertical :size="12" class="mb-8px">
-        <div class="mx-6px mb-8px flex-y-center justify-between">
-          <NCheckbox v-model:checked="remberMe" size="large">{{ $t('page.login.pwdLogin.rememberMe') }}</NCheckbox>
-          <NA type="primary" class="text-18px" @click="toggleLoginModule('reset-pwd')">
-            {{ $t('page.login.pwdLogin.forgetPassword') }}
-          </NA>
-        </div>
-        <NButton type="primary" size="large" block :loading="authStore.loginLoading" @click="handleSubmit">
-          {{ $t('common.login') }}
-        </NButton>
-        <NButton v-if="registerEnabled" size="large" block @click="toggleLoginModule('register')">
-          {{ $t('page.login.common.register') }}
-        </NButton>
-      </NSpace>
+
+      <div class="forest-pwd-login-options">
+        <NCheckbox v-model:checked="remberMe" class="forest-remember">记住密码</NCheckbox>
+      </div>
+
+      <NButton
+        type="primary"
+        size="large"
+        block
+        class="forest-login-btn"
+        :loading="authStore.loginLoading"
+        @click="handleSubmit"
+      >
+        登录
+      </NButton>
+
+      <div class="forest-login-divider">
+        <span>或</span>
+      </div>
+
+      <NButton size="large" block class="forest-supplier-btn" @click="handleSupplierPortal">
+        供应商门户
+      </NButton>
     </NForm>
 
-    <NDivider>
-      <div class="color-#858585">{{ $t('page.login.pwdLogin.otherAccountLogin') }}</div>
-    </NDivider>
-
-    <div class="w-full flex-y-center gap-16px">
-      <NButton class="flex-1" @click="handleSocialLogin('gitee')">
-        <template #icon>
-          <icon-simple-icons-gitee class="color-#c71d23" />
-        </template>
-        <span class="ml-6px">Gitee</span>
-      </NButton>
-      <NButton class="flex-1" @click="handleSocialLogin('github')">
-        <template #icon>
-          <icon-mdi-github class="color-#010409" />
-        </template>
-        <span class="ml-6px">GitHub</span>
-      </NButton>
-    </div>
-
-    <div class="mt-24px w-full text-center text-18px text-#858585">
-      您还没有账户？
-      <NA type="primary" class="text-18px" @click="toggleLoginModule('register')">
-        {{ $t('page.login.common.register') }}
-      </NA>
-    </div>
+    <p class="forest-login-footer">
+      遇到问题？
+      <a href="mailto:admin@forest-wms.com" class="forest-login-link">联系管理员</a>
+    </p>
   </div>
 </template>
 
 <style scoped>
+.forest-pwd-login {
+  color: #fff;
+}
+
+.forest-pwd-login-head {
+  margin-bottom: 22px;
+}
+
+.forest-pwd-login-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.forest-pwd-login-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+:deep(.forest-pwd-login-form .n-form-item-label) {
+  padding-bottom: 0;
+}
+
+:deep(.forest-pwd-login-form .n-form-item-label__text) {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.forest-pwd-login-options {
+  margin: 4px 0 18px;
+}
+
+.forest-remember {
+  --n-text-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.forest-login-btn {
+  height: 48px !important;
+  border-radius: 999px !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(90deg, #2563eb, #0284c7) !important;
+  border: none !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+}
+
+.forest-login-divider {
+  position: relative;
+  margin: 20px 0 16px;
+  text-align: center;
+}
+
+.forest-login-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.forest-login-divider span {
+  position: relative;
+  z-index: 1;
+  padding: 0 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+}
+
+.forest-supplier-btn {
+  height: 48px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: none !important;
+}
+
+.forest-login-footer {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.forest-login-link {
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.forest-login-link:hover {
+  text-decoration: underline;
+}
+
 .login-code {
   &.n-button {
     --n-padding: 0 !important;
+    border-radius: 999px !important;
+    overflow: hidden;
   }
 
   img {
-    height: 42px;
-    border-radius: 8px;
+    height: 48px;
+    width: 100%;
+    object-fit: cover;
   }
 }
 
-:deep(.n-base-selection),
-:deep(.n-input) {
-  --n-height: 42px !important;
-  --n-font-size: 16px !important;
-  --n-border-radius: 8px !important;
+:deep(.forest-pwd-login-form .n-form-item) {
+  margin-bottom: 16px;
 }
 
-:deep(.n-base-selection-label) {
-  padding: 0 6px !important;
+:deep(.forest-pwd-login-form .n-form-item-label) {
+  padding-bottom: 0;
 }
 
-:deep(.n-checkbox) {
+:deep(.forest-field-input.n-input),
+:deep(.forest-pwd-login-form .n-base-selection) {
+  --n-height: 48px !important;
+  --n-font-size: 15px !important;
+  --n-border-radius: 999px !important;
+  --n-color: rgba(255, 255, 255, 0.95) !important;
+  --n-border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  --n-box-shadow-focus: 0 0 0 2px rgba(56, 189, 248, 0.35) !important;
+}
+
+:deep(.forest-field-input .n-input__input-el) {
+  color: #0f172a;
+}
+
+:deep(.forest-remember.n-checkbox) {
   --n-size: 18px !important;
-  --n-font-size: 16px !important;
-}
-
-:deep(.n-button) {
-  --n-height: 42px !important;
-  --n-font-size: 18px !important;
-  --n-border-radius: 8px !important;
-}
-
-:deep(.n-divider) {
-  --n-font-size: 16px !important;
-  --n-font-weight: 400 !important;
+  --n-font-size: 14px !important;
+  --n-color-checked: #2563eb !important;
+  --n-border-checked: #2563eb !important;
 }
 </style>

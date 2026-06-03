@@ -1184,5 +1184,79 @@ declare namespace Api {
       itemId: CommonType.IdType;
       groupCode: string | null;
     };
+
+    type PlatformAppointmentStatus = 'UNUSED' | 'USED' | 'DELIVERED' | 'CANCELLED';
+
+    type PlatformAppointment = Common.CommonRecord<{
+      id: CommonType.IdType;
+      platformName: string;
+      warehouseCode: string;
+      appointmentNo: string;
+      appointmentTime: string;
+      appointmentType: string;
+      status: PlatformAppointmentStatus;
+      remark: string | null;
+      tagCodes: string[];
+      existingCargoCbm: number;
+      outboundOrderNo: string | null;
+      preOutboundNo: string | null;
+    }>;
+
+    type PlatformAppointmentTimeFilterField =
+      | 'EXPECTED_ARRIVAL'
+      | 'ETA'
+      | 'PICKUP_APPOINTMENT'
+      | 'AVAILABLE'
+      | 'PICKUP'
+      | 'ACTUAL_ARRIVAL';
+
+    type PlatformAppointmentPreOutboundFilter = {
+      timeField: PlatformAppointmentTimeFilterField;
+      timeStart: number;
+      timeEnd: number;
+      includeInbounded: boolean;
+    };
+
+    type PlatformAppointmentInboundLine = {
+      id: CommonType.IdType;
+      cargoOrderNo: string;
+      containerNo: string;
+      palletNo: string;
+      storageLocation: string;
+      pieceQty: number;
+      weight: number;
+      cbm: number;
+      readiness?: 'INBOUNDED' | 'PENDING';
+    };
+
+    type PlatformAppointmentCreateOutboundResult = {
+      outboundOrderNo: string;
+      appointment: PlatformAppointment;
+    };
+
+    type PlatformAppointmentCreatePreOutboundResult = {
+      preOutboundNo: string;
+      appointment: PlatformAppointment;
+    };
+
+    type PlatformAppointmentSearchParams = CommonType.RecordNullable<
+      {
+        keyword?: string | null;
+        status?: PlatformAppointmentStatus | string | null;
+        platformName?: string | null;
+        warehouseCode?: string | null;
+        appointmentType?: string | null;
+      } & Api.Common.CommonSearchParams
+    >;
+
+    type PlatformAppointmentList = Api.Common.PaginatingQueryRecord<PlatformAppointment>;
+
+    type PlatformAppointmentStatusCount = {
+      total: number;
+      UNUSED: number;
+      USED: number;
+      DELIVERED: number;
+      CANCELLED: number;
+    };
   }
 }

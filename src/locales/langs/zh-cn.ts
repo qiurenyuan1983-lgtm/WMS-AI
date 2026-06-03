@@ -1,6 +1,6 @@
 const local: App.I18n.Schema = {
   system: {
-    title: 'RuoYi Plus Soybean',
+    title: 'FOREST',
     updateTitle: '系统版本更新通知',
     updateContent: '检测到系统有新版本发布，是否立即刷新页面？',
     updateConfirm: '立即刷新',
@@ -338,6 +338,7 @@ const local: App.I18n.Schema = {
     'oms_container-order': '海柜订单',
     'oms_inbound-plan': '入库计划',
     'oms_outbound-pool': '出单工作台',
+    'oms_platform-appointment': '平台预约管理',
     'oms_pre-outbound': '预出单管理',
     'oms_outbound-order': '出库订单',
     wms: 'WMS系统',
@@ -379,6 +380,9 @@ const local: App.I18n.Schema = {
     'wms_outbound-loading': '装车确认',
     pda: 'PDA作业',
     pda_home: 'PDA首页',
+    pda_business: 'PDA业务操作',
+    pda_inbound: 'PDA入库操作',
+    pda_outbound: 'PDA出库操作',
     pda_task: 'PDA任务',
     yms: '园区管理',
     yms_monitor: '监控总览',

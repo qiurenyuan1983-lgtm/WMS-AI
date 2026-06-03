@@ -443,6 +443,12 @@ declare namespace Api {
       dockAssignTime: string | null;
       devanningMethod: string;
       devanningRemark: string | null;
+      timelinessLevel: string | null;
+      devanningFee: number | null;
+      operationStatus: string | null;
+      devanningSupplier: string | null;
+      devanningTeam: string | null;
+      devanningProgressPercent: number | null;
       plannedTruckQty: number | null;
       plannedCbm: number | null;
       totalBoxQty: number | null;
@@ -567,6 +573,15 @@ declare namespace Api {
       status: 'DONE';
       statusLabel: string;
       createTime: string;
+      lengthCm?: number;
+      widthCm?: number;
+      heightCm?: number;
+      weightKg?: number;
+    };
+
+    type DevanningGroupPalletLabelResult = {
+      session: DevanningWorkSession;
+      pallet: DevanningWorkPallet;
     };
 
     type DevanningWorkSession = {
