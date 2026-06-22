@@ -3,6 +3,7 @@ import { NButton, NDropdown, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { useDict } from '@/hooks/business/dict';
 import { displayCargoOrderNo, countValidShipments } from '../utils/container-cargo-order-display';
+import { CARGO_OPERATION_STATUS_META, resolveCargoOperationStatus, type CargoOperationStatus } from '@/utils/oms/operation-status';
 
 export const FULFILLMENT_LABELS: Record<string, string> = {
   IN_TRANSIT: '在途',
@@ -28,7 +29,7 @@ export const FULFILLMENT_LABELS: Record<string, string> = {
 export interface ContainerCargoTableColumnOptions {
   mode: 'detail' | 'draft';
   getBusinessTypeName: (row: Api.Oms.CargoOrder) => string;
-  /** 详情模式：打开货物订单详情抽屉 */
+  /** 详情模式：打开订单详情抽屉 */
   onViewDetail?: (row: Api.Oms.CargoOrder, index: number) => void;
   /** 草稿模式：打开货件编辑抽屉 */
   onOpenShipment?: (row: Api.Oms.CargoOrder, index: number) => void;
@@ -80,18 +81,58 @@ export function useContainerCargoTableColumns(
 
     const baseColumns: DataTableColumns<Api.Oms.CargoOrder> = [
       {
-        title: '货物订单号',
+        title: '订单号',
         key: 'cargoOrderNo',
         width: 165,
         fixed: 'left',
-        render: (row, index) => renderOrderNo(row, index)
+        render: (row, index) => (
+          <div class="flex items-center gap-6px">
+            {renderOrderNo(row, index)}
+            {(row as Api.Oms.CargoOrder & { orderSubType?: string }).orderSubType === 'LOOSE_PALLET' ? (
+              <NTag type="warning" size="small">
+                散板
+              </NTag>
+            ) : null}
+          </div>
+        )
       },
       {
-        title: '货件编码汇总',
-        key: 'shipmentCodes',
-        width: 180,
+        title: '车厢号',
+        key: 'carriageNo',
+        width: 120,
         ellipsis: { tooltip: true },
-        render: row => valText(row.shipmentCodes)
+        render: row =>
+          (row as Api.Oms.CargoOrder & { orderSubType?: string }).orderSubType === 'LOOSE_PALLET'
+            ? valText((row as Api.Oms.CargoOrder & { carriageNo?: string }).carriageNo)
+            : '—'
+      },
+      {
+        title: '卡板数',
+        key: 'declaredPalletQty',
+        width: 80,
+        render: row =>
+          (row as Api.Oms.CargoOrder & { orderSubType?: string }).orderSubType === 'LOOSE_PALLET'
+            ? valText(row.declaredPalletQty)
+            : '—'
+      },
+      {
+        title: '预约送货',
+        key: 'deliveryAppointmentTime',
+        width: 150,
+        render: row =>
+          (row as Api.Oms.CargoOrder & { orderSubType?: string }).orderSubType === 'LOOSE_PALLET'
+            ? valText((row as Api.Oms.CargoOrder & { deliveryAppointmentTime?: string }).deliveryAppointmentTime)
+            : '—'
+      },
+      {
+        title: 'FBA/SKU',
+        key: 'shipmentCodes',
+        width: 220,
+        ellipsis: { tooltip: true },
+        render: row =>
+          (row as Api.Oms.CargoOrder & { orderSubType?: string }).orderSubType === 'LOOSE_PALLET'
+            ? '—'
+            : valText(row.shipmentCodes)
       },
       {
         title: 'PO汇总',
@@ -156,16 +197,15 @@ export function useContainerCargoTableColumns(
       },
       { title: '客户', key: 'customerName', width: 130, ellipsis: { tooltip: true } },
       {
-        title: '履约状态',
-        key: 'fulfillmentStatus',
-        width: 120,
+        title: '操作状态',
+        key: 'operationStatus',
+        width: 140,
         render: row => {
-          if (isDraft || !row.fulfillmentStatus) return '--';
-          return (
-            <NTag type="info" size="small">
-              {FULFILLMENT_LABELS[row.fulfillmentStatus] ?? row.fulfillmentStatus}
-            </NTag>
-          );
+          if (isDraft) return '--';
+          const code = (row.operationStatus ?? resolveCargoOperationStatus(row as Record<string, any>)) as CargoOperationStatus;
+          const meta = CARGO_OPERATION_STATUS_META[code];
+          if (!meta) return '--';
+          return <NTag type={meta.type} size="small">{meta.label}</NTag>;
         }
       },
       {
@@ -240,6 +280,20 @@ export function useContainerCargoTableColumns(
         render: row => valText(row.inboundWarehouseName)
       },
       {
+        title: '系统预库位',
+        key: 'preLocation',
+        width: 120,
+        ellipsis: { tooltip: true },
+        render: row => valText(row.preLocation)
+      },
+      {
+        title: '实际入库',
+        key: 'actualInboundLocation',
+        width: 120,
+        ellipsis: { tooltip: true },
+        render: row => valText(row.actualInboundLocation)
+      },
+      {
         title: '是否转仓',
         key: 'transferFlag',
         width: 80,
@@ -260,6 +314,13 @@ export function useContainerCargoTableColumns(
         width: 110,
         ellipsis: { tooltip: true },
         render: row => valText(row.transferWarehouseCode)
+      },
+      {
+        title: '转仓代码',
+        key: 'transferOutboundWarehouseCode',
+        width: 130,
+        ellipsis: { tooltip: true },
+        render: row => valText(row.transferOutboundWarehouseCode)
       },
       {
         title: 'ETA',
@@ -389,7 +450,7 @@ export function useContainerCargoTableColumns(
             else
               window.$message?.info(
                 key === 'files'
-                  ? '请在货物订单列表/详情中进入文件管理'
+                  ? '请在订单列表/详情中进入文件管理'
                   : '功能开发中，敬请期待'
               );
           };

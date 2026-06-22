@@ -3,80 +3,117 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NButton, NInput } from 'naive-ui';
 import PdaPhoneShell from '@/components/pda/PdaPhoneShell.vue';
+import PdaScanFeedbackBar from '@/components/pda/PdaScanFeedbackBar.vue';
+import { fetchPdaInboundConfirm, fetchPdaInboundScanPallet } from '@/service/api/pda';
+import { BIZ_LABELS, type BusinessKey } from '../shared/business-config';
+import { usePdaScan } from '../shared/pda-scan';
+import { usePdaScanFeedback } from '../shared/pda-scan-feedback';
+import { usePdaBizGuard } from '../shared/use-pda-biz';
 
 defineOptions({ name: 'PdaInbound' });
 
 type InboundStep = 0 | 1 | 2;
 
-type PalletScanInfo = {
-  palletLabelNo: string;
-  destination: string;
-  recommendLocation: string;
-};
-
 const STEPS = ['扫卡板贴', '扫库位码', '确认入库'] as const;
-
-const MOCK_PALLET_POOL: PalletScanInfo[] = [
-  { palletLabelNo: 'PLT-LBL-2026-001', destination: '美西二号仓 · A区', recommendLocation: 'A-01-03' },
-  { palletLabelNo: 'PLT-LBL-2026-002', destination: '美西二号仓 · B区', recommendLocation: 'B-02-08' },
-  { palletLabelNo: 'PLT-LBL-2026-003', destination: '美西二号仓 · C区', recommendLocation: 'C-03-12' }
-];
 
 const route = useRoute();
 const router = useRouter();
+usePdaBizGuard(route, router);
 
 const biz = computed(() => String(route.query.biz || 'transfer'));
+const bizLabel = computed(() => BIZ_LABELS[biz.value as BusinessKey] ?? '转运业务');
+
 const currentStep = ref<InboundStep>(0);
-const scanDisplay = ref('');
-const palletInfo = ref<PalletScanInfo | null>(null);
+const palletInfo = ref<Api.Pda.InboundPalletInfo | null>(null);
 const locationCode = ref('');
 const submitting = ref(false);
 const mockPalletIndex = ref(0);
+
+const { scanInput, handleScan, onEnter, resetScanDebounce } = usePdaScan();
+const { scanFeedbackType, scanFeedbackText, clearScanFeedback, feedbackSuccess, feedbackError, feedbackWarn } =
+  usePdaScanFeedback();
+
+const locationMismatch = computed(
+  () =>
+    Boolean(
+      palletInfo.value &&
+        locationCode.value &&
+        locationCode.value !== palletInfo.value.recommendLocation
+    )
+);
 
 function goBack() {
   router.push({ name: 'pda_business', query: { biz: biz.value } });
 }
 
-function blockManualInput(e: KeyboardEvent) {
-  e.preventDefault();
+async function processPalletScan(code: string) {
+  const { data, error } = await fetchPdaInboundScanPallet(code, biz.value);
+  if (error || !data) {
+    feedbackError('卡板贴不存在');
+    return;
+  }
+  palletInfo.value = data;
+  feedbackSuccess(`已扫描卡板贴 ${data.palletLabelNo}`);
+  currentStep.value = 1;
+  resetScanDebounce();
+}
+
+function processLocationScan(code: string) {
+  if (!palletInfo.value) return;
+  locationCode.value = code;
+  if (code !== palletInfo.value.recommendLocation) {
+    feedbackWarn('扫描库位与推荐库位不一致');
+  } else {
+    feedbackSuccess(`已扫描库位 ${code}`);
+  }
+  currentStep.value = 2;
+  resetScanDebounce();
+}
+
+function onPalletEnter(e: KeyboardEvent) {
+  onEnter(e, processPalletScan);
+}
+
+function onLocationEnter(e: KeyboardEvent) {
+  onEnter(e, processLocationScan);
 }
 
 function mockScanPallet() {
-  const info = MOCK_PALLET_POOL[mockPalletIndex.value % MOCK_PALLET_POOL.length];
+  const pool = ['PLT-LBL-2026-001', 'PLT-LBL-2026-002', 'PLT-LBL-2026-003'];
+  const code = pool[mockPalletIndex.value % pool.length];
   mockPalletIndex.value += 1;
-  palletInfo.value = info;
-  scanDisplay.value = info.palletLabelNo;
-  window.$message?.success(`已扫描卡板贴 ${info.palletLabelNo}`);
-  currentStep.value = 1;
-  scanDisplay.value = '';
+  scanInput.value = code;
+  processPalletScan(code);
 }
 
 function mockScanLocation() {
   if (!palletInfo.value) return;
-  const scanned = palletInfo.value.recommendLocation;
-  locationCode.value = scanned;
-  scanDisplay.value = scanned;
-  window.$message?.success(`已扫描库位 ${scanned}`);
-  currentStep.value = 2;
+  const code = mockPalletIndex.value % 2 === 0 ? palletInfo.value.recommendLocation : 'Z-99-99';
+  mockPalletIndex.value += 1;
+  scanInput.value = code;
+  processLocationScan(code);
 }
 
-function handleFinalConfirm() {
+async function handleFinalConfirm() {
   if (!palletInfo.value || !locationCode.value) return;
   submitting.value = true;
-  window.setTimeout(() => {
-    submitting.value = false;
-    window.$message?.success(
-      `[原型] 入库成功：${palletInfo.value!.palletLabelNo} → ${locationCode.value}`
-    );
-    resetFlow();
-  }, 400);
+  const { error } = await fetchPdaInboundConfirm({
+    biz: biz.value,
+    palletLabelNo: palletInfo.value.palletLabelNo,
+    locationCode: locationCode.value
+  });
+  submitting.value = false;
+  if (error) return;
+  window.$message?.success(`入库成功：${palletInfo.value.palletLabelNo} → ${locationCode.value}`);
+  resetFlow();
 }
 
 function resetFlow() {
   currentStep.value = 0;
-  scanDisplay.value = '';
   palletInfo.value = null;
   locationCode.value = '';
+  resetScanDebounce();
+  clearScanFeedback();
 }
 
 function stepClass(index: InboundStep) {
@@ -92,7 +129,7 @@ function stepClass(index: InboundStep) {
       <header class="inbound-head">
         <button type="button" class="inbound-back" @click="goBack">&larr; 返回</button>
         <h2 class="inbound-title">入库操作</h2>
-        <p class="inbound-sub">转运业务 · PDA 扫码入库</p>
+        <p class="inbound-sub">{{ bizLabel }} · PDA 扫码入库</p>
       </header>
 
       <nav class="inbound-steps" aria-label="入库步骤">
@@ -107,37 +144,28 @@ function stepClass(index: InboundStep) {
         </div>
       </nav>
 
-      <!-- Step 1: 扫卡板贴 -->
       <section v-if="currentStep === 0" class="scan-cell">
         <h3 class="scan-cell-title">扫描卡板贴</h3>
-        <p class="scan-cell-hint">请扫描卡板贴号</p>
+        <p class="scan-cell-hint">请扫描卡板贴号，或回车确认</p>
         <div class="scan-input-wrap">
           <NInput
-            :value="scanDisplay"
-            readonly
+            v-model:value="scanInput"
             placeholder="等待扫描..."
             size="large"
             class="scan-input"
-            @keydown="blockManualInput"
-            @paste="blockManualInput"
+            @keyup="onPalletEnter"
           >
             <template #suffix>
-              <span class="scan-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                  <path
-                    d="M4 6h2v12H4V6zm14 0h2v12h-2V6zM7 8h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2zM3 4h4v2H3V4zm14 0h4v2h-4V4zm0 14h4v2h-4v-2zM3 18h4v2H3v-2z"
-                  />
-                </svg>
-              </span>
+              <span class="scan-icon" aria-hidden="true">📷</span>
             </template>
           </NInput>
         </div>
+        <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
         <NButton type="primary" block size="large" class="mock-scan-btn" @click="mockScanPallet">
           模拟扫描
         </NButton>
       </section>
 
-      <!-- Step 2: 扫库位码 -->
       <template v-else-if="currentStep === 1">
         <section v-if="palletInfo" class="pallet-info">
           <h3 class="pallet-info-title">已扫卡板贴</h3>
@@ -148,47 +176,45 @@ function stepClass(index: InboundStep) {
             <dd>{{ palletInfo.destination }}</dd>
             <dt>推荐库位</dt>
             <dd class="highlight">{{ palletInfo.recommendLocation }}</dd>
+            <dt>箱数</dt>
+            <dd>{{ palletInfo.boxCount }}</dd>
           </dl>
         </section>
 
         <section class="scan-cell">
           <h3 class="scan-cell-title">扫库位码</h3>
-          <p class="scan-cell-hint">请扫描库位码</p>
+          <p class="scan-cell-hint">请扫描库位码，或回车确认</p>
           <div class="scan-input-wrap">
             <NInput
-              :value="scanDisplay"
-              readonly
+              v-model:value="scanInput"
               placeholder="等待扫描..."
               size="large"
               class="scan-input"
-              @keydown="blockManualInput"
-              @paste="blockManualInput"
+              @keyup="onLocationEnter"
             >
               <template #suffix>
-                <span class="scan-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path
-                      d="M4 6h2v12H4V6zm14 0h2v12h-2V6zM7 8h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2zM3 4h4v2H3V4zm14 0h4v2h-4V4zm0 14h4v2h-4v-2zM3 18h4v2H3v-2z"
-                    />
-                  </svg>
-                </span>
+                <span class="scan-icon" aria-hidden="true">📷</span>
               </template>
             </NInput>
           </div>
+          <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
+          <div v-if="locationMismatch" class="location-warn">扫描库位与推荐库位不一致，请确认后继续</div>
           <NButton type="primary" block size="large" class="mock-scan-btn" @click="mockScanLocation">
             模拟扫描
           </NButton>
         </section>
       </template>
 
-      <!-- Step 3: 确认入库 -->
       <section v-else class="confirm-panel">
         <h3 class="confirm-panel-title">确认入库</h3>
+        <div v-if="locationMismatch" class="location-warn">注意：入库库位与推荐库位不一致</div>
         <dl class="confirm-dl">
           <dt>卡板贴号</dt>
           <dd>{{ palletInfo?.palletLabelNo }}</dd>
           <dt>目的地</dt>
           <dd>{{ palletInfo?.destination }}</dd>
+          <dt>箱数</dt>
+          <dd>{{ palletInfo?.boxCount }}</dd>
           <dt>入库库位</dt>
           <dd class="highlight">{{ locationCode }}</dd>
         </dl>
@@ -334,18 +360,23 @@ function stepClass(index: InboundStep) {
   margin-bottom: 12px;
 }
 
-.scan-input :deep(.n-input__input-el) {
-  cursor: default;
-  caret-color: transparent;
-}
-
 .scan-icon {
   display: flex;
-  color: #5b54d8;
+  font-size: 18px;
+}
+
+.location-warn {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #ff9500;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .mock-scan-btn {
-  height: 44px;
+  height: 48px;
   font-size: 15px;
   font-weight: 600;
 }
@@ -378,7 +409,7 @@ function stepClass(index: InboundStep) {
 
 .confirm-btn {
   margin-top: 16px;
-  height: 44px;
+  height: 48px;
   font-size: 15px;
   font-weight: 600;
 }

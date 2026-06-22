@@ -113,7 +113,7 @@ const terminalOptions = computed(() =>
 const computedLoadingType = computed(() => resolveLoadingTypeFromCargoOrders(model.value.cargoOrders));
 const computedLoadingTypeLabel = computed(() => {
   const type = computedLoadingType.value;
-  return type ? LOADING_TYPE_LABELS[type] || type : '待根据货物订单推断';
+  return type ? LOADING_TYPE_LABELS[type] || type : '待根据订单推断';
 });
 
 const cargoDefaults = computed(() => {
@@ -423,7 +423,7 @@ watch(visible, async () => {
       <NSpin :show="loading">
         <NSteps v-model:current="currentStep" class="mb-18px">
           <NStep title="基础信息" />
-          <NStep title="货物订单（可选）" />
+          <NStep title="订单（可选）" />
           <NStep title="确认提交" />
         </NSteps>
 
@@ -618,9 +618,9 @@ watch(visible, async () => {
               <template #footer>
                 <NSpace vertical align="start">
                   <div>海柜基础信息已填写：{{ model.containerNo || '-' }}</div>
-                  <div>关联货物订单：{{ model.cargoOrders?.length || 0 }} 条</div>
-                  <div>装载类型：{{ computedLoadingTypeLabel }}（根据货物订单下单计量自动推断）</div>
-                  <div>正式提交后，货物订单会生成自己的业务主线 biz_root_id，并与海柜建立关联。</div>
+                  <div>关联订单：{{ model.cargoOrders?.length || 0 }} 条</div>
+                  <div>装载类型：{{ computedLoadingTypeLabel }}（根据订单下单计量自动推断）</div>
+                  <div>正式提交后，订单会生成自己的业务主线 biz_root_id，并与海柜建立关联。</div>
                 </NSpace>
               </template>
             </NResult>

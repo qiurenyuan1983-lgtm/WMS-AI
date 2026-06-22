@@ -83,10 +83,9 @@ type StatusTab = { label: string; statuses: string[] };
 const DEVANNING_STATUS_TABS: StatusTab[] = [
   { label: '全部',   statuses: [] },
   { label: '未到仓', statuses: ['CREATED', 'PRE_ARRIVAL'] },
-  { label: '等待中', statuses: ['ARRIVED', 'WAITING', 'QUEUED'] },
-  { label: '已上口', statuses: ['DOCK_ASSIGNED'] },
-  { label: '拆柜中', statuses: ['DOCK_WORKING', 'DEVANNING', 'OPERATION_PAUSED'] },
-  { label: '已下口', statuses: ['OPERATION_FINISHED', 'RELEASED'] },
+  { label: '待作业', statuses: ['ARRIVED', 'WAITING', 'QUEUED', 'DOCK_ASSIGNED'] },
+  { label: '作业中', statuses: ['DOCK_WORKING', 'DEVANNING', 'OPERATION_PAUSED'] },
+  { label: '已完成', statuses: ['OPERATION_FINISHED', 'RELEASED', 'LEFT_YARD'] },
 ];
 
 const LOADING_STATUS_TABS: StatusTab[] = [
@@ -348,7 +347,7 @@ defineExpose({ reload });
     </div>
 
     <!-- 第一行：关键字 + 查询/重置 -->
-    <NForm inline :show-feedback="false" size="small" class="mb-4px">
+    <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline :show-feedback="false" size="small" class="mb-4px">
       <NFormItem>
         <NInput
           v-model:value="keyword"
@@ -359,18 +358,18 @@ defineExpose({ reload });
         />
       </NFormItem>
       <NFormItem>
-        <NButton type="primary" @click="handleSearch">查询</NButton>
+        <NButton type="primary" @click="handleSearch">搜索</NButton>
         <NButton class="ml-4px" @click="handleReset">重置</NButton>
       </NFormItem>
-    </NForm>
+    </NForm></NCollapseItem></NCollapse>
 
     <!-- 第二行：时间筛选 -->
-    <div class="flex gap-4px items-center mb-8px">
+    <div class="time-filter-row flex gap-6px items-center mb-8px">
       <NSelect
         v-model:value="filterTimeField"
         :options="TIME_FIELD_OPTIONS"
         size="small"
-        class="w-90px flex-shrink-0"
+        class="time-field-select flex-shrink-0"
       />
       <NDatePicker
         v-model:value="filterTimeRange"
@@ -400,5 +399,7 @@ defineExpose({ reload });
 </template>
 
 <style scoped>
+.time-field-select { width: 136px; }
+:deep(.time-field-select .n-base-selection-label) { overflow: visible; }
 :deep(.row-selected td) { background-color: #eff6ff !important; }
 </style>

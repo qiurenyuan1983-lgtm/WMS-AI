@@ -62,3 +62,11 @@ export function fetchClearExceptionDevanningOrder(id: CommonType.IdType) {
 export function fetchCancelDevanningOrder(id: CommonType.IdType, remark?: string) {
   return request<null>({ url: `/wms/devanning-order/${id}/cancel`, method: 'put', data: { remark } });
 }
+
+export function fetchSaveDevanningOrderFees(id: CommonType.IdType, data: Api.Wms.DevanningOrderFeePayload) {
+  return request<Api.Wms.DevanningOrder>({
+    url: `/wms/devanning-order/${id}/fees`,
+    method: 'put',
+    data
+  });
+}

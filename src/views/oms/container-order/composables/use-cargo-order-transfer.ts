@@ -8,7 +8,7 @@ export function useCargoOrderTransfer(onSuccess?: () => void) {
   function cancelTransfer(row: CargoRow) {
     window.$dialog?.warning({
       title: '取消转仓',
-      content: `确认取消货物订单 ${row.cargoOrderNo} 的转仓设置？`,
+      content: `确认取消订单 ${row.cargoOrderNo} 的转仓设置？`,
       positiveText: '确认',
       negativeText: '取消',
       onPositiveClick: async () => {

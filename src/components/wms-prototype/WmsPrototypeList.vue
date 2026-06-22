@@ -74,42 +74,6 @@ function handleRow(btn: string, row: Record<string, any>) {
   const mk = props.config.mockKey;
   const btns = props.config.rowButtons || [];
 
-  if (mk === 'inbound-order') {
-    if (btn === btns[0]) {
-      router.push({
-        name: 'wms_inbound-task',
-        query: {
-          inboundNo: row.inboundNo,
-          palletNo: row.palletNo,
-          containerNo: row.containerNo,
-          groupCode: row.groupCode,
-          recommendLocation: row.recommendLocation
-        }
-      });
-      return;
-    }
-    if (btn === btns[1]) {
-      router.push({
-        name: 'wms_inbound-task',
-        query: {
-          inboundNo: row.inboundNo,
-          containerNo: row.containerNo,
-          groupCode: row.groupCode,
-          recommendLocation: row.recommendLocation
-        }
-      });
-      return;
-    }
-  }
-
-  if (mk === 'putaway-task' && (btn === btns[0] || btn === btns[1])) {
-    router.push({
-      name: 'wms_putaway-pda',
-      query: { taskNo: row.taskNo, mode: row.putawayMode || 'BATCH' }
-    });
-    return;
-  }
-
   if (mk === 'vas-task' && (btn === btns[0] || btn === btns[1])) {
     router.push({
       name: 'wms_vas-work',
@@ -244,25 +208,29 @@ getData();
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :title="config.title" :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false" class="mb-12px">
-        <NFormItem v-for="field in config.searchFields" :key="field.key" :label="field.label">
-          <NSelect
-            v-if="field.type === 'select' && field.key === 'status' && statusDict"
-            v-model:value="searchModel[field.key]"
-            clearable
-            class="w-160px"
-            :options="statusOptions"
-            placeholder="请选择状态"
-          />
-          <NInput v-else v-model:value="searchModel[field.key]" clearable class="w-160px" />
-        </NFormItem>
-        <NFormItem>
-          <NSpace>
-            <NButton type="primary" @click="handleSearch">查询</NButton>
-            <NButton @click="resetSearch">重置</NButton>
-          </NSpace>
-        </NFormItem>
-      </NForm>
+      <NCollapse default-expanded-names="['search']" class="mb-12px">
+        <NCollapseItem title="搜索" name="search">
+          <NForm inline label-placement="left" :show-feedback="false">
+            <NFormItem v-for="field in config.searchFields" :key="field.key" :label="field.label">
+              <NSelect
+                v-if="field.type === 'select' && field.key === 'status' && statusDict"
+                v-model:value="searchModel[field.key]"
+                clearable
+                class="w-160px"
+                :options="statusOptions"
+                placeholder="请选择状态"
+              />
+              <NInput v-else v-model:value="searchModel[field.key]" clearable class="w-160px" />
+            </NFormItem>
+            <NFormItem>
+              <NSpace>
+                <NButton type="primary" @click="handleSearch">搜索</NButton>
+                <NButton @click="resetSearch">重置</NButton>
+              </NSpace>
+            </NFormItem>
+          </NForm>
+        </NCollapseItem>
+      </NCollapse>
       <NSpace v-if="config.toolbarButtons?.length" class="mb-12px">
         <NButton v-for="btn in config.toolbarButtons" :key="btn" type="primary" ghost @click="handleToolbar(btn)">
           {{ btn }}

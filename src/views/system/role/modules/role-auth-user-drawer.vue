@@ -203,7 +203,7 @@ function reset() {
   >
     <NDrawerContent :title="title" :native-scrollbar="false" closable body-class="h-full" body-content-class="h-full">
       <div class="h-full flex-col-stretch gap-12px overflow-hidden lt-sm:overflow-auto">
-        <NForm :model="searchParams" label-placement="left" :label-width="80">
+        <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm :model="searchParams" label-placement="left" :label-width="80">
           <NGrid responsive="screen" item-responsive>
             <NFormItemGi span="24 s:12 m:8" label="用户名称" path="userName" class="pr-24px">
               <NInput v-model:value="searchParams.userName" placeholder="请输入用户名称" />
@@ -244,7 +244,7 @@ function reset() {
               </NSpace>
             </NFormItemGi>
           </NGrid>
-        </NForm>
+        </NForm></NCollapseItem></NCollapse>
         <TableRowCheckAlert v-model:checked-row-keys="checkedRowKeys" />
         <NCard :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
           <NDataTable

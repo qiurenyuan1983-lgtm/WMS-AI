@@ -1,6 +1,7 @@
 <script setup lang="tsx">
-import { onMounted, ref, useAttrs, watch } from 'vue';
+import { computed, onMounted, ref, useAttrs, watch } from 'vue';
 import type { TreeOption, TreeSelectInst, TreeSelectProps } from 'naive-ui';
+import { NTag } from 'naive-ui';
 import { useBoolean } from '@sa/hooks';
 import { fetchGetMenuTreeSelect } from '@/service/api/system';
 import SvgIcon from '@/components/custom/svg-icon.vue';
@@ -11,16 +12,21 @@ defineOptions({ name: 'MenuTree' });
 interface Props {
   immediate?: boolean;
   showHeader?: boolean;
+  /** 角色/套餐权限分配模式：展示功能与字段筛选 */
+  permissionMode?: boolean;
   [key: string]: any;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   immediate: true,
-  showHeader: true
+  showHeader: true,
+  permissionMode: false
 });
 
 const { bool: expandAll } = useBoolean();
 const { bool: checkAll } = useBoolean();
+const { bool: showFunctions, setTrue: enableFunctions, setFalse: disableFunctions } = useBoolean(true);
+const { bool: showFields, setTrue: enableFields, setFalse: disableFields } = useBoolean(true);
 const expandedKeys = ref<CommonType.IdType[]>([0]);
 
 const menuTreeRef = ref<TreeSelectInst | null>(null);
@@ -61,16 +67,92 @@ watch([expandAll, options], ([newVal]) => {
   }
 });
 
+function getMenuRemark(option: TreeOption) {
+  return String(option.remark || '');
+}
+
+function isBtnPerm(option: TreeOption) {
+  return getMenuRemark(option).includes('btn_perm');
+}
+
+function isFieldPerm(option: TreeOption) {
+  return getMenuRemark(option).includes('field_perm');
+}
+
+function isFieldGroup(option: TreeOption) {
+  return getMenuRemark(option).includes('field_group');
+}
+
+function shouldShowPermNode(option: TreeOption): boolean {
+  if (!props.permissionMode) return true;
+  if (isBtnPerm(option)) return showFunctions.value;
+  if (isFieldPerm(option) || isFieldGroup(option)) return showFields.value;
+  return true;
+}
+
+function filterPermTree(nodes: Api.System.MenuList): Api.System.MenuList {
+  return nodes
+    .map(node => {
+      const children = node.children?.length ? filterPermTree(node.children) : undefined;
+      const selfVisible = shouldShowPermNode(node as TreeOption);
+      if (!selfVisible && !children?.length) return null;
+      if (!selfVisible && children?.length) {
+        return { ...node, children };
+      }
+      return { ...node, children };
+    })
+    .filter((node): node is Api.System.Menu => Boolean(node));
+}
+
+const displayOptions = computed(() => {
+  const source = options.value;
+  if (!props.permissionMode || (showFunctions.value && showFields.value)) {
+    return source;
+  }
+  return [
+    {
+      id: 0,
+      label: '根目录',
+      icon: 'material-symbols:home-outline-rounded',
+      children: filterPermTree((source[0]?.children as Api.System.MenuList) || [])
+    }
+  ] as Api.System.MenuList;
+});
+
 function renderLabel({ option }: { option: TreeOption }) {
   let label = option.label;
   if (label?.startsWith('route.') || label?.startsWith('menu.')) {
     label = $t(label as App.I18n.I18nKey);
   }
+
+  const tags = [];
+  if (props.permissionMode && isBtnPerm(option)) {
+    tags.push(
+      <NTag size="small" type="info" bordered={false} class="ml-4px">
+        功能
+      </NTag>
+    );
+  }
+  if (props.permissionMode && isFieldPerm(option)) {
+    tags.push(
+      <NTag size="small" type="warning" bordered={false} class="ml-4px">
+        字段
+      </NTag>
+    );
+  }
+
+  const content = (
+    <div class="flex items-center gap-4px flex-wrap">
+      <span>{label}</span>
+      {tags}
+    </div>
+  );
+
   // 禁用的菜单显示红色
   if (option.status === '1') {
     return (
       <div class="flex items-center gap-4px text-error-200">
-        {label}
+        {content}
         <SvgIcon icon="ri:prohibited-line" class="text-16px" />
       </div>
     );
@@ -79,12 +161,12 @@ function renderLabel({ option }: { option: TreeOption }) {
   if (option.visible === '1') {
     return (
       <div class="flex items-center gap-4px text-gray-400">
-        {label}
+        {content}
         <SvgIcon icon="codex:hidden" class="text-21px" />
       </div>
     );
   }
-  return <div>{label}</div>;
+  return content;
 }
 
 function renderPrefix({ option }: { option: TreeOption }) {
@@ -125,10 +207,20 @@ function getLeafMenuIds(menu: Api.System.MenuList): CommonType.IdType[] {
 
 function handleCheckedTreeNodeAll(checked: boolean) {
   if (checked) {
-    checkedKeys.value = getAllMenuIds(options.value);
+    checkedKeys.value = getAllMenuIds(displayOptions.value);
     return;
   }
   checkedKeys.value = [];
+}
+
+function handleFunctionFilter(checked: boolean) {
+  if (checked) enableFunctions();
+  else disableFunctions();
+}
+
+function handleFieldFilter(checked: boolean) {
+  if (checked) enableFields();
+  else disableFields();
 }
 
 function getCheckedMenuIds(isCascade: boolean = false) {
@@ -163,17 +255,27 @@ defineExpose({
 
 <template>
   <div class="w-full flex-col gap-12px">
-    <div v-if="showHeader" class="w-full flex-center">
-      <NCheckbox v-model:checked="expandAll" :checked-value="true" :unchecked-value="false">展开/折叠</NCheckbox>
-      <NCheckbox
-        v-model:checked="checkAll"
-        :checked-value="true"
-        :unchecked-value="false"
-        @update:checked="handleCheckedTreeNodeAll"
-      >
-        全选/反选
-      </NCheckbox>
-      <NCheckbox v-model:checked="cascade" :checked-value="true" :unchecked-value="false">父子联动</NCheckbox>
+    <div v-if="showHeader" class="w-full flex-col gap-8px">
+      <div class="w-full flex-center flex-wrap gap-x-16px gap-y-8px">
+        <NCheckbox v-model:checked="expandAll" :checked-value="true" :unchecked-value="false">展开/折叠</NCheckbox>
+        <NCheckbox
+          v-model:checked="checkAll"
+          :checked-value="true"
+          :unchecked-value="false"
+          @update:checked="handleCheckedTreeNodeAll"
+        >
+          全选/反选
+        </NCheckbox>
+        <NCheckbox v-model:checked="cascade" :checked-value="true" :unchecked-value="false">父子联动</NCheckbox>
+      </div>
+      <div v-if="permissionMode" class="w-full flex-center flex-wrap gap-x-16px gap-y-8px">
+        <NCheckbox :checked="showFunctions" :checked-value="true" :unchecked-value="false" @update:checked="handleFunctionFilter">
+          功能权限
+        </NCheckbox>
+        <NCheckbox :checked="showFields" :checked-value="true" :unchecked-value="false" @update:checked="handleFieldFilter">
+          字段显示
+        </NCheckbox>
+      </div>
     </div>
     <NSpin class="resource h-full w-full py-6px pl-3px" content-class="h-full" :show="loading">
       <NTree
@@ -185,7 +287,7 @@ defineExpose({
         :selectable="false"
         key-field="id"
         label-field="label"
-        :data="options"
+        :data="displayOptions"
         :cascade="cascade"
         :loading="loading"
         virtual-scroll
@@ -205,7 +307,7 @@ defineExpose({
 
   .n-tree {
     min-height: 200px;
-    max-height: 300px;
+    max-height: 420px;
     width: 100%;
     height: 100%;
 

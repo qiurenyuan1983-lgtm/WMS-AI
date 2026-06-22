@@ -1,19 +1,38 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NButton, NInput } from 'naive-ui';
 import PdaPhoneShell from '@/components/pda/PdaPhoneShell.vue';
+import PdaScanFeedbackBar from '@/components/pda/PdaScanFeedbackBar.vue';
+import TripDeadlineCountdown from '@/components/tms/TripDeadlineCountdown.vue';
+import TripDeadlineRiskTag from '@/components/tms/TripDeadlineRiskTag.vue';
 import {
   addScannedPalletToTrip,
   createOutboundTrip,
+  evaluateLoadScan,
   getAllPallets,
   getNextUnscannedPallet,
   getPendingOutboundTrips,
   getScannedUnloadPallets,
   isAllLoaded,
+  PDA_WRONG_PALLET_NO,
   type OutboundPallet,
   type OutboundTrip
 } from '../shared/outbound-mock';
+import {
+  fetchPdaOutboundException,
+  fetchPdaOutboundFinish,
+  fetchPdaOutboundTrips,
+  fetchPdaOutboundUploadPhoto
+} from '@/service/api/pda';
+import DevanningExceptionModal from '../devanning/modules/devanning-exception-modal.vue';
+import DevanningPhotoUploadModal from '../devanning/modules/devanning-photo-upload-modal.vue';
+import { DEVANNING_CONTAINER_ORDERS, type DevanningExceptionType } from '../devanning/shared/devanning-constants';
+import OutboundMoreMenu from './modules/outbound-more-menu.vue';
+import { BIZ_LABELS, type BusinessKey } from '../shared/business-config';
+import { usePdaScan } from '../shared/pda-scan';
+import { usePdaScanFeedback } from '../shared/pda-scan-feedback';
+import { usePdaBizGuard } from '../shared/use-pda-biz';
 
 defineOptions({ name: 'PdaOutbound' });
 
@@ -23,11 +42,18 @@ const STEPS = ['车次', '车厢', '详情', '装车', '完成'] as const;
 
 const route = useRoute();
 const router = useRouter();
+usePdaBizGuard(route, router);
 
 const biz = computed(() => String(route.query.biz || 'transfer'));
+const bizLabel = computed(() => BIZ_LABELS[biz.value as BusinessKey] ?? '转运业务');
+const { scanInput: tripScanInput, onEnter: onTripScanEnter, resetScanDebounce: resetTripScanDebounce } = usePdaScan();
+const { scanInput: loadScanInput, onEnter: onLoadScanEnter, resetScanDebounce: resetLoadScanDebounce } = usePdaScan();
+const { scanInput: dockScanInput, onEnter: onDockScanEnter, resetScanDebounce: resetDockScanDebounce } = usePdaScan();
+const { scanFeedbackType, scanFeedbackText, clearScanFeedback, feedbackSuccess, feedbackError } = usePdaScanFeedback();
 const currentStep = ref<OutboundStep>(0);
 const scanDisplay = ref('');
-const pendingTrips = ref(getPendingOutboundTrips());
+const pushedTripTasks = ref<Api.Pda.OutboundTripListItem[]>([]);
+const pushedTasksLoading = ref(false);
 const activeTrip = ref<OutboundTrip | null>(null);
 const carriageNo = ref('');
 const expandedLocations = ref<string[]>([]);
@@ -40,8 +66,8 @@ const showAddPalletPanel = ref(false);
 const addPalletScanDisplay = ref('');
 const showFinishPhotoOverlay = ref(false);
 const finishPhotoUploaded = ref(false);
-const showUploadPhotoOverlay = ref(false);
-const uploadPhotoReady = ref(false);
+const showPhotoUploadModal = ref(false);
+const showExceptionModal = ref(false);
 const tripPhotoCount = ref(0);
 
 const headerInfo = computed(() => ({
@@ -49,6 +75,24 @@ const headerInfo = computed(() => ({
   carriageNo: carriageNo.value || '—',
   dockNo: activeTrip.value?.dockNo ?? '—'
 }));
+
+const contextContainerNo = computed(() => {
+  if (activeTrip.value) {
+    const pallets = getAllPallets(activeTrip.value);
+    return pallets[0]?.containerNo || '';
+  }
+  return tripScanInput.value.trim();
+});
+
+const contextOrderOptions = computed(() => {
+  if (!activeTrip.value) return [];
+  const containers = new Set(getAllPallets(activeTrip.value).map(p => p.containerNo.toUpperCase()));
+  const orders = new Set<string>();
+  containers.forEach(cn => {
+    (DEVANNING_CONTAINER_ORDERS[cn] || []).forEach(orderNo => orders.add(orderNo));
+  });
+  return [...orders];
+});
 
 const loadingBatch = computed(() =>
   activeTrip.value ? getScannedUnloadPallets(activeTrip.value) : []
@@ -107,35 +151,83 @@ function resetSession(full = true) {
   addPalletScanDisplay.value = '';
   showFinishPhotoOverlay.value = false;
   finishPhotoUploaded.value = false;
-  showUploadPhotoOverlay.value = false;
-  uploadPhotoReady.value = false;
+  showPhotoUploadModal.value = false;
+  showExceptionModal.value = false;
   tripPhotoCount.value = 0;
+  dockVerified.value = false;
+  dockScanDisplay.value = '';
+  dockScanInput.value = '';
+  clearScanFeedback();
+  resetTripScanDebounce();
+  resetLoadScanDebounce();
+  resetDockScanDebounce();
   if (full) {
     currentStep.value = 0;
-    pendingTrips.value = getPendingOutboundTrips();
+    loadPushedTripTasks();
   }
 }
+
+async function loadPushedTripTasks() {
+  pushedTasksLoading.value = true;
+  const { data, error } = await fetchPdaOutboundTrips(biz.value);
+  pushedTasksLoading.value = false;
+  if (!error && data) {
+    pushedTripTasks.value = data;
+    return;
+  }
+  pushedTripTasks.value = getPendingOutboundTrips().map(t => ({
+    taskId: `OUT-PUSH-${t.tripNo}`,
+    taskNo: `OUT-PUSH-${t.tripNo}`,
+    tripNo: t.tripNo,
+    dockNo: t.dockNo,
+    carriageNo: t.carriageNo,
+    palletCount: t.locations.reduce((n, l) => n + l.pallets.length, 0),
+    destination: t.locations[0]?.pallets[0]?.destination,
+    pushedAt: '—',
+    pushedBy: '系统',
+    taskStatus: 'PUSHED' as const
+  }));
+}
+
+onMounted(() => {
+  loadPushedTripTasks();
+});
 
 function blockManualInput(e: KeyboardEvent) {
   e.preventDefault();
 }
 
-function selectTrip(trip: OutboundTrip) {
-  activeTrip.value = createOutboundTrip(trip.tripNo) ?? null;
+function selectPushedTask(task: Api.Pda.OutboundTripListItem) {
+  activeTrip.value = createOutboundTrip(task.tripNo) ?? null;
   if (!activeTrip.value) return;
-  carriageNo.value = activeTrip.value.carriageNo;
-  scanDisplay.value = activeTrip.value.tripNo;
+  const pallets = getAllPallets(activeTrip.value);
+  if (pallets[0]) pallets[0].hold = true;
+  carriageNo.value = task.carriageNo || activeTrip.value.carriageNo;
+  activeTrip.value.carriageNo = carriageNo.value;
+  scanDisplay.value = task.tripNo;
+  tripScanInput.value = task.tripNo;
   currentStep.value = 1;
+  clearScanFeedback();
+  feedbackSuccess(`已接收推送任务 ${task.taskNo}`);
+}
+
+function processTripScan(code: string) {
+  const task = pushedTripTasks.value.find(t => t.tripNo === code || t.taskNo === code);
+  if (!task) {
+    feedbackError('车次号不在推送任务中');
+    return;
+  }
+  selectPushedTask(task);
 }
 
 function mockScanTrip() {
-  const trip = pendingTrips.value[0];
-  if (!trip) {
-    window.$message?.warning('暂无待出库车次');
+  const task = pushedTripTasks.value[0];
+  if (!task) {
+    feedbackError('暂无推送车次任务');
     return;
   }
-  selectTrip(trip);
-  window.$message?.success(`已扫描车次 ${trip.tripNo}`);
+  tripScanInput.value = task.tripNo;
+  processTripScan(task.tripNo);
 }
 
 function confirmCarriage() {
@@ -146,7 +238,18 @@ function confirmCarriage() {
     return;
   }
   activeTrip.value.carriageNo = val;
+  dockVerified.value = false;
+  dockScanDisplay.value = '';
+  dockScanInput.value = '';
   currentStep.value = 2;
+}
+
+function requireDockVerified(): boolean {
+  if (!dockVerified.value) {
+    feedbackError('请先扫描道口核对');
+    return false;
+  }
+  return true;
 }
 
 function toggleLocation(code: string) {
@@ -167,12 +270,14 @@ function mockScanPallet(pallet: OutboundPallet) {
     window.$message?.info('该卡板已装车');
     return;
   }
+  if (!requireDockVerified()) return;
   pallet.scanned = true;
-  window.$message?.success(`已扫描 ${pallet.palletNo}`);
+  feedbackSuccess(`已核对 ${pallet.palletNo}`);
 }
 
 function mockScanNextPallet() {
   if (!activeTrip.value) return;
+  if (!requireDockVerified()) return;
   const next = getNextUnscannedPallet(activeTrip.value);
   if (!next) {
     window.$message?.info('没有待扫描的卡板');
@@ -203,22 +308,65 @@ function enterLoading() {
   currentStep.value = 3;
 }
 
-function mockScanDock() {
+function processDockScan(code: string) {
   if (!activeTrip.value) return;
-  dockScanDisplay.value = activeTrip.value.dockNo;
+  if (code !== activeTrip.value.dockNo) {
+    feedbackError('道口与车次不匹配');
+    dockVerified.value = false;
+    return;
+  }
+  dockScanDisplay.value = code;
   dockVerified.value = true;
-  window.$message?.success(`道口核对 ${activeTrip.value.dockNo}`);
+  feedbackSuccess(`道口核对 ${code}`);
+  resetDockScanDebounce();
 }
 
-function mockScanLoadPallet(pallet: OutboundPallet) {
-  if (!pallet.loadScanned) {
-    pallet.loadScanned = true;
-    loadPalletScanDisplay.value = pallet.palletNo;
-    window.$message?.success(`已装车扫描 ${pallet.palletNo}`);
+function mockScanDock() {
+  if (!activeTrip.value) return;
+  dockScanInput.value = activeTrip.value.dockNo;
+  processDockScan(activeTrip.value.dockNo);
+}
+
+function applyLoadScanResult(palletNo: string) {
+  if (!activeTrip.value) return;
+  if (!dockVerified.value) {
+    feedbackError('请先扫描道口核对');
+    return;
+  }
+  const evalResult = evaluateLoadScan(activeTrip.value, palletNo);
+  if (evalResult.result === 'wrong') {
+    feedbackError(evalResult.message);
+    return;
+  }
+  if (evalResult.result === 'hold') {
+    feedbackError(evalResult.message);
+    return;
+  }
+  if (evalResult.result === 'duplicate') {
+    feedbackError('请勿重复扫描');
+    return;
+  }
+  if (evalResult.pallet) {
+    evalResult.pallet.loadScanned = true;
+    loadPalletScanDisplay.value = palletNo;
+    feedbackSuccess(`允许装车：${palletNo}`);
   }
 }
 
+function mockScanLoadPallet(pallet: OutboundPallet) {
+  applyLoadScanResult(pallet.palletNo);
+}
+
+function processLoadPalletScan(code: string) {
+  applyLoadScanResult(code);
+  resetLoadScanDebounce();
+}
+
 function mockScanNextLoadPallet() {
+  if (!dockVerified.value) {
+    feedbackError('请先扫描道口核对');
+    return;
+  }
   const next = loadingBatch.value.find(p => !p.loadScanned);
   if (!next) {
     window.$message?.info('本次装车卡板已全部扫描装车');
@@ -266,40 +414,71 @@ function closeProgressOpMenu() {
   progressOpMenuOpen.value = false;
 }
 
-function handleUploadPhoto() {
+function openPhotoUpload() {
   closeProgressOpMenu();
-  uploadPhotoReady.value = false;
-  showUploadPhotoOverlay.value = true;
+  showPhotoUploadModal.value = true;
 }
 
-function mockUploadTripPhoto() {
-  uploadPhotoReady.value = true;
+function openExceptionReport() {
+  showExceptionModal.value = true;
 }
 
-function confirmUploadPhoto() {
-  if (!uploadPhotoReady.value) {
-    window.$message?.warning('请先上传照片');
+function handleUploadPhoto() {
+  openPhotoUpload();
+}
+
+async function confirmPhotoUpload(photoCount: number) {
+  const { data, error } = await fetchPdaOutboundUploadPhoto({
+    biz: biz.value,
+    tripNo: activeTrip.value?.tripNo || scanDisplay.value || undefined,
+    containerNo: contextContainerNo.value || undefined,
+    photoCount
+  });
+  if (error || !data?.ok) {
+    window.$message?.error(data?.message || '上传失败');
     return;
   }
-  tripPhotoCount.value += 1;
-  showUploadPhotoOverlay.value = false;
-  uploadPhotoReady.value = false;
-  window.$message?.success(`[原型] 照片已上传（共 ${tripPhotoCount.value} 张）`);
+  tripPhotoCount.value += photoCount;
+  window.$message?.success(data.message || '照片已上传');
 }
 
-function cancelUploadPhoto() {
-  showUploadPhotoOverlay.value = false;
-  uploadPhotoReady.value = false;
+async function confirmExceptionReport(payload: {
+  containerNo: string;
+  containerAutoRecognized: boolean;
+  orderNo: string;
+  orderUnrecognized: boolean;
+  exceptionType: DevanningExceptionType;
+  remark: string;
+  photoCaptured: boolean;
+}) {
+  const { data, error } = await fetchPdaOutboundException({
+    biz: biz.value,
+    tripNo: activeTrip.value?.tripNo || scanDisplay.value || undefined,
+    containerNo: payload.containerNo || contextContainerNo.value || undefined,
+    containerAutoRecognized: payload.containerAutoRecognized,
+    orderNo: payload.orderUnrecognized ? undefined : payload.orderNo,
+    orderUnrecognized: payload.orderUnrecognized,
+    exceptionType: payload.exceptionType,
+    remark: payload.remark,
+    photoCaptured: payload.photoCaptured
+  });
+  if (error || !data?.ok) {
+    window.$message?.error(data?.message || '反馈失败');
+    return;
+  }
+  window.$message?.success(data.message || '异常已反馈');
 }
 
 function openAddPalletScan() {
   closeProgressOpMenu();
+  if (!requireDockVerified()) return;
   showAddPalletPanel.value = true;
   addPalletScanDisplay.value = '';
 }
 
 function mockAddPalletScan() {
   if (!activeTrip.value) return;
+  if (!requireDockVerified()) return;
   const added = addScannedPalletToTrip(activeTrip.value);
   if (!added) return;
   addPalletScanDisplay.value = added.palletNo;
@@ -308,7 +487,7 @@ function mockAddPalletScan() {
   if (loc && !expandedLocations.value.includes(loc.locationCode)) {
     expandedLocations.value.push(loc.locationCode);
   }
-  window.$message?.success(`已添加卡板 ${added.palletNo}，状态：已核对`);
+  feedbackSuccess(`已添加卡板 ${added.palletNo}`);
 }
 
 function requestFinishLoading() {
@@ -339,9 +518,16 @@ function cancelFinishPhoto() {
   finishPhotoUploaded.value = false;
 }
 
-function handleComplete() {
-  window.$message?.success('[原型] 出库车次已完成');
-  resetSession(true);
+async function handleComplete() {
+  if (!activeTrip.value) return;
+  const { error } = await fetchPdaOutboundFinish({
+    biz: biz.value,
+    tripNo: activeTrip.value.tripNo,
+    photoCount: tripPhotoCount.value || 1
+  });
+  if (error) return;
+  window.$message?.success('确认发车成功');
+  router.push({ name: 'pda_business', query: { biz: biz.value } });
 }
 
 function stepClass(index: OutboundStep) {
@@ -377,10 +563,46 @@ function getPalletRowClass(pallet: OutboundPallet) {
   <PdaPhoneShell>
     <div class="outbound-app">
       <header class="outbound-head">
-        <button type="button" class="outbound-back" @click="goBack">&larr; 返回</button>
-        <h2 class="outbound-title">出库操作</h2>
-        <p class="outbound-sub">转运业务 · PDA 扫码出库</p>
+        <div class="outbound-head__main">
+          <button type="button" class="outbound-back" @click="goBack">&larr; 返回</button>
+          <h2 class="outbound-title">出库操作</h2>
+          <p class="outbound-sub">{{ bizLabel }} · PDA 扫码出库</p>
+        </div>
+        <div class="outbound-head__actions">
+          <div
+            v-if="activeTrip?.latestFinishTime && currentStep >= 2"
+            class="outbound-head__deadline"
+          >
+            <TripDeadlineCountdown
+              :appointment-time="activeTrip.appointmentTime"
+              :origin-warehouse="activeTrip.originWarehouse"
+              :destination="activeTrip.destination"
+              :pallet-qty="activeTrip.palletQty"
+              :carton-qty="activeTrip.cartonQty"
+              :latest-finish-time="activeTrip.latestFinishTime"
+              :latest-start-loading-time="activeTrip.latestStartLoadingTime"
+              :remaining-minutes="activeTrip.remainingMinutes"
+              :deadline-risk-level="activeTrip.deadlineRiskLevel"
+              :tick-ms="10000"
+              compact
+              on-dark
+            />
+          </div>
+          <OutboundMoreMenu @photo-upload="openPhotoUpload" @exception="openExceptionReport" />
+        </div>
       </header>
+
+      <div
+        v-if="activeTrip?.latestFinishTime && currentStep >= 2"
+        class="deadline-banner"
+        :class="`deadline-banner--${(activeTrip.deadlineRiskLevel || 'NORMAL').toLowerCase()}`"
+      >
+        <div class="deadline-banner__meta">
+          <span class="deadline-banner__label">最晚完成</span>
+          <span class="deadline-banner__time">{{ activeTrip.latestFinishTime }}</span>
+        </div>
+        <TripDeadlineRiskTag :level="activeTrip.deadlineRiskLevel" size="small" />
+      </div>
 
       <nav v-if="currentStep > 0" class="step-track" aria-label="出库步骤">
         <div v-for="(label, index) in STEPS" :key="label" class="step-track-item">
@@ -425,13 +647,11 @@ function getPalletRowClass(pallet: OutboundPallet) {
           <p class="scan-cell-hint">请扫描出库车次号</p>
           <div class="scan-input-wrap">
             <NInput
-              :value="scanDisplay"
-              readonly
+              v-model:value="tripScanInput"
               placeholder="等待扫描..."
               size="large"
-              class="scan-input"
-              @keydown="blockManualInput"
-              @paste="blockManualInput"
+              class="scan-input editable"
+              @keyup="(e: KeyboardEvent) => onTripScanEnter(e, processTripScan)"
             >
               <template #suffix>
                 <span class="scan-icon" aria-hidden="true">
@@ -444,24 +664,39 @@ function getPalletRowClass(pallet: OutboundPallet) {
               </template>
             </NInput>
           </div>
+          <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
           <NButton type="primary" block size="large" class="action-btn" @click="mockScanTrip">
             模拟扫描
           </NButton>
         </section>
 
         <section class="trip-list">
-          <h3 class="trip-list-title">待出库车次</h3>
+          <div class="trip-list-head">
+            <h3 class="trip-list-title">推送车次任务</h3>
+            <span class="trip-list-count">{{ pushedTripTasks.length }} 条</span>
+          </div>
+          <p class="trip-list-hint">以下为本班推送给您的出库车次任务</p>
+          <p v-if="pushedTasksLoading" class="trip-list-empty">加载推送任务...</p>
+          <p v-else-if="!pushedTripTasks.length" class="trip-list-empty">暂无推送车次任务</p>
           <button
-            v-for="trip in pendingTrips"
-            :key="trip.tripNo"
+            v-for="task in pushedTripTasks"
+            :key="task.taskId"
             type="button"
             class="trip-item"
-            @click="selectTrip(trip)"
+            @click="selectPushedTask(task)"
           >
-            <span class="trip-item-no">{{ trip.tripNo }}</span>
-            <span class="trip-item-meta">道口 {{ trip.dockNo }} · 车厢 {{ trip.carriageNo }}</span>
-            <span class="trip-item-count">
-              {{ trip.locations.reduce((n, l) => n + l.pallets.length, 0) }} 板
+            <div class="trip-item-top">
+              <span class="trip-item-no">{{ task.tripNo }}</span>
+              <span class="trip-item-count">{{ task.palletCount }} 板</span>
+            </div>
+            <span class="trip-item-task">任务 {{ task.taskNo }}</span>
+            <span class="trip-item-meta">
+              道口 {{ task.dockNo }} · 车厢 {{ task.carriageNo }}
+              <template v-if="task.destination"> · {{ task.destination }}</template>
+            </span>
+            <span class="trip-item-push">
+              推送 {{ task.pushedAt }}
+              <template v-if="task.pushedBy"> · {{ task.pushedBy }}</template>
             </span>
           </button>
         </section>
@@ -507,6 +742,35 @@ function getPalletRowClass(pallet: OutboundPallet) {
 
       <!-- Step 2: 详情 -->
       <template v-else-if="currentStep === 2 && activeTrip">
+        <section class="scan-cell">
+          <h3 class="scan-cell-title">扫描道口核对</h3>
+          <p class="scan-cell-hint">核对卡板前请先扫描道口码</p>
+          <div class="scan-input-wrap">
+            <NInput
+              v-model:value="dockScanInput"
+              placeholder="等待扫描..."
+              size="large"
+              class="scan-input editable"
+              @keyup="(e: KeyboardEvent) => onDockScanEnter(e, processDockScan)"
+            >
+              <template #suffix>
+                <span class="scan-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path
+                      d="M4 6h2v12H4V6zm14 0h2v12h-2V6zM7 8h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2zM3 4h4v2H3V4zm14 0h4v2h-4V4zm0 14h4v2h-4v-2zM3 18h4v2H3v-2z"
+                    />
+                  </svg>
+                </span>
+              </template>
+            </NInput>
+          </div>
+          <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
+          <NButton type="primary" block size="large" class="action-btn" @click="mockScanDock">
+            模拟扫描
+          </NButton>
+          <p v-if="dockVerified" class="scan-done-hint">道口已核对 · {{ headerInfo.dockNo }}</p>
+        </section>
+
         <section class="trip-summary">
           <div class="load-progress-block">
             <div class="load-progress-header">
@@ -551,7 +815,7 @@ function getPalletRowClass(pallet: OutboundPallet) {
 
         <section v-if="showAddPalletPanel" class="scan-cell add-pallet-panel">
           <h3 class="scan-cell-title">添加卡板</h3>
-          <p class="scan-cell-hint">请扫描卡板贴，扫描后直接进入本订单</p>
+          <p class="scan-cell-hint">道口已核对，请扫描卡板贴，扫描后直接进入本订单</p>
           <div class="scan-input-wrap">
             <NInput
               :value="addPalletScanDisplay"
@@ -581,12 +845,15 @@ function getPalletRowClass(pallet: OutboundPallet) {
           </NButton>
         </section>
 
-        <section class="detail-panel">
+        <section class="detail-panel" :class="{ 'detail-panel-locked': !dockVerified }">
+          <p v-if="!dockVerified" class="detail-panel-lock-hint">请先扫描道口核对，再扫描卡板贴进行核对</p>
           <div class="detail-toolbar">
             <span class="detail-toolbar-label">订单详情 · 按库位</span>
             <div class="detail-toolbar-actions">
               <NButton v-if="allLoaded" size="tiny" type="success" @click="requestFinishLoading">装车完成</NButton>
-              <NButton size="tiny" type="primary" ghost @click="mockScanNextPallet">模拟扫描</NButton>
+              <NButton size="tiny" type="primary" ghost :disabled="!dockVerified" @click="mockScanNextPallet">
+                模拟扫描
+              </NButton>
             </div>
           </div>
 
@@ -629,6 +896,7 @@ function getPalletRowClass(pallet: OutboundPallet) {
                   size="tiny"
                   :type="pallet.scanned ? 'default' : 'primary'"
                   ghost
+                  :disabled="!dockVerified || pallet.scanned"
                   @click="mockScanPallet(pallet)"
                 >
                   {{ pallet.scanned ? '已核对' : '模拟扫描' }}
@@ -640,31 +908,6 @@ function getPalletRowClass(pallet: OutboundPallet) {
           <p v-if="remainingCount === 0" class="all-done-hint">全部货物已装车，可点击「装车完成」</p>
         </section>
 
-        <div v-if="showUploadPhotoOverlay" class="pda-inline-overlay">
-          <div class="pda-inline-dialog">
-            <h3 class="pda-inline-dialog-title">上传照片</h3>
-            <p class="pda-inline-dialog-hint">请上传出库现场照片</p>
-            <div class="photo-upload-box" :class="{ uploaded: uploadPhotoReady }">
-              <span v-if="uploadPhotoReady" class="photo-upload-done">✓ 照片已选择</span>
-              <span v-else class="photo-upload-placeholder">点击下方按钮模拟上传</span>
-            </div>
-            <NButton type="primary" block size="large" class="action-btn" @click="mockUploadTripPhoto">
-              {{ uploadPhotoReady ? '重新选择' : '选择照片' }}
-            </NButton>
-            <div class="pda-inline-dialog-actions">
-              <NButton block size="large" @click="cancelUploadPhoto">取消</NButton>
-              <NButton
-                block
-                type="primary"
-                size="large"
-                :disabled="!uploadPhotoReady"
-                @click="confirmUploadPhoto"
-              >
-                确认上传
-              </NButton>
-            </div>
-          </div>
-        </div>
 
         <div v-if="showFinishPhotoOverlay" class="pda-inline-overlay">
           <div class="pda-inline-dialog">
@@ -700,13 +943,11 @@ function getPalletRowClass(pallet: OutboundPallet) {
           <p class="scan-cell-hint">请扫描道口码</p>
           <div class="scan-input-wrap">
             <NInput
-              :value="dockScanDisplay"
-              readonly
+              v-model:value="dockScanInput"
               placeholder="等待扫描..."
               size="large"
-              class="scan-input"
-              @keydown="blockManualInput"
-              @paste="blockManualInput"
+              class="scan-input editable"
+              @keyup="(e: KeyboardEvent) => onDockScanEnter(e, processDockScan)"
             >
               <template #suffix>
                 <span class="scan-icon" aria-hidden="true">
@@ -719,20 +960,37 @@ function getPalletRowClass(pallet: OutboundPallet) {
               </template>
             </NInput>
           </div>
+          <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
           <NButton type="primary" block size="large" class="action-btn" @click="mockScanDock">
             模拟扫描
           </NButton>
           <p v-if="dockVerified" class="scan-done-hint">道口已核对 · {{ headerInfo.dockNo }}</p>
         </section>
 
-        <section class="load-panel">
+        <section class="load-panel" :class="{ 'load-panel-locked': !dockVerified }">
           <div class="load-panel-head">
             <h3 class="load-panel-title">本次装车 · {{ loadingBatch.length }} 板</h3>
-            <NButton size="tiny" type="primary" ghost @click="mockScanNextLoadPallet">
-              模拟扫描
-            </NButton>
           </div>
-          <p class="load-scan-progress">已装车 {{ loadStowedCount }} / {{ loadingBatch.length }} 板</p>
+          <p v-if="!dockVerified" class="load-panel-lock-hint">请先扫描道口核对，再扫描已核对卡板贴</p>
+          <template v-else>
+            <p class="load-scan-progress">已扫 {{ loadStowedCount }} / {{ loadingBatch.length }} 板</p>
+            <div class="scan-input-wrap">
+              <NInput
+                v-model:value="loadScanInput"
+                placeholder="扫描已核对卡板贴，回车确认"
+                size="large"
+                class="scan-input editable"
+                @keyup="(e: KeyboardEvent) => onLoadScanEnter(e, processLoadPalletScan)"
+              />
+            </div>
+            <PdaScanFeedbackBar :type="scanFeedbackType" :text="scanFeedbackText" />
+            <NButton size="small" block class="action-btn-sm" @click="processLoadPalletScan(PDA_WRONG_PALLET_NO)">
+              模拟扫错托盘
+            </NButton>
+            <NButton size="tiny" type="primary" ghost block @click="mockScanNextLoadPallet">
+              模拟扫描下一板
+            </NButton>
+          </template>
 
           <div
             v-for="pallet in loadingBatch"
@@ -742,7 +1000,8 @@ function getPalletRowClass(pallet: OutboundPallet) {
           >
             <div class="load-row-top">
               <span class="load-row-no">{{ pallet.palletNo }}</span>
-              <span v-if="pallet.loadScanned" class="load-row-tag load-row-tag-stowed">已装车</span>
+              <span v-if="pallet.hold" class="load-row-tag load-row-tag-hold">HOLD</span>
+              <span v-else-if="pallet.loadScanned" class="load-row-tag load-row-tag-stowed">已装车</span>
               <span v-else class="load-row-tag load-row-tag-verified">已核对</span>
             </div>
             <dl class="load-row-dl">
@@ -756,6 +1015,7 @@ function getPalletRowClass(pallet: OutboundPallet) {
               ghost
               block
               class="load-row-scan-btn"
+              :disabled="!dockVerified || pallet.loadScanned"
               @click="mockScanLoadPallet(pallet)"
             >
               {{ pallet.loadScanned ? '已装车' : '模拟扫描卡板贴' }}
@@ -790,10 +1050,22 @@ function getPalletRowClass(pallet: OutboundPallet) {
           <dt>装车板数</dt>
           <dd>{{ activeTrip.locations.flatMap(l => l.pallets).length }} 板</dd>
         </dl>
-        <NButton type="primary" block size="large" class="action-btn" @click="handleComplete">
-          完成
+        <NButton type="primary" block size="large" class="action-btn" @click="requestFinishLoading">
+          上传发车照片
+        </NButton>
+        <NButton block size="large" quaternary class="secondary-btn" @click="handleComplete">
+          确认发车
         </NButton>
       </section>
+
+      <DevanningPhotoUploadModal v-model:show="showPhotoUploadModal" @confirm="confirmPhotoUpload" />
+      <DevanningExceptionModal
+        v-model:show="showExceptionModal"
+        title="异常反馈"
+        :default-container-no="contextContainerNo"
+        :order-options="contextOrderOptions"
+        @confirm="confirmExceptionReport"
+      />
     </div>
   </PdaPhoneShell>
 </template>
@@ -809,7 +1081,43 @@ function getPalletRowClass(pallet: OutboundPallet) {
 }
 
 .outbound-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 10px;
+}
+
+.outbound-head__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.outbound-head__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.outbound-head__deadline {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.outbound-head__deadline :deep(.deadline-countdown__text) {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .outbound-back {
@@ -831,6 +1139,47 @@ function getPalletRowClass(pallet: OutboundPallet) {
   margin: 4px 0 0;
   font-size: 12px;
   opacity: 0.85;
+}
+
+.deadline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.deadline-banner--overdue {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+.deadline-banner--urgent {
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+}
+.deadline-banner--near {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+.deadline-banner__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.deadline-banner__label {
+  font-size: 11px;
+  color: #6b7280;
+}
+.deadline-banner__time {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .outbound-steps {
@@ -1244,6 +1593,22 @@ function getPalletRowClass(pallet: OutboundPallet) {
   margin-bottom: 4px;
 }
 
+.load-panel-lock-hint,
+.detail-panel-lock-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #ff9500;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.load-panel-locked .load-row-scan-btn:disabled {
+  opacity: 0.45;
+}
+
 .load-scan-progress {
   margin: 0 0 10px;
   font-size: 12px;
@@ -1288,6 +1653,16 @@ function getPalletRowClass(pallet: OutboundPallet) {
 .load-row-tag-stowed {
   background: #2563eb;
   color: #fff;
+}
+
+.load-row-tag-hold {
+  background: #ff9500;
+  color: #fff;
+}
+
+.action-btn-sm {
+  margin-bottom: 8px;
+  height: 40px;
 }
 
 .load-row-scan-btn {
@@ -1367,11 +1742,39 @@ function getPalletRowClass(pallet: OutboundPallet) {
   margin-top: 10px;
 }
 
+.trip-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.trip-list-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5b54d8;
+}
+
+.trip-list-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.trip-list-empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
 .trip-item {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   width: 100%;
   padding: 10px;
   margin-bottom: 8px;
@@ -1390,17 +1793,36 @@ function getPalletRowClass(pallet: OutboundPallet) {
   background: #eef2ff;
 }
 
+.trip-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
 .trip-item-no {
   font-size: 14px;
   font-weight: 700;
   color: #111827;
-  width: 100%;
+}
+
+.trip-item-task {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5b54d8;
 }
 
 .trip-item-meta {
-  flex: 1;
+  width: 100%;
   font-size: 11px;
   color: #6b7280;
+}
+
+.trip-item-push {
+  width: 100%;
+  font-size: 10px;
+  color: #9ca3af;
 }
 
 .trip-item-count {

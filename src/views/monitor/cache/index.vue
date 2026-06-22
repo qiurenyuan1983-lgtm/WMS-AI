@@ -1,690 +1,411 @@
-<script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { useLoading } from '@sa/hooks';
-import { fetchGetMonitorCacheInfo } from '@/service/api/monitor/cache';
-import { useEcharts } from '@/hooks/common/echarts';
+<script setup lang="tsx">
+import { computed, onMounted, ref } from 'vue';
+import { NButton, NTag } from 'naive-ui';
+import { useAuth } from '@/hooks/business/auth';
+import { useDownload } from '@/hooks/business/download';
+import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
+import {
+  fetchExecuteRedisCacheAction,
+  fetchGetRedisAlertList,
+  fetchGetRedisBigKeyList,
+  fetchGetRedisCacheDashboard,
+  fetchGetRedisHotKeyList,
+  fetchGetRedisKeyCategories,
+  fetchGetRedisKeyExpiryStats,
+  fetchGetRedisOpsLogList,
+  fetchGetRedisSlowQueryList
+} from '@/service/api/monitor/cache';
+import PerformanceCharts from './modules/performance-charts.vue';
+import InstanceDetailDrawer from './modules/instance-detail-drawer.vue';
+import {
+  ALERT_RULES,
+  ALERT_STATUS_LABEL,
+  ALERT_STATUS_TAG,
+  HIGH_RISK_ACTIONS,
+  INSTANCE_STATUS_LABEL,
+  INSTANCE_STATUS_TAG,
+  RISK_LEVEL_COLOR,
+  RISK_LEVEL_LABEL,
+  RISK_LEVEL_TAG
+} from './constants';
 
-const { loading, startLoading, endLoading } = useLoading();
-const cacheInfo = ref<Api.Monitor.CacheInfo>();
-const fetchError = ref<string | null>(null);
+defineOptions({ name: 'MonitorCache' });
 
-// 自动刷新相关状态
-const autoRefresh = ref(false);
-// 默认30秒刷新一次
-const refreshInterval = ref(30);
-const refreshTimer = ref<NodeJS.Timeout | null>(null);
+const { hasAuth } = useAuth();
+const { download } = useDownload();
 
-async function getCacheInfo() {
-  startLoading();
-  fetchError.value = null;
+const loading = ref(false);
+const dashboard = ref<Api.Monitor.RedisCacheDashboard | null>(null);
+const keyCategories = ref<Api.Monitor.RedisKeyCategory[]>([]);
+const keyExpiry = ref<Api.Monitor.RedisKeyExpiryStats | null>(null);
+const activeTab = ref('keys');
+const keySubTab = ref('category');
+const instanceDrawerVisible = ref(false);
+const selectedInstanceId = ref<CommonType.IdType | null>(null);
+const actionPrefix = ref('wms:cache:temp:*');
+const actionTtl = ref(3600);
 
-  try {
-    const { error, data } = await fetchGetMonitorCacheInfo();
-    if (!error) {
-      cacheInfo.value = data;
+const canAdmin = computed(() => hasAuth('monitor:cache:admin') || hasAuth('monitor:cache:super') || hasAuth('monitor:cache:remove'));
+const canDev = computed(() => hasAuth('monitor:cache:view') || canAdmin.value);
 
-      // 确保在数据更新后调用图表更新
-      nextTick(() => {
-        updateCharts();
-        // 单独调用内存图表更新
-        updateMemoryChart();
-      });
-    } else {
-      fetchError.value = '获取缓存信息失败';
-    }
-  } catch {
-    fetchError.value = '获取缓存信息出错';
-  } finally {
-    endLoading();
-  }
-}
-
-// 处理手动刷新
-function handleRefresh() {
-  return getCacheInfo()
-    .then(() => {
-      // 额外的强制刷新尝试
-      nextTick(() => {
-        forceUpdateCharts();
-      });
-    })
-    .catch(() => {
-      // 即使请求失败，也尝试更新图表，以防有一些缓存数据可用
-      nextTick(() => {
-        if (cacheInfo.value) {
-          forceUpdateCharts();
-        }
-      });
-    });
-}
-
-// 处理自动刷新开关
-function toggleAutoRefresh() {
-  if (autoRefresh.value) {
-    startAutoRefresh();
-  } else {
-    stopAutoRefresh();
-  }
-}
-
-// 启动自动刷新
-function startAutoRefresh() {
-  stopAutoRefresh(); // 先清除可能存在的定时器
-  refreshTimer.value = setInterval(() => {
-    getCacheInfo();
-  }, refreshInterval.value * 1000);
-}
-
-// 停止自动刷新
-function stopAutoRefresh() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value);
-    refreshTimer.value = null;
-  }
-}
-
-// 更新刷新间隔
-function updateRefreshInterval(value: number | null) {
-  if (value !== null) {
-    refreshInterval.value = value;
-    if (autoRefresh.value) {
-      startAutoRefresh(); // 重新启动定时器使新间隔生效
-    }
-  }
-}
-
-const { domRef: commandChartRef, updateOptions: updateCommandChart } = useEcharts(() => ({
-  tooltip: {
-    trigger: 'item',
-    formatter: '{a} <br/>{b} : {c} ({d}%)',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderColor: '#e6e6e6',
-    borderWidth: 1,
-    textStyle: {
-      color: '#666'
-    },
-    extraCssText: 'box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);'
-  },
-  legend: {
-    type: 'scroll',
-    orient: 'vertical',
-    right: 10,
-    top: 20,
-    bottom: 20,
-    textStyle: {
-      color: '#666'
-    }
-  },
-  series: [
-    {
-      name: '命令',
-      type: 'pie',
-      roseType: 'radius',
-      radius: [15, 95],
-      center: ['40%', '50%'],
-      data: [] as Array<{ name: string; value: number }>,
-      animationEasing: 'cubicInOut',
-      animationDuration: 1000,
-      itemStyle: {
-        borderRadius: 10,
-        borderColor: '#fff',
-        borderWidth: 2
-      },
-      label: {
-        formatter: '{b}: {d}%',
-        color: '#666'
-      },
-      emphasis: {
-        label: {
-          show: true,
-          fontSize: '14',
-          fontWeight: 'bold'
-        },
-        itemStyle: {
-          shadowBlur: 10,
-          shadowOffsetX: 0,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
-        }
-      }
-    }
-  ]
-}));
-
-const { domRef: memoryGaugeRef, setOptions } = useEcharts(
-  () => ({
-    tooltip: {
-      formatter: '内存使用情况'
-    },
-    series: [
-      {
-        name: '内存',
-        type: 'gauge',
-        min: 0,
-        max: 100,
-        detail: {
-          formatter: '{value}%',
-          fontSize: 16,
-          fontWeight: 'bold',
-          offsetCenter: [0, '70%']
-        },
-        data: [
-          {
-            value: 0,
-            name: '内存使用率'
-          }
-        ],
-        axisLine: {
-          lineStyle: {
-            width: 8,
-            color: [
-              [0.3, '#58d9f9'],
-              [0.7, '#26deca'],
-              [1, '#ff8c6a']
-            ]
-          }
-        },
-        pointer: {
-          itemStyle: {
-            color: 'auto'
-          }
-        },
-        axisTick: {
-          distance: -12,
-          length: 4,
-          lineStyle: {
-            color: '#999',
-            width: 1
-          }
-        },
-        splitLine: {
-          distance: -18,
-          length: 12,
-          lineStyle: {
-            color: '#999',
-            width: 1
-          }
-        },
-        axisLabel: {
-          color: '#666',
-          distance: 25,
-          fontSize: 12
-        },
-        title: {
-          offsetCenter: [0, '90%'],
-          fontSize: 14
-        },
-        animationDuration: 1000
-      }
-    ]
-  }),
-  {
-    // 自定义渲染和更新钩子
-    onRender: chart => {
-      chart.hideLoading();
-    },
-    onUpdated: chart => {
-      chart.hideLoading();
-    }
-  }
-);
-
-// 颜色配置
-const colorPalette = [
-  '#5da8ff',
-  '#8e9dff',
-  '#fedc69',
-  '#26deca',
-  '#ff8c6a',
-  '#58d9f9',
-  '#05c091',
-  '#7367f0',
-  '#9e86ff',
-  '#f8d3a5',
-  '#4a5bcc',
-  '#22bd7c'
-];
-
-// 更新图表数据
-function updateCharts() {
-  // 确保存在缓存信息才进行更新
-  if (!cacheInfo.value) {
-    return;
-  }
-
-  try {
-    // 更新命令统计图表
-    updateCommandChart(opts => {
-      try {
-        const commandStats = cacheInfo.value?.commandStats || [];
-        if (!commandStats.length) {
-          return opts;
-        }
-
-        // 解析命令统计数据 - 适配新的数据格式 {name, value}
-        const data = commandStats
-          .map(item => {
-            try {
-              if (!item || typeof item !== 'object') {
-                return { name: '未知命令', value: 0 };
-              }
-
-              // 检查API返回的数据格式
-              if ('name' in item && 'value' in item) {
-                const name = String(item.name);
-                // 确保将value转换为数字
-                let value = 0;
-                try {
-                  value = Number.parseInt(String(item.value), 10);
-                  if (Number.isNaN(value)) value = 0;
-                } catch {
-                  value = 0;
-                }
-                return { name, value };
-              }
-              // 老的处理逻辑，兼容旧格式
-              const key = Object.keys(item)[0] || '未知命令';
-              let value = 0;
-              try {
-                value = Number.parseInt(String(Object.values(item)[0] || '0'), 10);
-                if (Number.isNaN(value)) value = 0;
-              } catch {
-                value = 0;
-              }
-              return { name: key, value };
-            } catch {
-              return { name: '未知命令', value: 0 };
-            }
-          })
-          .filter(item => item.name !== '未知命令' || item.value > 0);
-
-        if (!data.length) {
-          return opts;
-        }
-
-        // 按值排序，取前10个命令，剩余的归为"其他"类别
-        const sortedData = data.sort((a, b) => b.value - a.value);
-
-        let pieData: Array<{ name: string; value: number }>;
-        if (sortedData.length > 10) {
-          const top10 = sortedData.slice(0, 10);
-          const others = sortedData.slice(10);
-          const othersValue = others.reduce((sum, item) => sum + item.value, 0);
-
-          pieData = [...top10, { name: '其他命令', value: othersValue }];
-        } else {
-          pieData = sortedData;
-        }
-
-        // 设置饼图数据和颜色
-        if (opts.series && Array.isArray(opts.series) && opts.series[0]) {
-          opts.series[0].data = pieData;
-
-          // 设置自定义颜色
-          const newItemStyle = {
-            ...opts.series[0].itemStyle,
-            color(param: { dataIndex: number }) {
-              const index = param.dataIndex % colorPalette.length;
-              return colorPalette[index >= 0 ? index : 0];
-            }
-          };
-
-          opts.series[0].itemStyle = newItemStyle;
-
-          // 增强tooltip展示
-          opts.tooltip = {
-            ...opts.tooltip,
-            formatter: function tooltipFormatter(params: any) {
-              if (!params || typeof params !== 'object') return '';
-
-              const name = params.name || '未知命令';
-              const value = typeof params.value === 'number' ? params.value : 0;
-              const percent = typeof params.percent === 'number' ? params.percent : 0;
-
-              return (
-                `<div style="font-weight:bold;margin-bottom:5px;font-size:14px;">${name}</div>` +
-                `<div>执行次数: <span style="font-weight:bold;float:right;">${value.toLocaleString()}</span></div>` +
-                `<div>占比: <span style="font-weight:bold;float:right;">${percent.toFixed(2)}%</span></div>`
-              );
-            } as any
-          };
-        }
-
-        return opts;
-      } catch {
-        return opts;
-      }
-    });
-
-    // 更新内存仪表盘
-    updateMemoryChart();
-  } catch {
-    // 错误已被捕获，无需处理
-  }
-}
-
-// 更新内存仪表盘数据的方法
-function updateMemoryChart() {
-  try {
-    const info = cacheInfo.value?.info;
-    if (!info) {
-      return;
-    }
-
-    // 使用类型断言处理API返回的实际数据结构
-    const infoAny = info as any;
-
-    // 获取内存信息字符串
-    const usedMemoryHuman = String(infoAny.used_memory_human || '0B');
-    const maxMemoryHuman = String(infoAny.maxmemory_human || '0B');
-
-    // 解析内存字符串
-    const usedMem = parseMemoryString(usedMemoryHuman);
-    const maxMem = parseMemoryString(maxMemoryHuman);
-
-    // 计算内存使用率
-    let usagePercent = 0;
-
-    if (maxMem.bytes > 0) {
-      // 如果有最大内存限制，计算使用百分比
-      usagePercent = Math.min(100, Math.round((usedMem.bytes / maxMem.bytes) * 100));
-    } else if (infoAny.total_system_memory) {
-      // 使用系统总内存作为参考
-      try {
-        const totalMemoryBytes = Number(infoAny.total_system_memory);
-        if (totalMemoryBytes > 0) {
-          usagePercent = Math.min(100, Math.round((usedMem.bytes / totalMemoryBytes) * 100));
-        } else {
-          // 无法计算百分比，显示绝对值
-          usagePercent = 50; // 仪表盘显示中间值
-        }
-      } catch {
-        usagePercent = 50;
-      }
-    } else {
-      // 没有最大内存限制，显示绝对值
-      usagePercent = 50; // 仪表盘显示中间值
-    }
-
-    // 完整的仪表盘选项
-    const gaugeOption = {
-      tooltip: {
-        formatter:
-          maxMem.bytes > 0
-            ? `内存使用: ${usedMemoryHuman}<br/>最大内存: ${maxMemoryHuman}<br/>使用率: ${usagePercent}%`
-            : `内存使用: ${usedMemoryHuman}<br/>最大内存: 未设置限制`
-      },
-      series: [
-        {
-          name: '内存',
-          type: 'gauge' as const,
-          min: 0,
-          max: 100,
-          detail: {
-            formatter: maxMem.bytes > 0 ? '{value}%' : usedMemoryHuman,
-            fontSize: 16,
-            fontWeight: 'bold' as const,
-            offsetCenter: [0, '70%']
-          },
-          data: [
-            {
-              value: usagePercent,
-              name: maxMem.bytes > 0 ? '内存使用率' : '内存使用量'
-            }
-          ],
-          axisLine: {
-            lineStyle: {
-              width: 8,
-              color: [
-                [0.3, '#58d9f9'],
-                [0.7, '#26deca'],
-                [1, '#ff8c6a']
-              ]
-            }
-          },
-          pointer: {
-            itemStyle: {
-              color: 'auto'
-            }
-          },
-          axisTick: {
-            distance: -12,
-            length: 4,
-            lineStyle: {
-              color: '#999',
-              width: 1
-            }
-          },
-          splitLine: {
-            distance: -18,
-            length: 12,
-            lineStyle: {
-              color: '#999',
-              width: 1
-            }
-          },
-          axisLabel: {
-            color: '#666',
-            distance: 25,
-            fontSize: 12
-          },
-          title: {
-            offsetCenter: [0, '90%'],
-            fontSize: 14
-          },
-          animationDuration: 1000
-        }
-      ]
-    };
-
-    // 直接设置图表选项
-    if (memoryGaugeRef.value) {
-      // 使用类型断言绕过TypeScript类型检查
-      setOptions(gaugeOption as any);
-    }
-  } catch {
-    // 错误已被捕获，无需处理
-  }
-}
-
-// 解析内存字符串，例如 "3.6MB" -> { value: 3.6, unit: "MB" }
-function parseMemoryString(memoryStr: string): { value: number; unit: string; bytes: number } {
-  if (!memoryStr || typeof memoryStr !== 'string') {
-    return { value: 0, unit: 'B', bytes: 0 };
-  }
-
-  try {
-    // 用正则表达式提取数值和单位
-    const match = memoryStr.match(/^([\d.]+)([KMGTP]?B)?$/i);
-    if (!match) {
-      return { value: 0, unit: 'B', bytes: 0 };
-    }
-
-    const value = Number.parseFloat(match[1]);
-    const unit = (match[2] || 'B').toUpperCase();
-
-    // 计算字节数
-    const unitIndex = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'].indexOf(unit);
-    const bytes = unitIndex >= 0 ? value * 1024 ** unitIndex : value;
-
-    return { value, unit, bytes };
-  } catch {
-    return { value: 0, unit: 'B', bytes: 0 };
-  }
-}
-
-// 命令统计图表强制刷新
-function forceUpdateCharts() {
-  try {
-    if (memoryGaugeRef.value) {
-      updateMemoryChart();
-    }
-
-    if (commandChartRef.value) {
-      // 更新命令统计图表
-      updateCommandChart(opts => {
-        // ... existing code ...
-        return opts;
-      });
-    }
-  } catch {
-    // 错误已被捕获，无需处理
-  }
-}
-
-// 改进组件挂载处理
-onMounted(async () => {
-  try {
-    await getCacheInfo();
-  } catch {
-    fetchError.value = '初始化数据失败，请尝试刷新';
-  }
+const kpiCards = computed(() => {
+  const o = dashboard.value?.overview;
+  if (!o) return [];
+  const statusColor = o.redisStatus === 'RUNNING' ? '#18a058' : o.redisStatus === 'WARNING' ? '#f0a020' : '#d03050';
+  return [
+    { key: 'status', label: 'Redis状态', value: o.redisStatusLabel, color: statusColor },
+    { key: 'uptime', label: '运行时长', value: o.uptimeLabel, color: '#2563eb' },
+    { key: 'memory', label: '内存使用率', value: `${o.memoryUsagePercent}%`, color: o.memoryUsagePercent > 80 ? '#d03050' : '#f0a020' },
+    { key: 'hit', label: '缓存命中率', value: `${o.hitRate}%`, color: o.hitRate < 80 ? '#d03050' : '#18a058' },
+    { key: 'conn', label: '当前连接数', value: o.connections, color: '#0284c7' },
+    { key: 'qps', label: 'QPS', value: o.qps, color: '#7c3aed' },
+    { key: 'keys', label: 'Key总数', value: o.keyCount.toLocaleString(), color: '#64748b' },
+    { key: 'slow', label: '慢查询数', value: o.slowQueryCount, color: o.slowQueryCount > 0 ? '#d03050' : '#18a058' }
+  ];
 });
 
-// 确保在组件卸载时清理所有资源
-onUnmounted(() => {
-  stopAutoRefresh();
-  // 清理图表资源
-  try {
-    if (commandChartRef.value) {
-      commandChartRef.value = null;
-    }
-    if (memoryGaugeRef.value) {
-      memoryGaugeRef.value = null;
-    }
-  } catch {
-    // 错误已被捕获，无需处理
+async function loadDashboard() {
+  loading.value = true;
+  const { data, error } = await fetchGetRedisCacheDashboard();
+  loading.value = false;
+  if (!error && data) dashboard.value = data;
+}
+
+async function loadKeyData() {
+  const [catRes, expRes] = await Promise.all([fetchGetRedisKeyCategories(), fetchGetRedisKeyExpiryStats()]);
+  if (!catRes.error) keyCategories.value = catRes.data || [];
+  if (!expRes.error) keyExpiry.value = expRes.data || null;
+}
+
+async function refreshAll() {
+  await loadDashboard();
+  await loadKeyData();
+  await reloadTables();
+}
+
+async function reloadTables() {
+  await Promise.all([
+    getBigKeyData(),
+    getHotKeyData(),
+    getSlowData(),
+    getAlertData(),
+    getOpsData()
+  ]);
+}
+
+async function runAction(action: Api.Monitor.RedisCacheActionType, extra?: Partial<Api.Monitor.RedisCacheActionParams>) {
+  const { data, error } = await fetchExecuteRedisCacheAction({ action, ...extra });
+  if (error) return;
+  const result = data as { ok?: boolean; msg?: string };
+  if (result?.ok === false) {
+    window.$message?.warning(result.msg || '操作已记录但未执行');
+  } else {
+    window.$message?.success(result?.msg || '操作成功');
   }
+  await refreshAll();
+}
+
+function openInstance(row: Api.Monitor.RedisInstance) {
+  selectedInstanceId.value = row.id;
+  instanceDrawerVisible.value = true;
+}
+
+function handleExport() {
+  download('/monitor/cache/export', {}, `Redis缓存监控报告_${Date.now()}.xlsx`);
+}
+
+const { columns: bigKeyColumns, data: bigKeyData, getData: getBigKeyData, loading: bigKeyLoading } = useNaivePaginatedTable({
+  api: () => fetchGetRedisBigKeyList({ pageNum: 1, pageSize: 10 }),
+  transform: response => defaultTransform(response),
+  immediate: false,
+  columns: () => [
+    { key: 'keyName', title: 'Key名称', width: 220, ellipsis: { tooltip: true } },
+    { key: 'keyType', title: '类型', width: 70 },
+    { key: 'memoryHuman', title: '内存占用', width: 90 },
+    { key: 'elementCount', title: '元素数量', width: 90, align: 'right' },
+    { key: 'ttlSeconds', title: 'TTL', width: 80, render: row => (row.ttlSeconds < 0 ? '永不过期' : `${row.ttlSeconds}s`) },
+    { key: 'businessModule', title: '业务模块', width: 100 },
+    {
+      key: 'riskLevel',
+      title: '风险等级',
+      width: 90,
+      render: row => (
+        <NTag size="small" type={RISK_LEVEL_TAG[row.riskLevel] || 'default'}>
+          {RISK_LEVEL_LABEL[row.riskLevel] || row.riskLevel}
+        </NTag>
+      )
+    }
+  ]
+});
+
+const { columns: hotKeyColumns, data: hotKeyData, getData: getHotKeyData, loading: hotKeyLoading } = useNaivePaginatedTable({
+  api: () => fetchGetRedisHotKeyList({ pageNum: 1, pageSize: 10 }),
+  transform: response => defaultTransform(response),
+  immediate: false,
+  columns: () => [
+    { key: 'keyName', title: 'Key名称', width: 220, ellipsis: { tooltip: true } },
+    { key: 'accessCount', title: '访问次数', width: 100, align: 'right' },
+    { key: 'qps', title: 'QPS', width: 80, align: 'right' },
+    { key: 'businessModule', title: '业务模块', width: 100 },
+    {
+      key: 'riskLevel',
+      title: '风险等级',
+      width: 90,
+      render: row => (
+        <NTag size="small" type={RISK_LEVEL_TAG[row.riskLevel] || 'default'}>
+          {RISK_LEVEL_LABEL[row.riskLevel] || row.riskLevel}
+        </NTag>
+      )
+    }
+  ]
+});
+
+const { columns: slowColumns, data: slowData, getData: getSlowData, loading: slowLoading } = useNaivePaginatedTable({
+  api: () => fetchGetRedisSlowQueryList({ pageNum: 1, pageSize: 10 }),
+  transform: response => defaultTransform(response),
+  immediate: false,
+  columns: () => [
+    { key: 'queryId', title: '查询ID', width: 110 },
+    { key: 'executeTime', title: '执行时间', width: 155 },
+    { key: 'durationMs', title: '耗时(ms)', width: 90, align: 'right' },
+    { key: 'command', title: '命令', width: 90 },
+    { key: 'keyName', title: 'Key', width: 180, ellipsis: { tooltip: true } },
+    { key: 'clientIp', title: '客户端IP', width: 120 },
+    { key: 'sourceService', title: '来源服务', width: 100 },
+    {
+      key: 'riskLevel',
+      title: '风险等级',
+      width: 90,
+      render: row => (
+        <NTag size="small" type={RISK_LEVEL_TAG[row.riskLevel] || 'default'}>
+          {RISK_LEVEL_LABEL[row.riskLevel] || row.riskLevel}
+        </NTag>
+      )
+    },
+    { key: 'suggestion', title: '建议处理', width: 200, ellipsis: { tooltip: true } }
+  ]
+});
+
+const { columns: alertColumns, data: alertData, getData: getAlertData, loading: alertLoading } = useNaivePaginatedTable({
+  api: () => fetchGetRedisAlertList({ pageNum: 1, pageSize: 10 }),
+  transform: response => defaultTransform(response),
+  immediate: false,
+  columns: () => [
+    { key: 'alertNo', title: '告警编号', width: 150 },
+    { key: 'alertType', title: '告警类型', width: 130 },
+    { key: 'instanceName', title: '实例', width: 140 },
+    { key: 'content', title: '告警内容', width: 180, ellipsis: { tooltip: true } },
+    {
+      key: 'riskLevel',
+      title: '风险等级',
+      width: 90,
+      render: row => (
+        <span style={{ color: RISK_LEVEL_COLOR[row.riskLevel], fontWeight: 500 }}>
+          {RISK_LEVEL_LABEL[row.riskLevel] || row.riskLevel}
+        </span>
+      )
+    },
+    { key: 'triggerTime', title: '触发时间', width: 155 },
+    { key: 'currentValue', title: '当前值', width: 90 },
+    { key: 'threshold', title: '阈值', width: 80 },
+    {
+      key: 'status',
+      title: '状态',
+      width: 90,
+      render: row => (
+        <NTag size="small" type={ALERT_STATUS_TAG[row.status] || 'default'}>
+          {ALERT_STATUS_LABEL[row.status] || row.status}
+        </NTag>
+      )
+    }
+  ]
+});
+
+const { columns: opsColumns, data: opsData, getData: getOpsData, loading: opsLoading } = useNaivePaginatedTable({
+  api: () => fetchGetRedisOpsLogList({ pageNum: 1, pageSize: 10 }),
+  transform: response => defaultTransform(response),
+  immediate: false,
+  columns: () => [
+    { key: 'operateTime', title: '操作时间', width: 155 },
+    { key: 'operatorName', title: '操作人', width: 100 },
+    { key: 'operateType', title: '操作类型', width: 130 },
+    { key: 'operateTarget', title: '操作对象', width: 180, ellipsis: { tooltip: true } },
+    { key: 'beforeValue', title: '操作前值', width: 120, ellipsis: { tooltip: true } },
+    { key: 'afterValue', title: '操作后值', width: 120, ellipsis: { tooltip: true } },
+    { key: 'result', title: '结果', width: 80 },
+    { key: 'ipaddr', title: 'IP地址', width: 120 },
+    {
+      key: 'riskLevel',
+      title: '风险等级',
+      width: 90,
+      render: row => RISK_LEVEL_LABEL[row.riskLevel] || row.riskLevel
+    }
+  ]
+});
+
+const instanceColumns = [
+  { key: 'instanceName', title: '实例名称', width: 150 },
+  { key: 'env', title: '环境', width: 70 },
+  { key: 'host', title: 'IP/端口', width: 140, render: (row: Api.Monitor.RedisInstance) => `${row.host}:${row.port}` },
+  { key: 'mode', title: '模式', width: 70 },
+  { key: 'role', title: '角色', width: 80 },
+  {
+    key: 'status',
+    title: '状态',
+    width: 80,
+    render: (row: Api.Monitor.RedisInstance) => (
+      <NTag size="small" type={INSTANCE_STATUS_TAG[row.status] || 'default'}>
+        {INSTANCE_STATUS_LABEL[row.status] || row.status}
+      </NTag>
+    )
+  },
+  { key: 'memoryUsedHuman', title: '内存', width: 90 },
+  { key: 'hitRate', title: '命中率', width: 80, render: (row: Api.Monitor.RedisInstance) => `${row.hitRate}%` },
+  { key: 'connections', title: '连接数', width: 70, align: 'right' as const },
+  { key: 'qps', title: 'QPS', width: 70, align: 'right' as const },
+  { key: 'lastCheckTime', title: '最近检查', width: 155 },
+  {
+    key: 'operate',
+    title: '操作',
+    width: 160,
+    fixed: 'right' as const,
+    render: (row: Api.Monitor.RedisInstance) => (
+      <div class="flex gap-6px">
+        <NButton text type="primary" size="small" onClick={() => openInstance(row)}>
+          查看详情
+        </NButton>
+        <NButton text type="primary" size="small" disabled={!canAdmin.value} onClick={() => runAction('REFRESH', { instanceId: row.id })}>
+          刷新
+        </NButton>
+      </div>
+    )
+  }
+];
+
+const categoryColumns = [
+  { key: 'prefix', title: 'Key前缀', width: 160 },
+  { key: 'businessModule', title: '业务模块', width: 120 },
+  { key: 'keyCount', title: '数量', width: 90, align: 'right' as const },
+  { key: 'memoryHuman', title: '内存占用', width: 100 },
+  { key: 'avgTtlSeconds', title: '平均TTL', width: 100, render: (row: Api.Monitor.RedisKeyCategory) => (row.avgTtlSeconds < 0 ? '永不过期' : `${row.avgTtlSeconds}s`) }
+];
+
+onMounted(async () => {
+  await refreshAll();
 });
 </script>
 
 <template>
-  <div class="min-h-500px flex-col-stretch gap-16px overflow-y-auto lt-sm:overflow-auto">
-    <NSpace vertical :size="16">
-      <!-- 控制面板 -->
-      <NCard :bordered="false" class="control-panel card-wrapper">
-        <div class="flex flex-wrap items-center justify-between gap-y-12px">
-          <h3 class="m-0 text-16px font-medium">Redis 缓存监控</h3>
-          <div class="flex flex-wrap items-center gap-16px">
-            <div class="flex items-center gap-8px">
-              <span class="whitespace-nowrap">自动刷新：</span>
-              <NSwitch v-model:value="autoRefresh" @update:value="toggleAutoRefresh" />
-            </div>
-            <div v-if="autoRefresh" class="flex items-center gap-8px">
-              <span class="whitespace-nowrap">间隔 (秒)：</span>
-              <NInputNumber
-                v-model:value="refreshInterval"
-                :min="5"
-                :max="300"
-                size="small"
-                @update:value="updateRefreshInterval"
-              />
-            </div>
-            <NButton
-              type="primary"
-              :loading="loading"
-              :disabled="autoRefresh"
-              class="min-w-80px"
-              @click="handleRefresh"
-            >
-              {{ loading ? '刷新中...' : '刷新数据' }}
-            </NButton>
+  <div class="min-h-500px flex flex-col gap-12px overflow-y-auto lt-sm:overflow-auto">
+    <NCard :bordered="false" size="small" class="card-wrapper control-panel">
+      <div class="flex flex-wrap items-center justify-between gap-12px">
+        <div>
+          <div class="text-16px font-medium">Redis缓存监控</div>
+          <div class="mt-4px text-12px text-#6b7280">监控 Redis 服务状态、内存、命中率、Key、慢查询与告警</div>
+        </div>
+        <NSpace>
+          <NButton type="primary" :loading="loading" @click="refreshAll">刷新监控</NButton>
+          <NButton v-if="canAdmin" @click="handleExport">导出报告</NButton>
+          <NButton v-if="canAdmin" @click="runAction('CLEAR_SLOW_LOG')">清理慢查询日志</NButton>
+          <NTooltip v-for="action in HIGH_RISK_ACTIONS" :key="action">
+            <template #trigger>
+              <NButton disabled size="small">{{ action }}</NButton>
+            </template>
+            第一阶段仅展示，不允许真实执行
+          </NTooltip>
+        </NSpace>
+      </div>
+    </NCard>
+
+    <NSpin :show="loading">
+      <NCard :bordered="false" size="small" class="card-wrapper">
+        <div class="flex flex-wrap gap-10px">
+          <div
+            v-for="card in kpiCards"
+            :key="card.key"
+            class="min-w-120px flex-1 rounded-8px border border-#e5e7eb px-14px py-10px"
+          >
+            <div class="text-12px text-#6b7280">{{ card.label }}</div>
+            <div class="text-20px font-semibold" :style="{ color: card.color }">{{ card.value }}</div>
           </div>
         </div>
       </NCard>
 
-      <!-- 错误提示 -->
-      <NAlert v-if="fetchError" type="error" closable>
-        {{ fetchError }}
-      </NAlert>
-
-      <NCard title="Redis 基本信息" :bordered="false" class="info-card card-wrapper">
-        <NSpin :show="loading">
-          <NDescriptions :column="4" bordered label-placement="left" label-class="w-150px">
-            <NDescriptionsItem label="Redis 版本">{{ cacheInfo?.info?.redis_version }}</NDescriptionsItem>
-            <NDescriptionsItem label="运行模式">
-              {{ cacheInfo?.info?.redis_mode === 'standalone' ? '单机' : '集群' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem label="端口">{{ cacheInfo?.info?.tcp_port }}</NDescriptionsItem>
-            <NDescriptionsItem label="客户端数">{{ cacheInfo?.info?.connected_clients }}</NDescriptionsItem>
-            <NDescriptionsItem label="运行时间(天)">{{ cacheInfo?.info?.uptime_in_days }}</NDescriptionsItem>
-            <NDescriptionsItem label="使用内存">{{ cacheInfo?.info?.used_memory_human }}</NDescriptionsItem>
-            <NDescriptionsItem label="使用CPU">
-              {{
-                cacheInfo?.info?.used_cpu_user_children
-                  ? parseFloat(cacheInfo?.info?.used_cpu_user_children).toFixed(2)
-                  : ''
-              }}
-            </NDescriptionsItem>
-            <NDescriptionsItem label="内存配置">{{ cacheInfo?.info?.maxmemory_human }}</NDescriptionsItem>
-            <NDescriptionsItem label="AOF 开启">
-              {{ cacheInfo?.info?.aof_enabled === '0' ? '否' : '是' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem label="RDB 状态">
-              {{ cacheInfo?.info?.rdb_last_bgsave_status }}
-            </NDescriptionsItem>
-            <NDescriptionsItem label="Key 数量">{{ cacheInfo?.dbSize }}</NDescriptionsItem>
-            <NDescriptionsItem label="网络入口/出口">
-              {{ cacheInfo?.info?.instantaneous_input_kbps }}kps/{{ cacheInfo?.info?.instantaneous_output_kbps }}kps
-            </NDescriptionsItem>
-          </NDescriptions>
-        </NSpin>
+      <NCard title="Redis实例列表" :bordered="false" size="small" class="card-wrapper">
+        <NDataTable
+          :columns="instanceColumns"
+          :data="dashboard?.instances || []"
+          size="small"
+          :scroll-x="1200"
+        />
       </NCard>
 
-      <NGrid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-        <NGi span="0:24 1000:12">
-          <NCard title="命令统计" :bordered="false" class="chart-card card-wrapper">
-            <div ref="commandChartRef" class="h-360px overflow-hidden"></div>
-          </NCard>
-        </NGi>
-        <NGi span="0:24 1000:12">
-          <NCard title="内存信息" :bordered="false" class="chart-card card-wrapper">
-            <NSpin :show="loading">
-              <div ref="memoryGaugeRef" class="h-360px overflow-hidden"></div>
-            </NSpin>
-          </NCard>
-        </NGi>
-      </NGrid>
-    </NSpace>
+      <PerformanceCharts v-if="dashboard?.trends?.length" :trends="dashboard.trends" />
+
+      <NCard :bordered="false" size="small" class="card-wrapper">
+        <NTabs v-model:value="activeTab" type="line" animated>
+          <NTabPane name="keys" tab="Key监控">
+            <NTabs v-model:value="keySubTab" type="segment" size="small" class="mb-12px mt-8px">
+              <NTabPane name="category" tab="Key分类统计" />
+              <NTabPane name="big" tab="大Key" />
+              <NTabPane name="hot" tab="热Key" />
+              <NTabPane name="expiry" tab="过期Key" />
+            </NTabs>
+            <NDataTable v-if="keySubTab === 'category'" :columns="categoryColumns" :data="keyCategories" size="small" />
+            <NDataTable v-else-if="keySubTab === 'big'" :columns="bigKeyColumns" :data="bigKeyData" :loading="bigKeyLoading" size="small" />
+            <NDataTable v-else-if="keySubTab === 'hot'" :columns="hotKeyColumns" :data="hotKeyData" :loading="hotKeyLoading" size="small" />
+            <div v-else class="mt-8px">
+              <div class="mb-12px flex flex-wrap gap-16px">
+                <NStatistic label="永不过期Key" :value="keyExpiry?.neverExpireCount || 0" />
+                <NStatistic label="即将过期Key" :value="keyExpiry?.expiringSoonCount || 0" />
+              </div>
+              <NDataTable
+                :columns="[
+                  { key: 'keyName', title: 'Key名称' },
+                  { key: 'ttlSeconds', title: '剩余TTL(s)' },
+                  { key: 'businessModule', title: '业务模块' }
+                ]"
+                :data="keyExpiry?.expiringSoonKeys || []"
+                size="small"
+              />
+            </div>
+            <div v-if="canAdmin && keySubTab !== 'category'" class="mt-12px flex flex-wrap items-center gap-8px">
+              <NInput v-model:value="actionPrefix" placeholder="Key前缀，如 wms:cache:temp:*" class="w-240px" />
+              <NInputNumber v-model:value="actionTtl" :min="60" class="w-120px" />
+              <NButton size="small" @click="runAction('SET_TTL', { target: actionPrefix, ttlSeconds: actionTtl })">设置Key TTL</NButton>
+              <NButton size="small" type="warning" @click="runAction('CLEAR_PREFIX', { target: actionPrefix })">清理指定前缀Key</NButton>
+            </div>
+          </NTabPane>
+
+          <NTabPane v-if="canDev" name="slow" tab="慢查询监控">
+            <NAlert type="warning" class="mb-12px mt-8px">
+              常见风险命令：KEYS、HGETALL 大 Hash、LRANGE 大 List、SMEMBERS 大 Set
+            </NAlert>
+            <NDataTable :columns="slowColumns" :data="slowData" :loading="slowLoading" size="small" :scroll-x="1100" />
+          </NTabPane>
+
+          <NTabPane name="alerts" tab="告警记录">
+            <NAlert type="info" class="mb-12px mt-8px" title="告警规则">
+              <div class="flex flex-wrap gap-8px">
+                <NTag v-for="rule in ALERT_RULES" :key="rule" size="small">{{ rule }}</NTag>
+              </div>
+            </NAlert>
+            <NDataTable :columns="alertColumns" :data="alertData" :loading="alertLoading" size="small" :scroll-x="1200" />
+          </NTabPane>
+
+          <NTabPane name="ops" tab="操作日志">
+            <NDataTable :columns="opsColumns" :data="opsData" :loading="opsLoading" size="small" :scroll-x="1100" />
+          </NTabPane>
+        </NTabs>
+      </NCard>
+    </NSpin>
+
+    <InstanceDetailDrawer v-model:visible="instanceDrawerVisible" :instance-id="selectedInstanceId" />
   </div>
 </template>
 
 <style scoped>
-.card-wrapper {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.card-wrapper:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
 .control-panel {
-  background: linear-gradient(to right, rgba(115, 103, 240, 0.05), rgba(115, 103, 240, 0.01));
-}
-
-.info-card {
-  position: relative;
-  overflow: hidden;
-}
-
-.chart-card {
-  min-height: 420px;
-}
-
-@media (max-width: 768px) {
-  .flex-wrap {
-    flex-wrap: wrap;
-  }
-
-  .chart-card {
-    min-height: 360px;
-  }
-}
-
-@media (max-width: 480px) {
-  .chart-card {
-    min-height: 300px;
-  }
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.01));
 }
 </style>

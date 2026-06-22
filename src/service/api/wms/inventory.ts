@@ -16,6 +16,22 @@ export function fetchGetWmsPalletList(params?: Api.Wms.PalletSearchParams) {
   return request<Api.Wms.PalletList>({ url: '/wms/inventory/pallets', method: 'get', params });
 }
 
+export function fetchGetPalletInventoryStats(params?: Api.Wms.PalletInventorySearchParams) {
+  return request<Api.Wms.PalletInventoryStats>({ url: '/wms/pallet-inventory/stats', method: 'get', params });
+}
+
+export function fetchGetPalletInventoryList(params?: Api.Wms.PalletInventorySearchParams) {
+  return request<Api.Wms.PalletInventoryList>({ url: '/wms/pallet-inventory/list', method: 'get', params });
+}
+
+export function fetchGetPalletInventoryDetail(id: CommonType.IdType) {
+  return request<Api.Wms.PalletInventoryDetail>({ url: `/wms/pallet-inventory/${id}`, method: 'get' });
+}
+
+export function fetchPalletInventoryAction(data: Api.Wms.PalletInventoryActionPayload) {
+  return request<{ success: boolean; message: string }>({ url: '/wms/pallet-inventory/action', method: 'post', data });
+}
+
 export function fetchGetWmsPalletItems(palletId: CommonType.IdType) {
   return request<Api.Wms.PalletItem[]>({ url: `/wms/inventory/pallets/${palletId}/items`, method: 'get' });
 }

@@ -47,10 +47,31 @@ declare module "@elegant-router/types" {
     "base_vessel": "/base/vessel";
     "base_warehouse": "/base/warehouse";
     "base_zip-code": "/base/zip-code";
+    "comm": "/comm";
+    "comm_ai": "/comm/ai";
+    "comm_archive": "/comm/archive";
+    "comm_business-session": "/comm/business-session";
+    "comm_contacts": "/comm/contacts";
+    "comm_file": "/comm/file";
+    "comm_group": "/comm/group";
+    "comm_meeting": "/comm/meeting";
+    "comm_message": "/comm/message";
+    "comm_settings": "/comm/settings";
+    "comm_todo": "/comm/todo";
     "demo": "/demo";
     "demo_demo": "/demo/demo";
     "demo_tree": "/demo/tree";
     "home": "/home";
+    "iec": "/iec";
+    "iec_auto-flow": "/iec/auto-flow";
+    "iec_credential": "/iec/credential";
+    "iec_dashboard": "/iec/dashboard";
+    "iec_execution-log": "/iec/execution-log";
+    "iec_performance": "/iec/performance";
+    "iec_role-config": "/iec/role-config";
+    "iec_rpa": "/iec/rpa";
+    "iec_takeover": "/iec/takeover";
+    "iec_task-queue": "/iec/task-queue";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "monitor": "/monitor";
@@ -59,20 +80,65 @@ declare module "@elegant-router/types" {
     "monitor_online": "/monitor/online";
     "monitor_operlog": "/monitor/operlog";
     "oms": "/oms";
+    "oms_approval-flow": "/oms/approval-flow";
+    "oms_business-rule": "/oms/business-rule";
     "oms_cargo-grouping-rule": "/oms/cargo-grouping-rule";
     "oms_cargo-order": "/oms/cargo-order";
     "oms_container-order": "/oms/container-order";
     "oms_inbound-plan": "/oms/inbound-plan";
+    "oms_local-order": "/oms/local-order";
+    "oms_local-order-detail": "/oms/local-order-detail";
+    "oms_ltl-order": "/oms/ltl-order";
+    "oms_ltl-order-detail": "/oms/ltl-order-detail";
+    "oms_order-workbench": "/oms/order-workbench";
     "oms_outbound-order": "/oms/outbound-order";
     "oms_outbound-pool": "/oms/outbound-pool";
     "oms_platform-appointment": "/oms/platform-appointment";
+    "oms_platform-order": "/oms/platform-order";
+    "oms_platform-warehouse": "/oms/platform-warehouse";
     "oms_pre-outbound": "/oms/pre-outbound";
+    "oms_trip-order-detail": "/oms/trip-order-detail";
+    "oms_trip-recommend": "/oms/trip-recommend";
+    "oms_zone-rule": "/oms/zone-rule";
     "pda": "/pda";
     "pda_business": "/pda/business";
+    "pda_devanning": "/pda/devanning";
     "pda_home": "/pda/home";
     "pda_inbound": "/pda/inbound";
     "pda_outbound": "/pda/outbound";
     "pda_task": "/pda/task";
+    "portal": "/portal";
+    "portal_bill": "/portal/bill";
+    "portal_comm": "/portal/comm";
+    "portal_containers": "/portal/containers";
+    "portal_exception": "/portal/exception";
+    "portal_fee-confirm": "/portal/fee-confirm";
+    "portal_files": "/portal/files";
+    "portal_home": "/portal/home";
+    "portal_in-transit": "/portal/in-transit";
+    "portal_inventory": "/portal/inventory";
+    "portal_order-create": "/portal/order-create";
+    "portal_orders": "/portal/orders";
+    "portal_settings": "/portal/settings";
+    "portal_transfer-ops": "/portal/transfer-ops";
+    "print": "/print";
+    "print_batch": "/print/batch";
+    "print_designer": "/print/designer";
+    "print_permission": "/print/permission";
+    "print_printer": "/print/printer";
+    "print_record": "/print/record";
+    "print_rule": "/print/rule";
+    "print_task": "/print/task";
+    "print_template-bol": "/print/template-bol";
+    "print_template-carton": "/print/template-carton";
+    "print_template-custom": "/print/template-custom";
+    "print_template-devanning": "/print/template-devanning";
+    "print_template-invoice": "/print/template-invoice";
+    "print_template-location": "/print/template-location";
+    "print_template-pallet-label": "/print/template-pallet-label";
+    "print_template-report": "/print/template-report";
+    "print_template-version": "/print/template-version";
+    "print_workbench": "/print/workbench";
     "social-callback": "/social-callback";
     "system": "/system";
     "system_client": "/system/client";
@@ -87,18 +153,41 @@ declare module "@elegant-router/types" {
     "system_role": "/system/role";
     "system_tenant": "/system/tenant";
     "system_tenant-package": "/system/tenant-package";
+    "system_theme-config": "/system/theme-config";
     "system_user": "/system/user";
+    "tms": "/tms";
+    "tms_dispatch": "/tms/dispatch";
+    "tms_dock-board": "/tms/dock-board";
+    "tms_driver": "/tms/driver";
+    "tms_exception": "/tms/exception";
+    "tms_freight-settlement": "/tms/freight-settlement";
+    "tms_home": "/tms/home";
+    "tms_log": "/tms/log";
+    "tms_pod": "/tms/pod";
+    "tms_supplier": "/tms/supplier";
+    "tms_supplier_account": "/tms/supplier/account";
+    "tms_supplier_bill": "/tms/supplier/bill";
+    "tms_supplier_devanning-loading": "/tms/supplier/devanning-loading";
+    "tms_supplier_drayage": "/tms/supplier/drayage";
+    "tms_supplier_fleet": "/tms/supplier/fleet";
+    "tms_supplier_kpi": "/tms/supplier/kpi";
+    "tms_supplier_linehaul": "/tms/supplier/linehaul";
+    "tms_supplier_ltl": "/tms/supplier/ltl";
+    "tms_supplier_quote": "/tms/supplier/quote";
+    "tms_supplier-task": "/tms/supplier-task";
+    "tms_vehicle": "/tms/vehicle";
     "tool": "/tool";
     "tool_gen": "/tool/gen";
     "user-center": "/user-center";
     "wms": "/wms";
+    "wms_bol-pod": "/wms/bol-pod";
     "wms_devanning-dock-qr": "/wms/devanning-dock-qr";
     "wms_devanning-order": "/wms/devanning-order";
     "wms_devanning-order-detail": "/wms/devanning-order-detail";
     "wms_devanning-work": "/wms/devanning-work";
     "wms_devanning-work-exec": "/wms/devanning-work-exec";
-    "wms_inbound-order": "/wms/inbound-order";
-    "wms_inbound-task": "/wms/inbound-task";
+    "wms_dock-auto-schedule": "/wms/dock-auto-schedule";
+    "wms_driver-checkin": "/wms/driver-checkin";
     "wms_inventory": "/wms/inventory";
     "wms_inventory-lock": "/wms/inventory-lock";
     "wms_inventory-transaction": "/wms/inventory-transaction";
@@ -110,11 +199,13 @@ declare module "@elegant-router/types" {
     "wms_outbound-order": "/wms/outbound-order";
     "wms_pallet": "/wms/pallet";
     "wms_pallet-outbound": "/wms/pallet-outbound";
-    "wms_putaway-pda": "/wms/putaway-pda";
-    "wms_putaway-task": "/wms/putaway-task";
     "wms_stock-prep-exec": "/wms/stock-prep-exec";
     "wms_stock-prep-order": "/wms/stock-prep-order";
     "wms_stock-prep-task": "/wms/stock-prep-task";
+    "wms_transfer-workbench": "/wms/transfer-workbench";
+    "wms_trip-exception": "/wms/trip-exception";
+    "wms_trip-fee": "/wms/trip-fee";
+    "wms_trip-outbound-plan": "/wms/trip-outbound-plan";
     "wms_vas-task": "/wms/vas-task";
     "wms_vas-work": "/wms/vas-work";
     "wms_zone": "/wms/zone";
@@ -184,15 +275,20 @@ declare module "@elegant-router/types" {
     | "500"
     | "about"
     | "base"
+    | "comm"
     | "demo"
     | "home"
+    | "iec"
     | "iframe-page"
     | "login"
     | "monitor"
     | "oms"
     | "pda"
+    | "portal"
+    | "print"
     | "social-callback"
     | "system"
+    | "tms"
     | "tool"
     | "user-center"
     | "wms"
@@ -244,26 +340,88 @@ declare module "@elegant-router/types" {
     | "base_vessel"
     | "base_warehouse"
     | "base_zip-code"
+    | "comm_ai"
+    | "comm_archive"
+    | "comm_business-session"
+    | "comm_contacts"
+    | "comm_file"
+    | "comm_group"
+    | "comm_meeting"
+    | "comm_message"
+    | "comm_settings"
+    | "comm_todo"
     | "demo_demo"
     | "demo_tree"
     | "home"
+    | "iec_auto-flow"
+    | "iec_credential"
+    | "iec_dashboard"
+    | "iec_execution-log"
+    | "iec_performance"
+    | "iec_role-config"
+    | "iec_rpa"
+    | "iec_takeover"
+    | "iec_task-queue"
     | "monitor_cache"
     | "monitor_logininfor"
     | "monitor_online"
     | "monitor_operlog"
+    | "oms_approval-flow"
+    | "oms_business-rule"
     | "oms_cargo-grouping-rule"
     | "oms_cargo-order"
     | "oms_container-order"
     | "oms_inbound-plan"
+    | "oms_local-order-detail"
+    | "oms_local-order"
+    | "oms_ltl-order-detail"
+    | "oms_ltl-order"
+    | "oms_order-workbench"
     | "oms_outbound-order"
     | "oms_outbound-pool"
     | "oms_platform-appointment"
+    | "oms_platform-order"
+    | "oms_platform-warehouse"
     | "oms_pre-outbound"
+    | "oms_trip-order-detail"
+    | "oms_trip-recommend"
+    | "oms_zone-rule"
     | "pda_business"
+    | "pda_devanning"
     | "pda_home"
     | "pda_inbound"
     | "pda_outbound"
     | "pda_task"
+    | "portal_bill"
+    | "portal_comm"
+    | "portal_containers"
+    | "portal_exception"
+    | "portal_fee-confirm"
+    | "portal_files"
+    | "portal_home"
+    | "portal_in-transit"
+    | "portal_inventory"
+    | "portal_order-create"
+    | "portal_orders"
+    | "portal_settings"
+    | "portal_transfer-ops"
+    | "print_batch"
+    | "print_designer"
+    | "print_permission"
+    | "print_printer"
+    | "print_record"
+    | "print_rule"
+    | "print_task"
+    | "print_template-bol"
+    | "print_template-carton"
+    | "print_template-custom"
+    | "print_template-devanning"
+    | "print_template-invoice"
+    | "print_template-location"
+    | "print_template-pallet-label"
+    | "print_template-report"
+    | "print_template-version"
+    | "print_workbench"
     | "system_client"
     | "system_config"
     | "system_dept"
@@ -276,15 +434,36 @@ declare module "@elegant-router/types" {
     | "system_role"
     | "system_tenant-package"
     | "system_tenant"
+    | "system_theme-config"
     | "system_user"
+    | "tms_dispatch"
+    | "tms_dock-board"
+    | "tms_driver"
+    | "tms_exception"
+    | "tms_freight-settlement"
+    | "tms_home"
+    | "tms_log"
+    | "tms_pod"
+    | "tms_supplier-task"
+    | "tms_supplier_account"
+    | "tms_supplier_bill"
+    | "tms_supplier_devanning-loading"
+    | "tms_supplier_drayage"
+    | "tms_supplier_fleet"
+    | "tms_supplier_kpi"
+    | "tms_supplier_linehaul"
+    | "tms_supplier_ltl"
+    | "tms_supplier_quote"
+    | "tms_vehicle"
     | "tool_gen"
+    | "wms_bol-pod"
     | "wms_devanning-dock-qr"
     | "wms_devanning-order-detail"
     | "wms_devanning-order"
     | "wms_devanning-work-exec"
     | "wms_devanning-work"
-    | "wms_inbound-order"
-    | "wms_inbound-task"
+    | "wms_dock-auto-schedule"
+    | "wms_driver-checkin"
     | "wms_inventory-lock"
     | "wms_inventory-transaction"
     | "wms_inventory-visualization"
@@ -296,11 +475,13 @@ declare module "@elegant-router/types" {
     | "wms_outbound-order"
     | "wms_pallet-outbound"
     | "wms_pallet"
-    | "wms_putaway-pda"
-    | "wms_putaway-task"
     | "wms_stock-prep-exec"
     | "wms_stock-prep-order"
     | "wms_stock-prep-task"
+    | "wms_transfer-workbench"
+    | "wms_trip-exception"
+    | "wms_trip-fee"
+    | "wms_trip-outbound-plan"
     | "wms_vas-task"
     | "wms_vas-work"
     | "wms_zone"

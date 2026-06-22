@@ -1,3 +1,4 @@
+import { enrichTripDeadlineFields } from '@/utils/tms/trip-deadline';
 import { MOCK_WAREHOUSE } from './common';
 import { mockPage } from '../utils';
 
@@ -56,7 +57,7 @@ export const MOCK_INBOUND_ORDERS = [
     ...base,
     inboundNo: 'IN-2026-0002',
     palletNo: 'PLT-IN-2026-004',
-    containerNo: 'OOLU7654321',
+    containerNo: 'OOLU1000137',
     groupCode: 'UPS-ORD',
     customerName: '\u6f14\u793a\u5ba2\u6237 B',
     boxQty: 28,
@@ -70,7 +71,7 @@ export const MOCK_INBOUND_ORDERS = [
     ...base,
     inboundNo: 'IN-2026-0002',
     palletNo: 'PLT-IN-2026-005',
-    containerNo: 'OOLU7654321',
+    containerNo: 'OOLU1000137',
     groupCode: 'UPS-ORD',
     customerName: '\u6f14\u793a\u5ba2\u6237 B',
     boxQty: 32,
@@ -99,7 +100,7 @@ export const MOCK_PUTAWAY_TASKS = [
     id: 72002,
     ...base,
     taskNo: 'PT-2026-0002',
-    containerNo: 'OOLU7654321',
+    containerNo: 'OOLU1000137',
     customerName: '\u6f14\u793a\u5ba2\u6237 B',
     palletQty: 2,
     palletNos: 'PLT-IN-2026-004, PLT-IN-2026-005',
@@ -157,7 +158,7 @@ export const MOCK_OPERATION_ORDERS = [
     id: 73002,
     ...base,
     orderNo: 'OP-2026-0002',
-    containerNo: 'OOLU7654321',
+    containerNo: 'OOLU1000137',
     cargoOrderNo: 'CO-2026-0002',
     containerWorkOrderNo: 'CTN-2026-0002',
     customerName: '\u6f14\u793a\u5ba2\u6237 B',
@@ -218,11 +219,53 @@ export const MOCK_STOCK_PREP_ORDERS = [
   }
 ];
 
+const OUTBOUND_DESTINATIONS = ['ONT8', 'LGB8', 'SMF3'];
+
+function formatProtoDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function enrichOutboundOrder(row: Record<string, any>) {
+  const destination = OUTBOUND_DESTINATIONS[Number(row.id) % OUTBOUND_DESTINATIONS.length];
+  const finishOffsets = [35, 52, -5];
+  const finishInMin = finishOffsets[Number(row.id) % finishOffsets.length];
+  const probe = enrichTripDeadlineFields({
+    appointmentTime: '2099-06-06 20:00:00',
+    originWarehouse: 'LA',
+    destination,
+    palletQty: row.palletQty,
+    cartonQty: row.boxQty
+  });
+  const routeMinutes =
+    probe.estimatedTravelMinutes +
+    probe.trafficBufferMinutes +
+    probe.exitCheckMinutes +
+    probe.sealSignMinutes;
+  const appointmentTime = formatProtoDateTime(
+    new Date(Date.now() + (finishInMin + routeMinutes) * 60_000)
+  );
+  const deadline = enrichTripDeadlineFields({
+    appointmentTime,
+    originWarehouse: 'LA',
+    destination,
+    palletQty: row.palletQty,
+    cartonQty: row.boxQty
+  });
+  return {
+    ...row,
+    destination,
+    originWarehouse: 'LA',
+    appointmentTime,
+    ...deadline
+  };
+}
+
 export const MOCK_WMS_OUTBOUND_ORDERS = [
   {
     id: 76001,
     ...base,
-    outboundOrderNo: 'WOB-2026-0001',
+    outboundOrderNo: 'TRIP250604001',
     customerName: '\u6f14\u793a\u5ba2\u6237 A',
     outboundType: 'DELIVERY',
     direction: 'DELIVERY',
@@ -234,7 +277,7 @@ export const MOCK_WMS_OUTBOUND_ORDERS = [
   {
     id: 76002,
     ...base,
-    outboundOrderNo: 'WOB-2026-0002',
+    outboundOrderNo: 'TRIP250604002',
     customerName: '\u6f14\u793a\u5ba2\u6237 B',
     outboundType: 'TRANSFER',
     direction: 'TRANSFER',
@@ -246,7 +289,7 @@ export const MOCK_WMS_OUTBOUND_ORDERS = [
   {
     id: 76003,
     ...base,
-    outboundOrderNo: 'WOB-2026-0003',
+    outboundOrderNo: 'TRIP250603018',
     customerName: '\u6f14\u793a\u5ba2\u6237 C',
     outboundType: 'DELIVERY',
     direction: 'DELIVERY',
@@ -276,13 +319,45 @@ export const MOCK_DEVANNING_SHIPMENTS = [
 ];
 
 export const MOCK_DEVANNING_PALLETS_WORK = [
-  { palletNo: 'PLT-001', boxQty: 40, weight: 500, cbm: 4.2, status: 'IN_STOCK' },
-  { palletNo: 'PLT-002', boxQty: 35, weight: 420, cbm: 3.5, status: 'PRE_OUTBOUND' }
+  {
+    palletNo: 'PLT-2026-0001',
+    boxQty: 40,
+    weight: 500,
+    cbm: 4.2,
+    status: 'IN_STOCK',
+    groupCode: 'FedEx-LAX',
+    containerNo: 'MSCU1234567',
+    cargoOrderNo: 'CO-2026-0001',
+    cargoOrderNos: 'CO-2026-0001',
+    actualInboundLocation: 'B\u533a/B05'
+  },
+  {
+    palletNo: 'PLT-2026-0002',
+    boxQty: 35,
+    weight: 420,
+    cbm: 3.5,
+    status: 'PRE_OUTBOUND',
+    groupCode: 'UPS-ORD',
+    containerNo: 'MSCU1234567',
+    cargoOrderNo: 'CO-2026-0003',
+    cargoOrderNos: 'CO-2026-0001\u3001CO-2026-0003',
+    actualInboundLocation: null
+  },
+  {
+    palletNo: 'PLT-2026-0003',
+    boxQty: 28,
+    weight: 360,
+    cbm: 2.8,
+    status: 'IN_STOCK',
+    groupCode: 'FedEx-LAX',
+    containerNo: 'MSCU1234567',
+    cargoOrderNo: 'CO-2026-0001',
+    cargoOrderNos: 'CO-2026-0001',
+    actualInboundLocation: 'B\u533a/B06'
+  }
 ];
 
 const LIST_MAP: Record<string, any[]> = {
-  'inbound-order': MOCK_INBOUND_ORDERS,
-  'putaway-task': MOCK_PUTAWAY_TASKS,
   'operation-order': MOCK_OPERATION_ORDERS,
   'vas-task': MOCK_VAS_TASKS,
   'stock-prep-order': MOCK_STOCK_PREP_ORDERS,
@@ -291,8 +366,8 @@ const LIST_MAP: Record<string, any[]> = {
 
 export function getWmsPrototypeList(mockKey: string, params?: Record<string, any>) {
   let rows = LIST_MAP[mockKey] || [];
-  if (mockKey === 'inbound-order') {
-    rows = rows.filter(r => r.status !== 'COMPLETED');
+  if (mockKey === 'outbound-order') {
+    rows = rows.map(enrichOutboundOrder);
   }
   if (params?.status) {
     rows = rows.filter(r => r.status === params.status);

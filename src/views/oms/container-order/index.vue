@@ -14,9 +14,14 @@ import {
   fetchGetContainerOrderStatusCount,
   fetchUpdateContainerOrderStatus
 } from '@/service/api/oms/container-order';
+import { fetchGetCargoOrderList } from '@/service/api/oms/cargo-order';
 import { fetchGetBusinessTypeList, fetchGetChannelList, fetchGetShippingLineList, fetchGetWarehouseList } from '@/service/api/base';
+import CargoOrderDetailDrawer from '@/views/oms/cargo-order/modules/cargo-order-detail-drawer.vue';
 import ContainerOrderOperateDrawer from './modules/container-order-operate-drawer.vue';
 import ContainerOrderDetailDrawer from './modules/container-order-detail-drawer.vue';
+import DevanningOrderDetailDrawer from '@/views/wms/devanning-order/modules/devanning-order-detail-drawer.vue';
+import { resolveDevanningOrderIdFromContainer } from './composables/resolve-devanning-order-id';
+import { CONTAINER_OPERATION_STATUS_META } from '@/utils/oms/operation-status';
 
 defineOptions({ name: 'OmsContainerOrder' });
 
@@ -25,6 +30,48 @@ const router = useRouter();
 const { hasAuth } = useAuth();
 const { download } = useDownload();
 const POPUP_TO_BODY = false;
+
+type ListViewMode = 'CONTAINER' | 'LOOSE_PALLET';
+
+const LIST_VIEW_OPTIONS: CommonType.Option<ListViewMode>[] = [
+  { label: '海柜订单', value: 'CONTAINER' },
+  { label: '散板订单', value: 'LOOSE_PALLET' }
+];
+
+const listViewMode = ref<ListViewMode>('CONTAINER');
+const cardTitle = computed(() => (listViewMode.value === 'CONTAINER' ? '海柜订单' : '散板订单'));
+const isContainerView = computed(() => listViewMode.value === 'CONTAINER');
+
+const { options: fulfillmentStatusOptions } = useDict('oms_cargo_fulfillment_status');
+
+const DELIVERY_MODE_LABELS: Record<string, string> = {
+  SELF_PICKUP: '自提送货',
+  DOOR_DELIVERY: '上门收货'
+};
+
+const looseFilterCarriageNo = ref<string | null>(null);
+const looseSearchParams = ref<Api.Oms.NewCargoOrderSearchParams>({
+  pageNum: 1,
+  pageSize: 10,
+  keyword: null,
+  carriageNo: null,
+  customerName: null,
+  orderSubType: 'LOOSE_PALLET',
+  fulfillmentStatus: null
+});
+
+const cargoDetailVisible = ref(false);
+const cargoDetailId = ref<CommonType.IdType | null>(null);
+
+function looseFulfillmentLabel(status?: string | null) {
+  const opt = fulfillmentStatusOptions.value.find(o => o.value === status);
+  return opt?.label ?? status ?? '-';
+}
+
+function openCargoDetail(id: CommonType.IdType) {
+  cargoDetailId.value = id;
+  cargoDetailVisible.value = true;
+}
 
 const CONTAINER_STATUS_OPTIONS = [
   { label: '草稿', value: 'DRAFT', type: 'default' },
@@ -244,7 +291,6 @@ const ADVANCED_FIELD_OPTIONS: AdvancedFieldOption[] = [
   { label: '提柜备注', value: 'pickupRemark' },
   { label: '海柜Location', value: 'containerLocation' },
   { label: '到仓备注', value: 'arrivalRemark' },
-  { label: '拆柜单号', value: 'devanningNo' },
   { label: '拆柜方式', value: 'devanningMethod', component: 'select', multiSelect: true, options: () => devanningMethodFilterOptions.value },
   { label: '装载类型', value: 'loadingType', component: 'select', multiSelect: true, options: () => loadingTypeFilterOptions.value },
   { label: '拆柜备注', value: 'devanningRemark' },
@@ -295,7 +341,23 @@ const searchParams = ref<Api.Oms.ContainerOrderSearchParams>({
 
 const detailVisible = ref(false);
 const detailId = ref<CommonType.IdType | null>(null);
+const devanningDetailVisible = ref(false);
+const devanningDetailId = ref<CommonType.IdType | null>(null);
 const detailInitialTab = ref('basic');
+
+function syncLooseSearchFromCommon() {
+  looseSearchParams.value = {
+    ...looseSearchParams.value,
+    pageNum: 1,
+    keyword: searchParams.value.keyword,
+    carriageNo: looseFilterCarriageNo.value,
+    customerName: searchParams.value.customerName
+  };
+}
+
+function canOpenDevanningDetail() {
+  return hasAuth('wms:devanningOrder:query') || hasAuth('oms:containerOrder:inboundPlan');
+}
 
 function dateOnly(value?: string | null) {
   return value ? String(value).slice(0, 10) : '-';
@@ -415,7 +477,32 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
     },
     columns: () => [
       { type: 'selection', align: 'center', width: 48, fixed: 'left' },
-      { key: 'containerOrderNo', title: '工作单号', align: 'center', width: 130, fixed: 'left' },
+      {
+        key: 'containerNo',
+        title: '柜号',
+        align: 'center',
+        width: 130,
+        fixed: 'left',
+        render: row => (
+          <div class="flex flex-col items-center gap-2px">
+            {row.doAttachmentCount ? (
+              <NTag type="primary" size="small" bordered={false}>
+                DO
+              </NTag>
+            ) : null}
+            <span
+              class={canOpenDevanningDetail() ? 'cursor-pointer text-primary hover:underline' : ''}
+              title={canOpenDevanningDetail() ? '双击查看拆柜订单详情' : undefined}
+              onDblclick={() => {
+                if (canOpenDevanningDetail()) openDevanningOrderDetail(row);
+              }}
+            >
+              {row.containerNo || '-'}
+            </span>
+          </div>
+        )
+      },
+      { key: 'containerOrderNo', title: '工作单号', align: 'center', width: 130 },
       {
         key: 'orderSource',
         title: '订单来源',
@@ -429,22 +516,6 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
           ] || row.orderSource || '-'
       },
       { key: 'companyName', title: '主体', align: 'center', width: 150, ellipsis: { tooltip: true } },
-      {
-        key: 'containerNo',
-        title: '柜号',
-        align: 'center',
-        width: 130,
-        render: row => (
-          <div class="flex flex-col items-center gap-2px">
-            {row.doAttachmentCount ? (
-              <NTag type="primary" size="small" bordered={false}>
-                DO
-              </NTag>
-            ) : null}
-            <span>{row.containerNo || '-'}</span>
-          </div>
-        )
-      },
       { key: 'customerName', title: '客户', align: 'center', width: 160, ellipsis: { tooltip: true } },
       {
         key: 'channelName',
@@ -479,6 +550,17 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
               {status?.label || row.containerStatus}
             </NTag>
           );
+        }
+      },
+      {
+        key: 'operationStatus',
+        title: '操作状态',
+        align: 'center',
+        width: 120,
+        render: row => {
+          const meta = CONTAINER_OPERATION_STATUS_META[row.operationStatus as keyof typeof CONTAINER_OPERATION_STATUS_META];
+          if (!meta) return <span>—</span>;
+          return <NTag type={meta.type as any} size="small">{meta.label}</NTag>;
         }
       },
       {
@@ -517,7 +599,6 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       { key: 'actualArrivalTime', title: '实际到仓', align: 'center', width: 150 },
       { key: 'containerLocation', title: '海柜Location', align: 'center', width: 140, ellipsis: { tooltip: true } },
       { key: 'arrivalRemark', title: '到仓备注', align: 'center', width: 180, ellipsis: { tooltip: true } },
-      { key: 'devanningNo', title: '拆柜单号', align: 'center', width: 140, ellipsis: { tooltip: true } },
       { key: 'expectedDevanningTime', title: '预计拆柜', align: 'center', width: 130, render: row => dateOnly(row.expectedDevanningTime) },
       { key: 'devanningStartTime', title: '开始拆柜', align: 'center', width: 150 },
       { key: 'devanningFinishTime', title: '拆柜完成', align: 'center', width: 150 },
@@ -597,8 +678,8 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
             options.push({ label: '查看轨迹', key: 'trace' });
             options.push({ label: '操作日志', key: 'log' });
           }
-          if (hasAuth('oms:containerOrder:inboundPlan')) {
-            options.push({ label: '入库计划', key: 'inboundPlan' });
+          if (canOpenDevanningDetail()) {
+            options.push({ label: '拆柜订单详情', key: 'devanningDetail' });
           }
           if (hasAuth('oms:containerOrder:remove')) {
             if (options.length) options.push({ type: 'divider', key: 'd1' });
@@ -614,15 +695,12 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
               handleView(row.id, 'trace');
             } else if (key === 'log') {
               window.$message?.info('操作日志功能开发中，敬请期待');
-            } else if (key === 'inboundPlan') {
-              router.push({
-                path: '/oms/inbound-plan',
-                query: { containerOrderId: String(row.id), warehouseId: String(row.warehouseId) }
-              });
+            } else if (key === 'devanningDetail') {
+              openDevanningOrderDetail(row);
             } else if (key === 'delete') {
               window.$dialog?.warning({
                 title: '确认删除',
-                content: '确认删除该海柜订单？关联货物订单也会一并删除。',
+                content: '确认删除该海柜订单？关联订单也会一并删除。',
                 positiveText: '确认',
                 negativeText: '取消',
                 onPositiveClick: () => handleDelete(row.id)
@@ -641,6 +719,103 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
 
 const { drawerVisible, operateType, editingData, handleAdd, checkedRowKeys, onBatchDeleted, onDeleted } =
   useTableOperate(data, 'id', getData);
+
+const {
+  columns: looseColumns,
+  columnChecks: looseColumnChecks,
+  data: looseData,
+  getData: looseGetData,
+  getDataByPage: looseGetDataByPage,
+  loading: looseLoading,
+  mobilePagination: loosePagination,
+  scrollX: looseScrollX
+} = useNaivePaginatedTable({
+  api: () => fetchGetCargoOrderList(looseSearchParams.value),
+  transform: response => defaultTransform(response),
+  onPaginationParamsChange: params => {
+    looseSearchParams.value.pageNum = params.page;
+    looseSearchParams.value.pageSize = params.pageSize;
+  },
+  columns: () => [
+    {
+      key: 'cargoOrderNo',
+      title: '订单号',
+      width: 180,
+      fixed: 'left',
+      render: row => (
+        <span
+          class="cursor-pointer text-primary hover:underline"
+          onClick={() => openCargoDetail(row.id)}
+        >
+          {row.cargoOrderNo}
+        </span>
+      )
+    },
+    { key: 'carriageNo', title: '车厢号', width: 130, ellipsis: { tooltip: true } },
+    {
+      key: 'peerCustomerName',
+      title: '同行客户',
+      width: 140,
+      ellipsis: { tooltip: true },
+      render: row => row.peerCustomerName || row.customerName || '-'
+    },
+    {
+      key: 'declaredPalletQty',
+      title: '卡板数',
+      width: 80,
+      align: 'right',
+      render: row => String(row.declaredPalletQty ?? '-')
+    },
+    {
+      key: 'deliveryMode',
+      title: '收货方式',
+      width: 100,
+      render: row => DELIVERY_MODE_LABELS[row.deliveryMode as string] || row.deliveryMode || '-'
+    },
+    {
+      key: 'deliveryAppointmentTime',
+      title: '预约送货',
+      width: 150,
+      render: row => row.deliveryAppointmentTime || '-'
+    },
+    {
+      key: 'fulfillmentStatus',
+      title: '履约状态',
+      width: 120,
+      render: row => (
+        <NTag type="info" size="small">
+          {looseFulfillmentLabel(row.fulfillmentStatus)}
+        </NTag>
+      )
+    },
+    { key: 'groupCode', title: '目的仓/分组', width: 130, ellipsis: { tooltip: true } },
+    { key: 'inboundWarehouseName', title: '入库仓库', width: 120, ellipsis: { tooltip: true } },
+    { key: 'remark', title: '备注', width: 160, ellipsis: { tooltip: true } },
+    {
+      key: 'operate',
+      title: '操作',
+      width: 90,
+      fixed: 'right',
+      align: 'center',
+      render: row => (
+        <NButton size="small" secondary onClick={() => openCargoDetail(row.id)}>
+          查看详情
+        </NButton>
+      )
+    }
+  ]
+});
+
+function handleListViewChange(mode: ListViewMode) {
+  listViewMode.value = mode;
+  if (mode === 'LOOSE_PALLET') {
+    syncLooseSearchFromCommon();
+    looseGetDataByPage();
+    return;
+  }
+  getDataByPage();
+  loadStatusCount();
+}
 
 // 手动更改状态
 const statusModalVisible = ref(false);
@@ -683,6 +858,16 @@ function handleView(id: CommonType.IdType, initialTab = 'basic') {
   detailVisible.value = true;
 }
 
+async function openDevanningOrderDetail(row: Api.Oms.ContainerOrder) {
+  const devanningId = await resolveDevanningOrderIdFromContainer(row);
+  if (!devanningId) {
+    window.$message?.warning('未找到关联拆柜订单');
+    return;
+  }
+  devanningDetailId.value = devanningId;
+  devanningDetailVisible.value = true;
+}
+
 async function handleDelete(id: CommonType.IdType) {
   const { error } = await fetchBatchDeleteContainerOrder([id]);
   if (error) return;
@@ -712,6 +897,11 @@ function handleExport() {
 }
 
 function handleSearch() {
+  if (listViewMode.value === 'LOOSE_PALLET') {
+    syncLooseSearchFromCommon();
+    looseGetDataByPage();
+    return;
+  }
   const params = {
     ...searchParams.value,
     pageNum: 1,
@@ -734,6 +924,20 @@ function handleReset() {
   advancedVisible.value = false;
   activeLifecycle.value = '';
   searchParams.value = createBlankSearchParams();
+  if (listViewMode.value === 'LOOSE_PALLET') {
+    looseFilterCarriageNo.value = null;
+    looseSearchParams.value = {
+      pageNum: 1,
+      pageSize: looseSearchParams.value.pageSize || 10,
+      keyword: null,
+      carriageNo: null,
+      customerName: null,
+      orderSubType: 'LOOSE_PALLET',
+      fulfillmentStatus: null
+    };
+    looseGetDataByPage();
+    return;
+  }
   getDataByPage();
   loadStatusCount();
 }
@@ -743,6 +947,10 @@ onMounted(() => {
   loadStatusCount();
 });
 onActivated(() => {
+  if (listViewMode.value === 'LOOSE_PALLET') {
+    looseGetData();
+    return;
+  }
   getData();
   loadStatusCount();
 });
@@ -754,19 +962,28 @@ onActivated(() => {
       <div class="flex flex-wrap items-center justify-between gap-12px">
         <div>
           <div class="text-16px font-medium">筛选条件</div>
-          <div class="mt-4px text-12px text-#6b7280">生命周期用上方标签切换，高级搜索可按需追加字段</div>
+          <div class="mt-4px text-12px text-#6b7280">
+            {{ isContainerView ? '生命周期用列表区标签切换，高级搜索可按需追加字段' : '散板订单按关键词、车厢号、同行客户筛选' }}
+          </div>
         </div>
         <NSpace :size="8">
+          <NSelect
+            :to="POPUP_TO_BODY"
+            :value="listViewMode"
+            :options="LIST_VIEW_OPTIONS"
+            class="w-130px"
+            @update:value="value => handleListViewChange(value as ListViewMode)"
+          />
           <NButton quaternary @click="searchCollapsed = !searchCollapsed">
             {{ searchCollapsed ? '展开筛选' : '收起筛选' }}
           </NButton>
-          <NButton @click="openAdvancedModal">
+          <NButton v-if="isContainerView" @click="openAdvancedModal">
             高级搜索
             <NTag v-if="activeAdvancedCount > 0" type="primary" size="small" :bordered="false" class="ml-4px">
               {{ activeAdvancedCount }}
             </NTag>
           </NButton>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
           <NButton @click="handleReset">重置</NButton>
         </NSpace>
       </div>
@@ -774,29 +991,41 @@ onActivated(() => {
       <div v-show="!searchCollapsed" class="mt-14px">
         <NForm inline label-placement="left" :show-feedback="false">
           <NFormItem label="关键词">
-            <NInput v-model:value="searchParams.keyword" clearable placeholder="订单/柜号/客户/船名" class="w-220px" />
-          </NFormItem>
-          <NFormItem label="工作单号">
-            <NInput v-model:value="searchParams.containerOrderNo" clearable placeholder="请输入" class="w-160px" />
-          </NFormItem>
-          <NFormItem label="柜号">
-            <NInput v-model:value="searchParams.containerNo" clearable placeholder="请输入" class="w-150px" />
-          </NFormItem>
-          <NFormItem label="客户">
-            <NInput v-model:value="searchParams.customerName" clearable placeholder="客户名称" class="w-150px" />
-          </NFormItem>
-          <NFormItem label="码头释放">
-            <NSelect :to="POPUP_TO_BODY" v-model:value="searchParams.terminalReleaseStatus" :options="RELEASE_STATUS_OPTIONS" clearable placeholder="请选择" class="w-130px" />
-          </NFormItem>
-          <NFormItem label="海柜异常">
-            <NSelect :to="POPUP_TO_BODY"
-              v-model:value="searchParams.containerExceptionFlag"
-              :options="BOOLEAN_OPTIONS"
+            <NInput
+              v-model:value="searchParams.keyword"
               clearable
-              placeholder="全部"
-              class="w-100px"
+              :placeholder="isContainerView ? '订单/柜号/客户/船名' : '订单号/柜号/同行客户'"
+              class="w-220px"
             />
           </NFormItem>
+          <template v-if="isContainerView">
+            <NFormItem label="工作单号">
+              <NInput v-model:value="searchParams.containerOrderNo" clearable placeholder="请输入" class="w-160px" />
+            </NFormItem>
+          </template>
+          <NFormItem v-if="isContainerView" label="柜号">
+            <NInput v-model:value="searchParams.containerNo" clearable placeholder="请输入" class="w-150px" />
+          </NFormItem>
+          <NFormItem v-else label="车厢号">
+            <NInput v-model:value="looseFilterCarriageNo" clearable placeholder="请输入" class="w-150px" />
+          </NFormItem>
+          <NFormItem :label="isContainerView ? '客户' : '同行客户'">
+            <NInput v-model:value="searchParams.customerName" clearable placeholder="客户名称" class="w-150px" />
+          </NFormItem>
+          <template v-if="isContainerView">
+            <NFormItem label="码头释放">
+              <NSelect :to="POPUP_TO_BODY" v-model:value="searchParams.terminalReleaseStatus" :options="RELEASE_STATUS_OPTIONS" clearable placeholder="请选择" class="w-130px" />
+            </NFormItem>
+            <NFormItem label="海柜异常">
+              <NSelect :to="POPUP_TO_BODY"
+                v-model:value="searchParams.containerExceptionFlag"
+                :options="BOOLEAN_OPTIONS"
+                clearable
+                placeholder="全部"
+                class="w-100px"
+              />
+            </NFormItem>
+          </template>
         </NForm>
 
       </div>
@@ -811,7 +1040,7 @@ onActivated(() => {
     >
       <div>
         <div class="mb-12px flex items-center justify-between">
-          <span class="text-12px text-#6b7280">可组合多个字段进行精确搜索，选择框支持多选</span>
+          <span class="text-12px text-#6b7280">可组合多个字段进行模糊搜索，文本字段包含即匹配，选择框支持多选</span>
           <NButton size="small" type="primary" secondary @click="addAdvancedFilter">+ 添加字段</NButton>
         </div>
         <NSpace v-if="advancedFilters.length" vertical :size="10">
@@ -862,13 +1091,13 @@ onActivated(() => {
       <template #footer>
         <div class="flex justify-end gap-8px">
           <NButton @click="advancedFilters = []">清空条件</NButton>
-          <NButton type="primary" @click="handleAdvancedApply">确认查询</NButton>
+          <NButton type="primary" @click="handleAdvancedApply">确认搜索</NButton>
         </div>
       </template>
     </NModal>
 
     <NCard
-      title="海柜订单"
+      :title="cardTitle"
       :bordered="false"
       size="small"
       class="card-wrapper flex min-h-0 flex-1 flex-col overflow-hidden sm:flex-1-hidden"
@@ -876,28 +1105,48 @@ onActivated(() => {
     >
       <template #header-extra>
         <NSpace :size="8">
-          <NButton
-            :disabled="checkedRowKeys.length !== 1"
-            @click="openStatusModal"
-          >
-            更改状态
-          </NButton>
-          <TableHeaderOperation
-            v-model:columns="columnChecks"
-            :disabled-delete="checkedRowKeys.length === 0"
-            :loading="loading"
-            :show-add="hasAuth('oms:containerOrder:add')"
-            :show-delete="hasAuth('oms:containerOrder:remove')"
-            :show-export="hasAuth('oms:containerOrder:export')"
-            @add="handleAdd"
-            @delete="handleBatchDelete"
-            @export="handleExport"
-            @refresh="getData"
+          <NSelect
+            :to="POPUP_TO_BODY"
+            :value="listViewMode"
+            :options="LIST_VIEW_OPTIONS"
+            class="w-130px"
+            @update:value="value => handleListViewChange(value as ListViewMode)"
           />
+          <template v-if="isContainerView">
+            <NButton
+              :disabled="checkedRowKeys.length !== 1"
+              @click="openStatusModal"
+            >
+              更改状态
+            </NButton>
+            <TableHeaderOperation
+              v-model:columns="columnChecks"
+              :disabled-delete="checkedRowKeys.length === 0"
+              :loading="loading"
+              :show-add="hasAuth('oms:containerOrder:add')"
+              :show-delete="hasAuth('oms:containerOrder:remove')"
+              :show-export="hasAuth('oms:containerOrder:export')"
+              @add="handleAdd"
+              @delete="handleBatchDelete"
+              @export="handleExport"
+              @refresh="getData"
+            />
+          </template>
+          <template v-else>
+            <TableHeaderOperation
+              v-model:columns="looseColumnChecks"
+              :disabled-delete="true"
+              :loading="looseLoading"
+              :show-add="false"
+              :show-delete="false"
+              :show-export="false"
+              @refresh="looseGetData"
+            />
+          </template>
         </NSpace>
       </template>
       <div class="flex min-h-0 flex-1 flex-col gap-12px overflow-hidden">
-        <div class="mb-12px flex flex-shrink-0 flex-nowrap gap-5px overflow-x-auto pb-2px">
+        <div v-if="isContainerView" class="mb-12px flex flex-shrink-0 flex-nowrap gap-5px overflow-x-auto pb-2px">
           <div
             v-for="tab in lifecycleTabs"
             :key="tab.value"
@@ -920,6 +1169,7 @@ onActivated(() => {
         </div>
         <div class="min-h-0 flex flex-1 basis-0 flex-col overflow-hidden">
           <DataTable
+            v-if="isContainerView"
             v-model:checked-row-keys="checkedRowKeys"
             :columns="columns"
             :data="data"
@@ -929,6 +1179,18 @@ onActivated(() => {
             remote
             :row-key="(row: Api.Oms.ContainerOrder) => row.id"
             :pagination="mobilePagination"
+            class="h-full min-h-280px sm:min-h-0"
+          />
+          <DataTable
+            v-else
+            :columns="looseColumns"
+            :data="looseData"
+            :flex-height="!appStore.isMobile"
+            :scroll-x="looseScrollX"
+            :loading="looseLoading"
+            remote
+            :row-key="(row: Api.Oms.CargoOrder) => row.id"
+            :pagination="loosePagination"
             class="h-full min-h-280px sm:min-h-0"
           />
         </div>
@@ -946,6 +1208,16 @@ onActivated(() => {
       :order-id="detailId"
       :initial-tab="detailInitialTab"
       @updated="getData"
+    />
+    <DevanningOrderDetailDrawer
+      v-model:visible="devanningDetailVisible"
+      :order-id="devanningDetailId"
+      @updated="getData"
+    />
+    <CargoOrderDetailDrawer
+      v-model:visible="cargoDetailVisible"
+      :order-id="cargoDetailId ?? undefined"
+      @refresh="looseGetData"
     />
 
     <!-- 手动更改状态 -->

@@ -1,0 +1,64 @@
+/* FOREST AI WMS — 主题配置页（嵌入系统布局的内容区） */
+.forest-theme-page {
+  --forest-primary: #1890ff;
+  --forest-secondary: #58b8ff;
+  --forest-bg: #f2f8ff;
+  --forest-border: #dcebfa;
+  --forest-text: #1f2d3d;
+  --forest-text-secondary: #6b7a90;
+
+  margin: -16px;
+  padding: 16px 18px 20px;
+  min-height: calc(100vh - 112px - var(--calc-footer-height, 0px));
+  background: linear-gradient(135deg, #eef7ff 0%, #f8fbff 45%, #eaf4ff 100%);
+  color: var(--forest-text);
+}
+
+.forest-glass-btn {
+  height: 38px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid var(--forest-border) !important;
+  color: var(--forest-text) !important;
+}
+
+.forest-primary-btn {
+  height: 38px;
+  border-radius: 8px;
+  background: var(--forest-primary) !important;
+  border: none !important;
+}
+
+.forest-filter-box {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--forest-border);
+}
+
+.forest-page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--forest-text);
+}
+
+.forest-page-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--forest-text-secondary);
+}
+
+.forest-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1890ff 0%, #58b8ff 100%);
+  color: #fff;
+  font-size: 18px;
+}

@@ -1,4 +1,4 @@
-﻿declare namespace Api {
+declare namespace Api {
   namespace Yms {
 
     // ─── 园区任务 ─────────────────────────────────────────
@@ -17,6 +17,15 @@
     type WmsReadyStatus = 'NOT_REQUIRED' | 'PENDING' | 'READY';
 
     type YardTask = {
+      appointmentTime?: string | null;
+      destination?: string | null;
+      originWarehouse?: string | null;
+      distanceMiles?: number;
+      estimatedTravelMinutes?: number;
+      latestStartLoadingTime?: string | null;
+      latestFinishTime?: string | null;
+      remainingMinutes?: number | null;
+      deadlineRiskLevel?: 'NORMAL' | 'NEAR' | 'URGENT' | 'OVERDUE';
       id: CommonType.IdType;
       yardTaskNo: string;
       taskType: TaskType;

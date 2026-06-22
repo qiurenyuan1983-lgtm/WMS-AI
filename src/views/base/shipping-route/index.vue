@@ -132,16 +132,16 @@ onMounted(loadOptions);
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="航线代码"><NInput v-model:value="searchParams.routeCode" clearable placeholder="请输入航线代码" class="w-150px" /></NFormItem>
         <NFormItem label="航线名称"><NInput v-model:value="searchParams.routeName" clearable placeholder="请输入航线名称" class="w-170px" /></NFormItem>
         <NFormItem label="船公司"><NSelect v-model:value="searchParams.shippingLineId" :options="shippingLineOptions" filterable clearable placeholder="请选择船公司" class="w-180px" /></NFormItem>
         <NFormItem label="起运港"><NSelect v-model:value="searchParams.originPortId" :options="portOptions" filterable clearable placeholder="请选择起运港" class="w-180px" /></NFormItem>
         <NFormItem label="目的港"><NSelect v-model:value="searchParams.destinationPortId" :options="portOptions" filterable clearable placeholder="请选择目的港" class="w-180px" /></NFormItem>
         <NFormItem label="状态"><NSelect v-model:value="searchParams.status" :options="[{ label: '启用', value: '0' }, { label: '停用', value: '1' }]" clearable placeholder="全部" class="w-100px" /></NFormItem>
-        <NFormItem><NButton type="primary" @click="handleSearch">查询</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
+        <NFormItem><NButton type="primary" @click="handleSearch">搜索</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
 
     <NCard title="航线列表" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>

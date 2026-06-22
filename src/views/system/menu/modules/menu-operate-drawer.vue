@@ -9,21 +9,27 @@ import { getLocalMenuIcons } from '@/utils/icon';
 import { isNotNull } from '@/utils/common';
 import { $t } from '@/locales';
 import SvgIcon from '@/components/custom/svg-icon.vue';
+import MenuHighRiskConfirmModal from './menu-high-risk-confirm-modal.vue';
+import {
+  OPEN_MODE_OPTIONS,
+  PERM_TYPE_OPTIONS,
+  PORT_OPTIONS,
+  ROLE_OPTIONS,
+  TENANT_OPTIONS,
+  WAREHOUSE_OPTIONS,
+  joinCsv,
+  splitCsv
+} from '../constants';
 
 defineOptions({
   name: 'MenuOperateDrawer'
 });
 
 interface Props {
-  /** the type of operation */
   operateType: NaiveUI.TableOperateType;
-  /** the edit row data */
   rowData?: Api.System.Menu | null;
-  /** tree option data */
   treeData?: Api.System.Menu[] | null;
-  /** parent id */
   pid?: string | number;
-  /** menu type */
   menuType?: Api.System.MenuType;
 }
 
@@ -35,17 +41,22 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-const visible = defineModel<boolean>('visible', {
-  default: false
-});
+const visible = defineModel<boolean>('visible', { default: false });
+const activeTab = ref('basic');
 
 const defaultIcon = import.meta.env.VITE_MENU_ICON;
-
 const layoutType = ref<string>('0');
 const iconType = ref<Api.System.IconType>('1');
 const { formRef, validate, restoreValidation } = useNaiveForm();
 const { createRequiredRule, createNumberRequiredRule } = useFormRules();
 const queryList = ref<{ key: string; value: string }[]>([]);
+
+const applicablePortsArr = ref<string[]>(['BACKEND']);
+const applicableWarehousesArr = ref<string[]>([]);
+const applicableRolesArr = ref<string[]>([]);
+const applicableTenantsArr = ref<string[]>([]);
+const highRiskConfirmVisible = ref(false);
+const pendingConfirmRemark = ref('');
 
 const drawerTitle = computed(() => {
   const titles: Record<NaiveUI.TableOperateType, string> = {
@@ -63,6 +74,19 @@ function createDefaultModel(): Model {
   return {
     parentId: props.pid || 0,
     menuName: '',
+    menuNameEn: '',
+    menuCode: '',
+    permName: '',
+    permType: props.menuType === 'F' ? 'button' : 'menu',
+    highRisk: false,
+    needConfirm: false,
+    auditLog: props.menuType === 'F',
+    applicablePorts: 'BACKEND',
+    applicableWarehouses: '',
+    applicableRoles: '',
+    applicableTenants: '',
+    affixTab: false,
+    openMode: 'self',
     orderNum: 1,
     path: '',
     component: '',
@@ -80,41 +104,30 @@ function createDefaultModel(): Model {
 
 type RuleKey = Extract<keyof Model, 'menuName' | 'orderNum' | 'path' | 'component'>;
 
-const rules: Record<RuleKey, App.Global.FormRule> = {
-  menuName: createRequiredRule($t('page.system.menu.form.menuName.invalid')),
-  orderNum: createNumberRequiredRule($t('page.system.menu.form.orderNum.invalid')),
-  path: createRequiredRule($t('page.system.menu.form.path.invalid')),
-  component: createRequiredRule($t('page.system.menu.form.component.invalid'))
-};
+const rules = computed<Partial<Record<RuleKey, App.Global.FormRule>>>(() => {
+  const base: Partial<Record<RuleKey, App.Global.FormRule>> = {
+    menuName: createRequiredRule($t('page.system.menu.form.menuName.invalid')),
+    orderNum: createNumberRequiredRule($t('page.system.menu.form.orderNum.invalid'))
+  };
+  if (!isBtn.value) {
+    base.path = createRequiredRule($t('page.system.menu.form.path.invalid'));
+    if (isMenu.value && isInternalType.value) {
+      base.component = createRequiredRule($t('page.system.menu.form.component.invalid'));
+    }
+  }
+  return base;
+});
 
-// 是否为目录类型
 const isCatalog = computed(() => model.value.menuType === 'M');
-
-// 是否为菜单类型
 const isMenu = computed(() => model.value.menuType === 'C');
-
-// 是否为按钮类型
 const isBtn = computed(() => model.value.menuType === 'F');
-
-// 外链类型
 const isExternalType = computed(() => model.value.isFrame === '0');
-
-// 内部类型
 const isInternalType = computed(() => model.value.isFrame === '1');
-
-// 空白布局
 const isBlankLayout = computed(() => layoutType.value === '1');
-
-// iframe类型
 const isIframeType = computed(() => model.value.isFrame === '2');
-
-// 本地图标类型
 const isLocalIcon = computed(() => iconType.value === '2');
-
-// 布局类型禁用
 const layoutDisabled = computed(() => !(isMenu.value && model.value.parentId === 0));
 
-// 本地图标
 const localIcons = getLocalMenuIcons();
 const localIconOptions = localIcons.map<SelectOption>(item => ({
   label: () => (
@@ -126,10 +139,25 @@ const localIconOptions = localIcons.map<SelectOption>(item => ({
   value: `local-icon-${item}`
 }));
 
+function syncScopeArraysFromModel() {
+  applicablePortsArr.value = splitCsv(model.value.applicablePorts).length ? splitCsv(model.value.applicablePorts) : ['BACKEND'];
+  applicableWarehousesArr.value = splitCsv(model.value.applicableWarehouses);
+  applicableRolesArr.value = splitCsv(model.value.applicableRoles);
+  applicableTenantsArr.value = splitCsv(model.value.applicableTenants);
+}
+
+function syncScopeArraysToModel() {
+  model.value.applicablePorts = joinCsv(applicablePortsArr.value);
+  model.value.applicableWarehouses = joinCsv(applicableWarehousesArr.value);
+  model.value.applicableRoles = joinCsv(applicableRolesArr.value);
+  model.value.applicableTenants = joinCsv(applicableTenantsArr.value);
+}
+
 function handleInitModel() {
   queryList.value = [];
   iconType.value = '1';
   layoutType.value = '0';
+  activeTab.value = 'basic';
   model.value = createDefaultModel();
 
   if (props.operateType === 'edit' && props.rowData) {
@@ -137,46 +165,43 @@ function handleInitModel() {
     const component = model.value.component;
     if (component?.startsWith('layout.blank$view.')) {
       layoutType.value = '1';
-      model.value.component = component?.slice(18, component.length)?.replaceAll('_', '/');
+      model.value.component = component?.slice(18)?.replaceAll('_', '/');
     } else if (isMenu.value && isInternalType.value) {
       model.value.component = component?.slice(0, -6);
     }
     iconType.value = model.value.icon?.startsWith('local-icon-') ? '2' : '1';
 
     if (model.value.isFrame === '1') {
-      const queryObj: { [key: string]: string } = JSON.parse(model.value.queryParam || '{}');
-      queryList.value = Object.keys(queryObj).map(item => ({ key: item, value: queryObj[item] }));
-      return;
-    }
-
-    try {
-      if (model.value.isFrame === '2') {
-        model.value.queryParam = JSON.parse(model.value.queryParam || '{}')?.url || '';
+      try {
+        const queryObj: Record<string, string> = JSON.parse(model.value.queryParam || '{}');
+        queryList.value = Object.keys(queryObj).map(item => ({ key: item, value: queryObj[item] }));
+      } catch {
+        queryList.value = [];
       }
-    } catch {}
+    } else {
+      try {
+        if (model.value.isFrame === '2') {
+          model.value.queryParam = JSON.parse(model.value.queryParam || '{}')?.url || '';
+        }
+      } catch {}
+    }
   }
+
+  syncScopeArraysFromModel();
 }
 
 function closeDrawer() {
   visible.value = false;
 }
 
-// 处理路径
 function processPath(path: string | null | undefined): string {
   return path?.startsWith('/') ? path.substring(1) : path || '';
 }
 
-// 处理组件
 function processComponent(component: string | null | undefined): string {
-  if (isCatalog.value && isInternalType.value) {
-    return 'Layout';
-  }
-  if (isIframeType.value || isExternalType.value) {
-    return 'FrameView';
-  }
-  if (isMenu.value && isBlankLayout.value) {
-    return `layout.blank$view.${component?.replaceAll('/', '_')}`;
-  }
+  if (isCatalog.value && isInternalType.value) return 'Layout';
+  if (isIframeType.value || isExternalType.value) return 'FrameView';
+  if (isMenu.value && isBlankLayout.value) return `layout.blank$view.${component?.replaceAll('/', '_')}`;
   if (isMenu.value && isInternalType.value) {
     return component?.endsWith('/index') ? component : `${component || ''}/index`;
   }
@@ -184,97 +209,73 @@ function processComponent(component: string | null | undefined): string {
 }
 
 function processQueryParam(queryParam: string | null | undefined): string {
-  // 外链类型不需要查询参数
-  if (isExternalType.value) {
-    return '';
-  }
-
-  // 内部链接类型，处理动态参数
+  if (isExternalType.value) return '';
   if (isInternalType.value && queryList.value.length) {
     return JSON.stringify(Object.fromEntries(queryList.value.map(({ key, value }) => [key, value])));
   }
-
-  // iframe类型，直接使用原始参数
-  if (isIframeType.value) {
-    return queryParam ? `{"url": "${queryParam}"}` : '';
-  }
-
+  if (isIframeType.value) return queryParam ? `{"url": "${queryParam}"}` : '';
   return '';
 }
 
-async function handleSubmit() {
-  await validate();
+function needsHighRiskConfirm() {
+  return Boolean(model.value.highRisk || model.value.needConfirm);
+}
 
-  const {
-    menuId,
-    parentId,
-    menuName,
-    orderNum,
-    isFrame,
-    isCache,
-    menuType,
-    icon,
-    visible: menuVisible,
-    status,
-    perms,
-    remark,
-    component,
-    queryParam
-  } = model.value;
+async function submitMenu(confirmRemark?: string) {
+  syncScopeArraysToModel();
 
   const payload = {
-    menuName,
+    ...model.value,
     path: processPath(model.value.path),
-    parentId,
-    orderNum,
-    queryParam: processQueryParam(queryParam),
-    isFrame,
-    isCache,
-    menuType,
-    visible: menuVisible,
-    status,
-    perms,
-    icon: icon || defaultIcon,
-    component: processComponent(component),
-    remark
+    queryParam: processQueryParam(model.value.queryParam),
+    icon: model.value.icon || defaultIcon,
+    component: processComponent(model.value.component),
+    remark: confirmRemark
+      ? [model.value.remark, `confirm:${confirmRemark}`].filter(Boolean).join('|')
+      : model.value.remark
   };
 
   if (props.operateType === 'add') {
     const { error } = await fetchCreateMenu(payload);
     if (error) return;
     window.$message?.success($t('common.addSuccess'));
-  }
-
-  if (props.operateType === 'edit') {
-    const { error } = await fetchUpdateMenu({ ...payload, menuId });
+  } else {
+    const { error } = await fetchUpdateMenu(payload);
     if (error) return;
     window.$message?.success($t('common.updateSuccess'));
   }
 
   closeDrawer();
-  emit('submitted', menuType!);
+  emit('submitted', model.value.menuType!);
+}
+
+async function handleSubmit() {
+  await validate();
+  if (needsHighRiskConfirm()) {
+    highRiskConfirmVisible.value = true;
+    return;
+  }
+  await submitMenu();
+}
+
+function handleHighRiskConfirm(remark: string) {
+  pendingConfirmRemark.value = remark;
+  submitMenu(remark);
 }
 
 watch(
   () => model.value.menuType,
   newType => {
-    if (newType === 'M') {
-      model.value.isFrame = '1';
-    }
+    if (newType === 'M') model.value.isFrame = '1';
+    if (newType === 'F') model.value.permType = 'button';
   }
 );
 
-watch(
-  layoutDisabled,
-  () => {
-    if (!layoutDisabled.value) {
-      return;
-    }
-    layoutType.value = '0';
-    model.value.visible = '0';
-  },
-  { immediate: true }
-);
+watch(layoutDisabled, () => {
+  if (!layoutDisabled.value) return;
+  layoutType.value = '0';
+  model.value.visible = '0';
+}, { immediate: true });
 
 watch(visible, () => {
   if (visible.value) {
@@ -288,219 +289,201 @@ function handleLayoutChange(value: string) {
 }
 
 function onCreate() {
-  return {
-    key: '',
-    value: ''
-  };
+  return { key: '', value: '' };
 }
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="600" class="max-w-90%">
+  <NDrawer v-model:show="visible" display-directive="show" :width="720" class="max-w-95%">
     <NDrawerContent :title="drawerTitle" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
-        <NGrid responsive="screen" item-responsive>
-          <NFormItemGi :span="24" :label="$t('page.system.menu.parentId')" path="pid">
-            <MenuTreeSelect
-              v-model:value="model.parentId"
-              :immediate="false"
-              :options="treeData as []"
-              :placeholder="$t('page.system.menu.form.parentId.required')"
-            />
-          </NFormItemGi>
-          <NFormItemGi v-if="!isBtn" :span="12" :label="$t('page.system.menu.menuType')" path="menuType">
-            <NRadioGroup v-model:value="model.menuType">
-              <NRadioButton
-                v-for="item in menuTypeOptions.filter(item => item.value !== 'F')"
-                :key="item.value"
-                :value="item.value"
-                :label="item.label"
-              />
-            </NRadioGroup>
-          </NFormItemGi>
-          <NFormItemGi :span="12" path="layout">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.layoutTip')" />
-                <span>{{ $t('page.system.menu.layout') }}</span>
-              </div>
-            </template>
-            <NRadioGroup v-model:value="layoutType" :disabled="layoutDisabled" @update:value="handleLayoutChange">
-              <NRadio v-for="item in menuLayoutOptions" :key="item.value" :value="item.value" :label="item.label" />
-            </NRadioGroup>
-          </NFormItemGi>
-          <NFormItemGi span="24" :label="$t('page.system.menu.menuName')" path="menuName">
-            <NInput v-model:value="model.menuName" :placeholder="$t('page.system.menu.form.menuName.required')" />
-          </NFormItemGi>
-          <NFormItemGi v-if="!isBtn" span="12" :label="$t('page.system.menu.iconType')">
-            <NRadioGroup v-model:value="iconType">
-              <NRadio v-for="item in menuIconTypeOptions" :key="item.value" :value="item.value" :label="item.label" />
-            </NRadioGroup>
-          </NFormItemGi>
-          <NFormItemGi v-if="!isBtn" span="12" path="icon">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.iconifyTip')" />
-                <span class="pl-3px">{{ $t('page.system.menu.icon') }}</span>
-              </div>
-            </template>
-            <template v-if="isLocalIcon">
-              <NSelect
-                v-model:value="model.icon"
-                :placeholder="$t('page.system.menu.placeholder.localIconPlaceholder')"
-                filterable
-                :options="localIconOptions"
-              />
-            </template>
-            <template v-else>
-              <NInput
-                v-model:value="model.icon"
-                :placeholder="$t('page.system.menu.placeholder.iconifyIconPlaceholder')"
-                class="flex-1"
-              >
-                <template #suffix>
-                  <SvgIcon v-if="model.icon" :icon="model.icon" class="text-icon" />
-                </template>
-              </NInput>
-            </template>
-          </NFormItemGi>
-          <NFormItemGi v-if="!isBtn" :span="12" path="isFrame">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.isFrameTip')" />
-                <span>{{ $t('page.system.menu.isFrame') }}</span>
-              </div>
-            </template>
-            <NRadioGroup v-model:value="model.isFrame">
-              <NSpace>
-                <NRadio
-                  v-for="option in menuIsFrameOptions"
-                  :key="option.value"
-                  :value="option.value"
-                  :label="option.label"
-                  :disabled="option.value === '2' && isCatalog"
+        <NTabs v-model:value="activeTab" type="line" animated>
+          <NTabPane name="basic" :tab="$t('page.system.menu.tabBasic')">
+            <NGrid responsive="screen" item-responsive class="pt-8px">
+              <NFormItemGi :span="24" :label="$t('page.system.menu.parentId')" path="pid">
+                <MenuTreeSelect
+                  v-model:value="model.parentId"
+                  :immediate="false"
+                  :options="treeData as []"
+                  :placeholder="$t('page.system.menu.form.parentId.required')"
                 />
-              </NSpace>
-            </NRadioGroup>
-          </NFormItemGi>
-          <NFormItemGi v-if="isMenu" :span="12" path="isCache">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.isCacheTip')" />
-                <span>{{ $t('page.system.menu.isCache') }}</span>
-              </div>
-            </template>
-            <NRadioGroup v-model:value="model.isCache">
-              <NSpace>
-                <NRadio value="0" :label="$t('common.yesOrNo.yes')" />
-                <NRadio value="1" :label="$t('common.yesOrNo.no')" />
-              </NSpace>
-            </NRadioGroup>
-          </NFormItemGi>
-          <NFormItemGi v-if="!isBtn" :span="24" path="path">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.pathTip')" />
-                <span>
-                  {{ !isExternalType ? $t('page.system.menu.path') : $t('page.system.menu.externalPath') }}
-                </span>
-              </div>
-            </template>
-            <NInput v-model:value="model.path" :placeholder="$t('page.system.menu.form.path.required')" />
-          </NFormItemGi>
-          <NFormItemGi v-if="isMenu && isInternalType" :span="24" path="component">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.componentTip')" />
-                <span>{{ $t('page.system.menu.component') }}</span>
-              </div>
-            </template>
-            <NInputGroup>
-              <NInputGroupLabel>views/</NInputGroupLabel>
-              <NInput v-model:value="model.component" :placeholder="$t('page.system.menu.form.path.required')" />
-              <NInputGroupLabel>/index.vue</NInputGroupLabel>
-            </NInputGroup>
-          </NFormItemGi>
-          <NFormItemGi
-            v-if="isMenu && !isExternalType"
-            span="24"
-            :show-feedback="!queryList.length"
-            :label="isInternalType ? $t('page.system.menu.query') : $t('page.system.menu.iframeQuery')"
-          >
-            <NDynamicInput
-              v-if="isInternalType"
-              v-model:value="queryList"
-              item-style="margin-bottom: 0"
-              :on-create="onCreate"
-            >
-              <template #default="{ index }">
-                <div class="w-full flex">
-                  <NFormItem
-                    class="w-full"
-                    ignore-path-change
-                    :show-label="false"
-                    :path="`query[${index}].key`"
-                    :rule="{
-                      ...createRequiredRule($t('page.system.menu.placeholder.queryKey')),
-                      validator: value => isNotNull(value)
-                    }"
-                  >
-                    <NInput v-model:value="queryList[index].key" placeholder="Key" @keydown.enter.prevent />
-                  </NFormItem>
-                  <div class="mx-8px h-34px lh-34px">=</div>
-                  <NFormItem
-                    class="w-full"
-                    ignore-path-change
-                    :show-label="false"
-                    :path="`query[${index}].value`"
-                    :rule="{
-                      ...createRequiredRule($t('page.system.menu.placeholder.queryValue')),
-                      validator: value => isNotNull(value)
-                    }"
-                  >
-                    <NInput v-model:value="queryList[index].value" placeholder="Value" @keydown.enter.prevent />
-                  </NFormItem>
-                </div>
-              </template>
-            </NDynamicInput>
-            <NInput
-              v-else
-              v-model:value="model.queryParam"
-              :placeholder="$t('page.system.menu.placeholder.queryIframe')"
-            />
-          </NFormItemGi>
-          <NFormItemGi v-if="!isCatalog" :span="24" path="perms">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.permsTip')" />
-                <span>{{ $t('page.system.menu.perms') }}</span>
-              </div>
-            </template>
-            <NInput v-model:value="model.perms" :placeholder="$t('page.system.menu.form.perms.required')" />
-          </NFormItemGi>
+              </NFormItemGi>
+              <NFormItemGi v-if="!isBtn" :span="12" :label="$t('page.system.menu.menuType')" path="menuType">
+                <NRadioGroup v-model:value="model.menuType">
+                  <NRadioButton
+                    v-for="item in menuTypeOptions.filter(item => item.value !== 'F')"
+                    :key="item.value"
+                    :value="item.value"
+                    :label="item.label"
+                  />
+                </NRadioGroup>
+              </NFormItemGi>
+              <NFormItemGi v-if="!isBtn" :span="12" path="layout">
+                <template #label>
+                  <div class="flex-center">
+                    <FormTip :content="$t('page.system.menu.layoutTip')" />
+                    <span>{{ $t('page.system.menu.layout') }}</span>
+                  </div>
+                </template>
+                <NRadioGroup v-model:value="layoutType" :disabled="layoutDisabled" @update:value="handleLayoutChange">
+                  <NRadio v-for="item in menuLayoutOptions" :key="item.value" :value="item.value" :label="item.label" />
+                </NRadioGroup>
+              </NFormItemGi>
+              <NFormItemGi span="12" :label="$t('page.system.menu.menuName')" path="menuName">
+                <NInput v-model:value="model.menuName" :placeholder="$t('page.system.menu.form.menuName.required')" />
+              </NFormItemGi>
+              <NFormItemGi span="12" :label="$t('page.system.menu.menuNameEn')">
+                <NInput v-model:value="model.menuNameEn" :placeholder="$t('page.system.menu.menuNameEn')" />
+              </NFormItemGi>
+              <NFormItemGi span="12" :label="$t('page.system.menu.menuCode')">
+                <NInput v-model:value="model.menuCode" placeholder="system_menu" />
+              </NFormItemGi>
+              <NFormItemGi :span="12" :label="$t('page.system.menu.orderNum')" path="orderNum">
+                <NInputNumber v-model:value="model.orderNum" class="w-full" />
+              </NFormItemGi>
+              <NFormItemGi v-if="!isBtn" span="12" :label="$t('page.system.menu.iconType')">
+                <NRadioGroup v-model:value="iconType">
+                  <NRadio v-for="item in menuIconTypeOptions" :key="item.value" :value="item.value" :label="item.label" />
+                </NRadioGroup>
+              </NFormItemGi>
+              <NFormItemGi v-if="!isBtn" span="12" path="icon">
+                <template #label>
+                  <div class="flex-center">
+                    <FormTip :content="$t('page.system.menu.iconifyTip')" />
+                    <span class="pl-3px">{{ $t('page.system.menu.icon') }}</span>
+                  </div>
+                </template>
+                <NSelect
+                  v-if="isLocalIcon"
+                  v-model:value="model.icon"
+                  filterable
+                  :options="localIconOptions"
+                />
+                <NInput v-else v-model:value="model.icon" class="flex-1">
+                  <template #suffix>
+                    <SvgIcon v-if="model.icon" :icon="model.icon" class="text-icon" />
+                  </template>
+                </NInput>
+              </NFormItemGi>
+              <NFormItemGi v-if="!isBtn" :span="12" :label="$t('page.system.menu.visible')" path="visible">
+                <DictRadio v-model:value="model.visible" dict-code="sys_show_hide" :disabled="isBlankLayout" />
+              </NFormItemGi>
+              <NFormItemGi :span="12" path="status">
+                <template #label>
+                  <FormTip :content="$t('page.system.menu.statusTip')" />
+                  <span>{{ $t('page.system.menu.status') }}</span>
+                </template>
+                <DictRadio v-model:value="model.status" dict-code="sys_normal_disable" />
+              </NFormItemGi>
+            </NGrid>
+          </NTabPane>
 
-          <NFormItemGi v-if="!isBtn" :span="12" :label="$t('page.system.menu.visible')" path="visible">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.visibleTip')" />
-                <span>{{ $t('page.system.menu.visible') }}</span>
-              </div>
-            </template>
-            <DictRadio v-model:value="model.visible" dict-code="sys_show_hide" :disabled="isBlankLayout" />
-          </NFormItemGi>
-          <NFormItemGi :span="12" path="status">
-            <template #label>
-              <div class="flex-center">
-                <FormTip :content="$t('page.system.menu.statusTip')" />
-                <span>{{ $t('page.system.menu.status') }}</span>
-              </div>
-            </template>
-            <DictRadio v-model:value="model.status" dict-code="sys_normal_disable" />
-          </NFormItemGi>
-          <NFormItemGi :span="12" :label="$t('page.system.menu.orderNum')" path="orderNum">
-            <NInputNumber v-model:value="model.orderNum" :placeholder="$t('page.system.menu.form.orderNum.required')" />
-          </NFormItemGi>
-        </NGrid>
+          <NTabPane v-if="!isBtn" name="route" :tab="$t('page.system.menu.tabRoute')">
+            <NGrid responsive="screen" item-responsive class="pt-8px">
+              <NFormItemGi :span="12" path="isFrame">
+                <template #label>
+                  <FormTip :content="$t('page.system.menu.isFrameTip')" />
+                  <span>{{ $t('page.system.menu.isFrame') }}</span>
+                </template>
+                <NRadioGroup v-model:value="model.isFrame">
+                  <NSpace>
+                    <NRadio
+                      v-for="option in menuIsFrameOptions"
+                      :key="option.value"
+                      :value="option.value"
+                      :label="option.label"
+                      :disabled="option.value === '2' && isCatalog"
+                    />
+                  </NSpace>
+                </NRadioGroup>
+              </NFormItemGi>
+              <NFormItemGi v-if="isMenu" :span="12" path="isCache">
+                <template #label>
+                  <FormTip :content="$t('page.system.menu.isCacheTip')" />
+                  <span>{{ $t('page.system.menu.isCache') }}</span>
+                </template>
+                <NRadioGroup v-model:value="model.isCache">
+                  <NSpace>
+                    <NRadio value="0" :label="$t('common.yesOrNo.yes')" />
+                    <NRadio value="1" :label="$t('common.yesOrNo.no')" />
+                  </NSpace>
+                </NRadioGroup>
+              </NFormItemGi>
+              <NFormItemGi :span="24" path="path">
+                <template #label>
+                  <span>{{ !isExternalType ? $t('page.system.menu.path') : $t('page.system.menu.externalPath') }}</span>
+                </template>
+                <NInput v-model:value="model.path" />
+              </NFormItemGi>
+              <NFormItemGi v-if="isMenu && isInternalType" :span="24" path="component">
+                <template #label>{{ $t('page.system.menu.component') }}</template>
+                <NInputGroup>
+                  <NInputGroupLabel>views/</NInputGroupLabel>
+                  <NInput v-model:value="model.component" />
+                  <NInputGroupLabel>/index.vue</NInputGroupLabel>
+                </NInputGroup>
+              </NFormItemGi>
+              <NFormItemGi
+                v-if="isMenu && !isExternalType"
+                span="24"
+                :label="isInternalType ? $t('page.system.menu.query') : $t('page.system.menu.iframeQuery')"
+              >
+                <NDynamicInput v-if="isInternalType" v-model:value="queryList" :on-create="onCreate" />
+                <NInput v-else v-model:value="model.queryParam" />
+              </NFormItemGi>
+              <NFormItemGi v-if="isMenu" :span="12" :label="$t('page.system.menu.affixTab')">
+                <NSwitch v-model:value="model.affixTab" />
+              </NFormItemGi>
+              <NFormItemGi v-if="isMenu" :span="12" :label="$t('page.system.menu.openMode')">
+                <NSelect v-model:value="model.openMode" :options="OPEN_MODE_OPTIONS" />
+              </NFormItemGi>
+            </NGrid>
+          </NTabPane>
+
+          <NTabPane v-if="!isCatalog" name="perm" :tab="$t('page.system.menu.tabPerm')">
+            <NGrid responsive="screen" item-responsive class="pt-8px">
+              <NFormItemGi :span="24" path="perms">
+                <template #label>
+                  <FormTip :content="$t('page.system.menu.permsTip')" />
+                  <span>{{ $t('page.system.menu.perms') }}</span>
+                </template>
+                <NInput v-model:value="model.perms" />
+              </NFormItemGi>
+              <NFormItemGi :span="12" :label="$t('page.system.menu.permName')">
+                <NInput v-model:value="model.permName" />
+              </NFormItemGi>
+              <NFormItemGi :span="12" :label="$t('page.system.menu.permType')">
+                <NSelect v-model:value="model.permType" :options="PERM_TYPE_OPTIONS" />
+              </NFormItemGi>
+              <NFormItemGi :span="8" :label="$t('page.system.menu.highRisk')">
+                <NSwitch v-model:value="model.highRisk" />
+              </NFormItemGi>
+              <NFormItemGi :span="8" :label="$t('page.system.menu.needConfirm')">
+                <NSwitch v-model:value="model.needConfirm" />
+              </NFormItemGi>
+              <NFormItemGi :span="8" :label="$t('page.system.menu.auditLog')">
+                <NSwitch v-model:value="model.auditLog" />
+              </NFormItemGi>
+            </NGrid>
+          </NTabPane>
+
+          <NTabPane v-if="!isBtn" name="scope" :tab="$t('page.system.menu.tabScope')">
+            <NGrid responsive="screen" item-responsive class="pt-8px">
+              <NFormItemGi :span="24" :label="$t('page.system.menu.applicablePorts')">
+                <NSelect v-model:value="applicablePortsArr" multiple :options="PORT_OPTIONS" />
+              </NFormItemGi>
+              <NFormItemGi :span="24" :label="$t('page.system.menu.applicableWarehouses')">
+                <NSelect v-model:value="applicableWarehousesArr" multiple :options="WAREHOUSE_OPTIONS" />
+              </NFormItemGi>
+              <NFormItemGi :span="24" :label="$t('page.system.menu.applicableRoles')">
+                <NSelect v-model:value="applicableRolesArr" multiple :options="ROLE_OPTIONS" />
+              </NFormItemGi>
+              <NFormItemGi :span="24" :label="$t('page.system.menu.applicableTenants')">
+                <NSelect v-model:value="applicableTenantsArr" multiple :options="TENANT_OPTIONS" />
+              </NFormItemGi>
+            </NGrid>
+          </NTabPane>
+        </NTabs>
       </NForm>
       <template #footer>
         <NSpace :size="16">
@@ -510,6 +493,10 @@ function onCreate() {
       </template>
     </NDrawerContent>
   </NDrawer>
+  <MenuHighRiskConfirmModal
+    v-model:visible="highRiskConfirmVisible"
+    :title="$t('page.system.menu.highRiskConfirmTitle')"
+    :content="$t('page.system.menu.highRiskSaveContent')"
+    @confirm="handleHighRiskConfirm"
+  />
 </template>
-
-<style scoped></style>

@@ -4,12 +4,14 @@ import { computed, h, ref } from 'vue';
 import { NButton, NDataTable, NDatePicker, NEmpty, NInput, NInputNumber, NSpace } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import type { ShipmentEditableModel } from '../../container-order/modules/container-cargo-order-shipment-table.vue';
+import { resolveOrderNoForShippingMark } from '@/utils/oms/shipping-mark';
 import {
   createDefaultShipment,
   isByPallet,
   normalizeDatePickerDateTime,
-  summarizeCargoOrderForm
+  syncCargoOrderTableFields
 } from '../../container-order/utils/container-cargo-order';
+import type { ContainerCargoOrderDraftRow } from '../../container-order/utils/container-cargo-order-display';
 
 defineOptions({ name: 'CargoOrderShipmentSkuPanel' });
 
@@ -38,8 +40,12 @@ function displayShipments() {
   return props.editable ? cargo.value?.shipments || [] : props.shipments;
 }
 
+const autoShippingMark = computed(
+  () => (cargo.value ? resolveOrderNoForShippingMark(cargo.value as Api.Oms.ContainerCargoOrderForm) : '') || '待生成'
+);
+
 function onShipmentChange() {
-  if (cargo.value) summarizeCargoOrderForm(cargo.value as Api.Oms.ContainerCargoOrderForm);
+  if (cargo.value) syncCargoOrderTableFields(cargo.value as ContainerCargoOrderDraftRow);
 }
 
 function addShipment() {
@@ -323,13 +329,12 @@ const editShipmentColumns = computed<DataTableColumns<Api.Oms.CargoOrderShipment
   {
     title: '唛头',
     key: 'shippingMark',
-    width: 110,
-    render: (row: Api.Oms.CargoOrderShipmentItem) =>
-      h(NInput, {
-        value: row.shippingMark,
-        size: 'small',
-        onUpdateValue: (v: string) => { row.shippingMark = v; onShipmentChange(); }
-      })
+    width: 130,
+    render: (row: Api.Oms.CargoOrderShipmentItem) => {
+      const mark = autoShippingMark.value === '待生成' ? row.shippingMark || '待生成' : autoShippingMark.value;
+      if (mark !== '待生成') row.shippingMark = mark;
+      return h('span', { class: 'text-13px text-gray-600' }, mark);
+    }
   },
   ...(isByPallet(cargo.value)
     ? [{

@@ -340,19 +340,10 @@ defineExpose({ reload });
           @dragleave="onDragLeave($event)"
           @drop="onDrop($event, dock)"
         >
-          <!-- 头部 -->
-          <div class="flex items-center justify-between mb-4px">
+          <!-- 头部：Dock 号居中 -->
+          <div class="dock-header mb-4px">
             <span class="font-semibold text-13px">{{ dock.dockCode }}</span>
-            <div class="flex items-center gap-4px">
-              <span v-if="dock.dockType" class="text-10px text-gray-500">{{ DOCK_TYPE_LABEL[dock.dockType] ?? dock.dockType }}</span>
-              <span v-if="dock.enableQueue"
-                class="text-10px text-blue-500 border border-blue-200 rounded px-3px">队</span>
-              <span class="text-11px" :style="{ color: getDockMeta(dock).border }">
-                {{ dock.activeTask
-                  ? (STATUS_LABEL[dock.activeTask.yardStatus] ?? '作业中')
-                  : getDockMeta(dock).label }}
-              </span>
-            </div>
+            <span v-if="dock.enableQueue" class="queue-badge">队</span>
           </div>
 
           <!-- 空闲 -->
@@ -370,8 +361,13 @@ defineExpose({ reload });
 
           <!-- 作业中 -->
           <div v-else-if="dock.activeTask" class="active-task">
-            <div class="font-mono font-semibold text-12px text-orange-700 truncate">
-              {{ getTaskDisplayNo(dock.activeTask, taskGroup) }}
+            <div class="flex items-center justify-between gap-6px">
+              <span class="font-mono font-semibold text-12px text-orange-700 truncate">
+                {{ getTaskDisplayNo(dock.activeTask, taskGroup) }}
+              </span>
+              <span class="text-11px flex-shrink-0" :style="{ color: getDockMeta(dock).border }">
+                {{ STATUS_LABEL[dock.activeTask.yardStatus] ?? '作业中' }}
+              </span>
             </div>
             <div class="text-11px text-gray-500 mt-1px truncate">
               {{ taskTypeLabel(dock.activeTask) }}
@@ -390,24 +386,20 @@ defineExpose({ reload });
               class="text-right text-11px text-gray-500 mt-1px">
               {{ dock.activeTask.operationProgress }}%
             </div>
-            <!-- 快捷操作 -->
-            <div class="mt-6px flex gap-4px flex-wrap" @click.stop>
+            <!-- 快捷操作（卡片上不展示暂停/完成，可在抽屉中操作） -->
+            <div
+              v-if="dock.activeTask.yardStatus === 'DOCK_ASSIGNED' || dock.activeTask.yardStatus === 'OPERATION_PAUSED' || dock.activeTask.yardStatus === 'OPERATION_FINISHED'"
+              class="mt-6px flex gap-4px flex-wrap"
+              @click.stop
+            >
               <NButton
                 v-if="dock.activeTask.yardStatus === 'DOCK_ASSIGNED' && hasAuth('yms:yard:start')"
                 size="tiny" type="primary"
                 @click="handleStart(dock.activeTask!.id)">开始</NButton>
               <NButton
-                v-if="['DEVANNING','LOADING','DOCK_WORKING'].includes(dock.activeTask.yardStatus) && hasAuth('yms:yard:start')"
-                size="tiny"
-                @click="handlePause(dock.activeTask!.id)">暂停</NButton>
-              <NButton
                 v-if="dock.activeTask.yardStatus === 'OPERATION_PAUSED' && hasAuth('yms:yard:start')"
                 size="tiny" type="warning"
                 @click="handleResume(dock.activeTask!.id)">恢复</NButton>
-              <NButton
-                v-if="['DEVANNING','LOADING','DOCK_WORKING','OPERATION_PAUSED'].includes(dock.activeTask.yardStatus) && hasAuth('yms:yard:finish')"
-                size="tiny" type="success"
-                @click="openFinishModal(dock.activeTask!.id)">完成</NButton>
               <NButton
                 v-if="dock.activeTask.yardStatus === 'OPERATION_FINISHED' && hasAuth('yms:yard:release')"
                 size="tiny" type="info"
@@ -614,6 +606,8 @@ defineExpose({ reload });
 .dock-card.dock-selectable:hover { border-color: #2563eb !important; box-shadow: 0 0 0 2px #bfdbfe; }
 .dock-card.dock-disabled { opacity: 0.5; pointer-events: none; }
 .dock-card.dock-drag-over { border-color: #16a34a !important; box-shadow: 0 0 0 2px #bbf7d0; background: #f0fdf4 !important; border-style: dashed !important; }
+.dock-header { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.queue-badge { font-size: 10px; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 3px; padding: 0 3px; line-height: 1.4; }
 .active-task { border-top: 1px solid #fed7aa; padding-top: 6px; margin-top: 4px; }
 .queue-list { border-top: 1px dashed #e5e7eb; padding-top: 4px; }
 .section-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }

@@ -3,20 +3,25 @@ import { POPUP_TO_BODY } from '@/constants/naive-popup';
 import { computed, h } from 'vue';
 import { NButton, NDatePicker, NInput, NInputNumber } from 'naive-ui';
 import type { ContainerCargoOrderDraftRow } from '../utils/container-cargo-order-display';
-import { createDefaultShipment, isByPallet, normalizeDatePickerDateTime, summarizeCargoOrderForm } from '../utils/container-cargo-order';
+import { resolveOrderNoForShippingMark } from '@/utils/oms/shipping-mark';
+import { createDefaultShipment, isByPallet, normalizeDatePickerDateTime, syncCargoOrderTableFields } from '../utils/container-cargo-order';
 
-/** 货件可编辑表单（海柜草稿 / 货物订单详情共用） */
+/** 货件可编辑表单（海柜草稿 / 订单详情共用） */
 export type ShipmentEditableModel = Pick<
   Api.Oms.ContainerCargoOrderForm,
-  'forecastQtyUnit' | 'shipments'
+  'cargoOrderNo' | 'externalOrderNo' | 'forecastQtyUnit' | 'shipments' | 'marks'
 >;
 
 defineOptions({ name: 'ContainerCargoOrderShipmentTable' });
 
 const cargo = defineModel<ShipmentEditableModel>({ required: true });
 
+const autoShippingMark = computed(
+  () => resolveOrderNoForShippingMark(cargo.value as Api.Oms.ContainerCargoOrderForm) || '待生成'
+);
+
 function onShipmentChange() {
-  summarizeCargoOrderForm(cargo.value as Api.Oms.ContainerCargoOrderForm);
+  syncCargoOrderTableFields(cargo.value as ContainerCargoOrderDraftRow);
 }
 
 function addShipment() {
@@ -66,16 +71,12 @@ const shipmentColumns = computed(() => [
   {
     title: '唛头',
     key: 'shippingMark',
-    width: 120,
-    render: (row: Api.Oms.CargoOrderShipmentItem) =>
-      h(NInput, {
-        value: row.shippingMark,
-        size: 'small',
-        onUpdateValue: (v: string) => {
-          row.shippingMark = v;
-          onShipmentChange();
-        }
-      })
+    width: 140,
+    render: (row: Api.Oms.CargoOrderShipmentItem) => {
+      const mark = autoShippingMark.value === '待生成' ? row.shippingMark || '待生成' : autoShippingMark.value;
+      if (mark !== '待生成') row.shippingMark = mark;
+      return h('span', { class: 'text-13px text-gray-600' }, mark);
+    }
   },
   ...(isByPallet(cargo.value)
     ? [

@@ -53,3 +53,7 @@ export function fetchCreatePlatformAppointmentPreOutbound(
     data
   });
 }
+
+export function fetchCreatePlatformAppointment(data: Api.Oms.PlatformAppointmentOperateParams) {
+  return request<Api.Oms.PlatformAppointment>({ url: BASE, method: 'post', data });
+}

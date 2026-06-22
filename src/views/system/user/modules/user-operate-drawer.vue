@@ -4,6 +4,9 @@ import { jsonClone } from '@sa/utils';
 import { useLoading } from '@sa/hooks';
 import { fetchCreateUser, fetchGetUserInfo, fetchUpdateUser } from '@/service/api/system';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { DEFAULT_PHONE_COUNTRY_CODE } from '@/constants/phone-country';
+import { createIntlPhoneRule, splitIntlPhone } from '@/utils/phone/intl-phone';
+import IntlPhoneInput from '@/components/custom/intl-phone-input.vue';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -58,6 +61,7 @@ function createDefaultModel(): Model {
     userName: '',
     nickName: '',
     email: '',
+    phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
     phonenumber: '',
     sex: '0',
     password: '',
@@ -74,7 +78,7 @@ const rules: Record<RuleKey, App.Global.FormRule[]> = {
   userName: [createRequiredRule($t('page.system.user.form.userName.required'))],
   nickName: [createRequiredRule($t('page.system.user.form.nickName.required'))],
   password: [{ ...patternRules.pwd, required: props.operateType === 'add' }],
-  phonenumber: [patternRules.phone],
+  phonenumber: [createIntlPhoneRule(() => model.value.phoneCountryCode, $t('form.phone.invalid'))],
   status: [createRequiredRule($t('page.system.user.form.status.required'))],
   roleIds: [{ ...createRequiredRule('请选择角色'), type: 'array' }]
 };
@@ -105,6 +109,9 @@ function handleUpdateModelWhenEdit() {
   if (props.operateType === 'edit' && props.rowData) {
     startDeptLoading();
     Object.assign(model.value, jsonClone(props.rowData));
+    const phoneParts = splitIntlPhone(props.rowData.phonenumber, props.rowData.phoneCountryCode);
+    model.value.phoneCountryCode = phoneParts.phoneCountryCode;
+    model.value.phonenumber = phoneParts.phonenumber;
     model.value.password = '';
     getUserInfo(props.rowData.userId);
     endDeptLoading();
@@ -118,8 +125,21 @@ function closeDrawer() {
 async function handleSubmit() {
   await validate();
 
-  const { userId, deptId, userName, nickName, email, phonenumber, sex, password, status, roleIds, postIds, remark } =
-    model.value;
+  const {
+    userId,
+    deptId,
+    userName,
+    nickName,
+    email,
+    phoneCountryCode,
+    phonenumber,
+    sex,
+    password,
+    status,
+    roleIds,
+    postIds,
+    remark
+  } = model.value;
 
   // request
   if (props.operateType === 'add') {
@@ -129,6 +149,7 @@ async function handleSubmit() {
       password,
       nickName,
       email,
+      phoneCountryCode,
       phonenumber,
       sex,
       status,
@@ -147,6 +168,7 @@ async function handleSubmit() {
       userName,
       nickName,
       email,
+      phoneCountryCode,
       phonenumber,
       sex,
       status,
@@ -191,7 +213,10 @@ watch(visible, () => {
             />
           </NFormItem>
           <NFormItem :label="$t('page.system.user.phonenumber')" path="phonenumber">
-            <NInput v-model:value="model.phonenumber" :placeholder="$t('page.system.user.form.phonenumber.required')" />
+            <IntlPhoneInput
+              v-model:phone-country-code="model.phoneCountryCode"
+              v-model:phonenumber="model.phonenumber"
+            />
           </NFormItem>
           <NFormItem :label="$t('page.system.user.email')" path="email">
             <NInput v-model:value="model.email" :placeholder="$t('page.system.user.form.email.required')" />

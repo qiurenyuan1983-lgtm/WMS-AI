@@ -1,42 +1,29 @@
 import { request } from '@/service/request';
 
-/** 获取在线用户列表 */
+export function fetchGetOnlineSessionStats() {
+  return request<Api.Monitor.OnlineSessionStats>({ url: '/monitor/online/stats', method: 'get' });
+}
+
 export function fetchGetOnlineUserList(params?: Api.Monitor.OnlineUserSearchParams) {
-  return request<Api.Monitor.OnlineUserList>({
-    url: '/monitor/online/list',
-    method: 'get',
-    params
-  });
+  return request<Api.Monitor.OnlineUserList>({ url: '/monitor/online/list', method: 'get', params });
 }
 
-/**
- * 强制下线
- *
- * @param tokenId - 令牌ID
- */
+export function fetchGetOnlineSessionDetail(tokenId: string) {
+  return request<Api.Monitor.OnlineUser>({ url: `/monitor/online/sessions/${tokenId}`, method: 'get' });
+}
+
+export function fetchExecuteOnlineSessionAction(data: Api.Monitor.OnlineSessionActionParams) {
+  return request<Api.Monitor.OnlineUser[]>({ url: '/monitor/online/action', method: 'put', data });
+}
+
 export function fetchForceLogout(tokenId: string) {
-  return request<boolean>({
-    url: `/monitor/online/${tokenId}`,
-    method: 'delete'
-  });
-}
-/**
- * 强退当前在线设备
- *
- * @param tokenId - 令牌ID
- */
-export function fetchKickOutCurrentDevice(tokenId: string) {
-  return request<boolean>({
-    url: `/monitor/online/myself/${tokenId}`,
-    method: 'delete'
-  });
+  return request<boolean>({ url: `/monitor/online/${tokenId}`, method: 'delete' });
 }
 
-/** 获取在线设备列表 */
+export function fetchKickOutCurrentDevice(tokenId: string) {
+  return request<boolean>({ url: `/monitor/online/myself/${tokenId}`, method: 'delete' });
+}
+
 export function fetchGetOnlineDeviceList(params?: Api.Monitor.OnlineUserSearchParams) {
-  return request<Api.Monitor.OnlineUserList>({
-    url: '/monitor/online',
-    method: 'get',
-    params
-  });
+  return request<Api.Monitor.OnlineUserList>({ url: '/monitor/online', method: 'get', params });
 }

@@ -251,6 +251,107 @@ export const generatedRoutes: GeneratedRoute[] = [
     ]
   },
   {
+    name: 'comm',
+    path: '/comm',
+    component: 'layout.base',
+    meta: {
+      title: 'comm',
+      i18nKey: 'route.comm'
+    },
+    children: [
+      {
+        name: 'comm_ai',
+        path: '/comm/ai',
+        component: 'view.comm_ai',
+        meta: {
+          title: 'comm_ai',
+          i18nKey: 'route.comm_ai'
+        }
+      },
+      {
+        name: 'comm_archive',
+        path: '/comm/archive',
+        component: 'view.comm_archive',
+        meta: {
+          title: 'comm_archive',
+          i18nKey: 'route.comm_archive'
+        }
+      },
+      {
+        name: 'comm_business-session',
+        path: '/comm/business-session',
+        component: 'view.comm_business-session',
+        meta: {
+          title: 'comm_business-session',
+          i18nKey: 'route.comm_business-session'
+        }
+      },
+      {
+        name: 'comm_contacts',
+        path: '/comm/contacts',
+        component: 'view.comm_contacts',
+        meta: {
+          title: 'comm_contacts',
+          i18nKey: 'route.comm_contacts'
+        }
+      },
+      {
+        name: 'comm_file',
+        path: '/comm/file',
+        component: 'view.comm_file',
+        meta: {
+          title: 'comm_file',
+          i18nKey: 'route.comm_file'
+        }
+      },
+      {
+        name: 'comm_group',
+        path: '/comm/group',
+        component: 'view.comm_group',
+        meta: {
+          title: 'comm_group',
+          i18nKey: 'route.comm_group'
+        }
+      },
+      {
+        name: 'comm_meeting',
+        path: '/comm/meeting',
+        component: 'view.comm_meeting',
+        meta: {
+          title: 'comm_meeting',
+          i18nKey: 'route.comm_meeting'
+        }
+      },
+      {
+        name: 'comm_message',
+        path: '/comm/message',
+        component: 'view.comm_message',
+        meta: {
+          title: 'comm_message',
+          i18nKey: 'route.comm_message'
+        }
+      },
+      {
+        name: 'comm_settings',
+        path: '/comm/settings',
+        component: 'view.comm_settings',
+        meta: {
+          title: 'comm_settings',
+          i18nKey: 'route.comm_settings'
+        }
+      },
+      {
+        name: 'comm_todo',
+        path: '/comm/todo',
+        component: 'view.comm_todo',
+        meta: {
+          title: 'comm_todo',
+          i18nKey: 'route.comm_todo'
+        }
+      }
+    ]
+  },
+  {
     name: 'demo',
     path: '/demo',
     component: 'layout.base',
@@ -289,6 +390,98 @@ export const generatedRoutes: GeneratedRoute[] = [
       icon: 'mdi:monitor-dashboard',
       order: 1
     }
+  },
+  {
+    name: 'iec',
+    path: '/iec',
+    component: 'layout.base',
+    meta: {
+      title: 'iec',
+      i18nKey: 'route.iec'
+    },
+    children: [
+      {
+        name: 'iec_auto-flow',
+        path: '/iec/auto-flow',
+        component: 'view.iec_auto-flow',
+        meta: {
+          title: 'iec_auto-flow',
+          i18nKey: 'route.iec_auto-flow'
+        }
+      },
+      {
+        name: 'iec_credential',
+        path: '/iec/credential',
+        component: 'view.iec_credential',
+        meta: {
+          title: 'iec_credential',
+          i18nKey: 'route.iec_credential'
+        }
+      },
+      {
+        name: 'iec_dashboard',
+        path: '/iec/dashboard',
+        component: 'view.iec_dashboard',
+        meta: {
+          title: 'iec_dashboard',
+          i18nKey: 'route.iec_dashboard'
+        }
+      },
+      {
+        name: 'iec_execution-log',
+        path: '/iec/execution-log',
+        component: 'view.iec_execution-log',
+        meta: {
+          title: 'iec_execution-log',
+          i18nKey: 'route.iec_execution-log'
+        }
+      },
+      {
+        name: 'iec_performance',
+        path: '/iec/performance',
+        component: 'view.iec_performance',
+        meta: {
+          title: 'iec_performance',
+          i18nKey: 'route.iec_performance'
+        }
+      },
+      {
+        name: 'iec_role-config',
+        path: '/iec/role-config',
+        component: 'view.iec_role-config',
+        meta: {
+          title: 'iec_role-config',
+          i18nKey: 'route.iec_role-config'
+        }
+      },
+      {
+        name: 'iec_rpa',
+        path: '/iec/rpa',
+        component: 'view.iec_rpa',
+        meta: {
+          title: 'iec_rpa',
+          i18nKey: 'route.iec_rpa'
+        }
+      },
+      {
+        name: 'iec_takeover',
+        path: '/iec/takeover',
+        component: 'view.iec_takeover',
+        meta: {
+          title: 'iec_takeover',
+          i18nKey: 'route.iec_takeover'
+        }
+      },
+      {
+        name: 'iec_task-queue',
+        path: '/iec/task-queue',
+        component: 'view.iec_task-queue',
+        meta: {
+          title: 'iec_task-queue',
+          i18nKey: 'route.iec_task-queue'
+        }
+      }
+    ]
   },
   {
     name: 'iframe-page',
@@ -372,6 +565,24 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'oms_approval-flow',
+        path: '/oms/approval-flow',
+        component: 'view.oms_approval-flow',
+        meta: {
+          title: 'oms_approval-flow',
+          i18nKey: 'route.oms_approval-flow'
+        }
+      },
+      {
+        name: 'oms_business-rule',
+        path: '/oms/business-rule',
+        component: 'view.oms_business-rule',
+        meta: {
+          title: 'oms_business-rule',
+          i18nKey: 'route.oms_business-rule'
+        }
+      },
+      {
         name: 'oms_cargo-grouping-rule',
         path: '/oms/cargo-grouping-rule',
         component: 'view.oms_cargo-grouping-rule',
@@ -408,6 +619,55 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'oms_local-order',
+        path: '/oms/local-order',
+        component: 'view.oms_local-order',
+        meta: {
+          title: 'oms_local-order',
+          i18nKey: 'route.oms_local-order'
+        }
+      },
+      {
+        name: 'oms_local-order-detail',
+        path: '/oms/local-order-detail',
+        component: 'view.oms_local-order-detail',
+        meta: {
+          title: 'oms_local-order-detail',
+          i18nKey: 'route.oms_local-order-detail',
+          hideInMenu: true,
+          activeMenu: 'oms_local-order'
+        }
+      },
+      {
+        name: 'oms_ltl-order',
+        path: '/oms/ltl-order',
+        component: 'view.oms_ltl-order',
+        meta: {
+          title: 'oms_ltl-order',
+          i18nKey: 'route.oms_ltl-order'
+        }
+      },
+      {
+        name: 'oms_ltl-order-detail',
+        path: '/oms/ltl-order-detail',
+        component: 'view.oms_ltl-order-detail',
+        meta: {
+          title: 'oms_ltl-order-detail',
+          i18nKey: 'route.oms_ltl-order-detail',
+          hideInMenu: true,
+          activeMenu: 'oms_ltl-order'
+        }
+      },
+      {
+        name: 'oms_order-workbench',
+        path: '/oms/order-workbench',
+        component: 'view.oms_order-workbench',
+        meta: {
+          title: 'oms_order-workbench',
+          i18nKey: 'route.oms_order-workbench'
+        }
+      },
+      {
         name: 'oms_outbound-order',
         path: '/oms/outbound-order',
         component: 'view.oms_outbound-order',
@@ -435,12 +695,57 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'oms_platform-order',
+        path: '/oms/platform-order',
+        component: 'view.oms_platform-order',
+        meta: {
+          title: 'oms_platform-order',
+          i18nKey: 'route.oms_platform-order'
+        }
+      },
+      {
+        name: 'oms_platform-warehouse',
+        path: '/oms/platform-warehouse',
+        component: 'view.oms_platform-warehouse',
+        meta: {
+          title: 'oms_platform-warehouse',
+          i18nKey: 'route.oms_platform-warehouse'
+        }
+      },
+      {
         name: 'oms_pre-outbound',
         path: '/oms/pre-outbound',
         component: 'view.oms_pre-outbound',
         meta: {
           title: 'oms_pre-outbound',
           i18nKey: 'route.oms_pre-outbound'
+        }
+      },
+      {
+        name: 'oms_trip-order-detail',
+        path: '/oms/trip-order-detail',
+        component: 'view.oms_trip-order-detail',
+        meta: {
+          title: 'oms_trip-order-detail',
+          i18nKey: 'route.oms_trip-order-detail'
+        }
+      },
+      {
+        name: 'oms_trip-recommend',
+        path: '/oms/trip-recommend',
+        component: 'view.oms_trip-recommend',
+        meta: {
+          title: 'oms_trip-recommend',
+          i18nKey: 'route.oms_trip-recommend'
+        }
+      },
+      {
+        name: 'oms_zone-rule',
+        path: '/oms/zone-rule',
+        component: 'view.oms_zone-rule',
+        meta: {
+          title: 'oms_zone-rule',
+          i18nKey: 'route.oms_zone-rule'
         }
       }
     ]
@@ -461,6 +766,17 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'pda_business',
           i18nKey: 'route.pda_business',
+          hideInMenu: true,
+          activeMenu: 'pda_home'
+        }
+      },
+      {
+        name: 'pda_devanning',
+        path: '/pda/devanning',
+        component: 'view.pda_devanning',
+        meta: {
+          title: 'pda_devanning',
+          i18nKey: 'route.pda_devanning',
           hideInMenu: true,
           activeMenu: 'pda_home'
         }
@@ -503,6 +819,304 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'pda_task',
           i18nKey: 'route.pda_task'
+        }
+      }
+    ]
+  },
+  {
+    name: 'portal',
+    path: '/portal',
+    component: 'layout.base',
+    meta: {
+      title: 'portal',
+      i18nKey: 'route.portal'
+    },
+    children: [
+      {
+        name: 'portal_bill',
+        path: '/portal/bill',
+        component: 'view.portal_bill',
+        meta: {
+          title: 'portal_bill',
+          i18nKey: 'route.portal_bill'
+        }
+      },
+      {
+        name: 'portal_comm',
+        path: '/portal/comm',
+        component: 'view.portal_comm',
+        meta: {
+          title: 'portal_comm',
+          i18nKey: 'route.portal_comm'
+        }
+      },
+      {
+        name: 'portal_containers',
+        path: '/portal/containers',
+        component: 'view.portal_containers',
+        meta: {
+          title: 'portal_containers',
+          i18nKey: 'route.portal_containers'
+        }
+      },
+      {
+        name: 'portal_exception',
+        path: '/portal/exception',
+        component: 'view.portal_exception',
+        meta: {
+          title: 'portal_exception',
+          i18nKey: 'route.portal_exception'
+        }
+      },
+      {
+        name: 'portal_fee-confirm',
+        path: '/portal/fee-confirm',
+        component: 'view.portal_fee-confirm',
+        meta: {
+          title: 'portal_fee-confirm',
+          i18nKey: 'route.portal_fee-confirm'
+        }
+      },
+      {
+        name: 'portal_files',
+        path: '/portal/files',
+        component: 'view.portal_files',
+        meta: {
+          title: 'portal_files',
+          i18nKey: 'route.portal_files'
+        }
+      },
+      {
+        name: 'portal_home',
+        path: '/portal/home',
+        component: 'view.portal_home',
+        meta: {
+          title: 'portal_home',
+          i18nKey: 'route.portal_home'
+        }
+      },
+      {
+        name: 'portal_in-transit',
+        path: '/portal/in-transit',
+        component: 'view.portal_in-transit',
+        meta: {
+          title: 'portal_in-transit',
+          i18nKey: 'route.portal_in-transit'
+        }
+      },
+      {
+        name: 'portal_inventory',
+        path: '/portal/inventory',
+        component: 'view.portal_inventory',
+        meta: {
+          title: 'portal_inventory',
+          i18nKey: 'route.portal_inventory'
+        }
+      },
+      {
+        name: 'portal_order-create',
+        path: '/portal/order-create',
+        component: 'view.portal_order-create',
+        meta: {
+          title: 'portal_order-create',
+          i18nKey: 'route.portal_order-create'
+        }
+      },
+      {
+        name: 'portal_orders',
+        path: '/portal/orders',
+        component: 'view.portal_orders',
+        meta: {
+          title: 'portal_orders',
+          i18nKey: 'route.portal_orders'
+        }
+      },
+      {
+        name: 'portal_settings',
+        path: '/portal/settings',
+        component: 'view.portal_settings',
+        meta: {
+          title: 'portal_settings',
+          i18nKey: 'route.portal_settings'
+        }
+      },
+      {
+        name: 'portal_transfer-ops',
+        path: '/portal/transfer-ops',
+        component: 'view.portal_transfer-ops',
+        meta: {
+          title: 'portal_transfer-ops',
+          i18nKey: 'route.portal_transfer-ops'
+        }
+      }
+    ]
+  },
+  {
+    name: 'print',
+    path: '/print',
+    component: 'layout.base',
+    meta: {
+      title: 'print',
+      i18nKey: 'route.print'
+    },
+    children: [
+      {
+        name: 'print_batch',
+        path: '/print/batch',
+        component: 'view.print_batch',
+        meta: {
+          title: 'print_batch',
+          i18nKey: 'route.print_batch',
+          hideInMenu: true
+        }
+      },
+      {
+        name: 'print_designer',
+        path: '/print/designer',
+        component: 'view.print_designer',
+        meta: {
+          title: 'print_designer',
+          i18nKey: 'route.print_designer',
+          hideInMenu: true,
+          activeMenu: 'print_template-pallet-label'
+        }
+      },
+      {
+        name: 'print_permission',
+        path: '/print/permission',
+        component: 'view.print_permission',
+        meta: {
+          title: 'print_permission',
+          i18nKey: 'route.print_permission'
+        }
+      },
+      {
+        name: 'print_printer',
+        path: '/print/printer',
+        component: 'view.print_printer',
+        meta: {
+          title: 'print_printer',
+          i18nKey: 'route.print_printer',
+          hideInMenu: true
+        }
+      },
+      {
+        name: 'print_record',
+        path: '/print/record',
+        component: 'view.print_record',
+        meta: {
+          title: 'print_record',
+          i18nKey: 'route.print_record',
+          hideInMenu: true
+        }
+      },
+      {
+        name: 'print_rule',
+        path: '/print/rule',
+        component: 'view.print_rule',
+        meta: {
+          title: 'print_rule',
+          i18nKey: 'route.print_rule'
+        }
+      },
+      {
+        name: 'print_task',
+        path: '/print/task',
+        component: 'view.print_task',
+        meta: {
+          title: 'print_task',
+          i18nKey: 'route.print_task',
+          hideInMenu: true
+        }
+      },
+      {
+        name: 'print_template-bol',
+        path: '/print/template-bol',
+        component: 'view.print_template-bol',
+        meta: {
+          title: 'print_template-bol',
+          i18nKey: 'route.print_template-bol'
+        }
+      },
+      {
+        name: 'print_template-carton',
+        path: '/print/template-carton',
+        component: 'view.print_template-carton',
+        meta: {
+          title: 'print_template-carton',
+          i18nKey: 'route.print_template-carton'
+        }
+      },
+      {
+        name: 'print_template-custom',
+        path: '/print/template-custom',
+        component: 'view.print_template-custom',
+        meta: {
+          title: 'print_template-custom',
+          i18nKey: 'route.print_template-custom'
+        }
+      },
+      {
+        name: 'print_template-devanning',
+        path: '/print/template-devanning',
+        component: 'view.print_template-devanning',
+        meta: {
+          title: 'print_template-devanning',
+          i18nKey: 'route.print_template-devanning'
+        }
+      },
+      {
+        name: 'print_template-invoice',
+        path: '/print/template-invoice',
+        component: 'view.print_template-invoice',
+        meta: {
+          title: 'print_template-invoice',
+          i18nKey: 'route.print_template-invoice'
+        }
+      },
+      {
+        name: 'print_template-location',
+        path: '/print/template-location',
+        component: 'view.print_template-location',
+        meta: {
+          title: 'print_template-location',
+          i18nKey: 'route.print_template-location'
+        }
+      },
+      {
+        name: 'print_template-pallet-label',
+        path: '/print/template-pallet-label',
+        component: 'view.print_template-pallet-label',
+        meta: {
+          title: 'print_template-pallet-label',
+          i18nKey: 'route.print_template-pallet-label'
+        }
+      },
+      {
+        name: 'print_template-report',
+        path: '/print/template-report',
+        component: 'view.print_template-report',
+        meta: {
+          title: 'print_template-report',
+          i18nKey: 'route.print_template-report'
+        }
+      },
+      {
+        name: 'print_template-version',
+        path: '/print/template-version',
+        component: 'view.print_template-version',
+        meta: {
+          title: 'print_template-version',
+          i18nKey: 'route.print_template-version'
+        }
+      },
+      {
+        name: 'print_workbench',
+        path: '/print/workbench',
+        component: 'view.print_workbench',
+        meta: {
+          title: 'print_workbench',
+          i18nKey: 'route.print_workbench'
         }
       }
     ]
@@ -643,12 +1257,213 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'system_theme-config',
+        path: '/system/theme-config',
+        component: 'view.system_theme-config',
+        meta: {
+          title: 'system_theme-config',
+          i18nKey: 'route.system_theme-config'
+        }
+      },
+      {
         name: 'system_user',
         path: '/system/user',
         component: 'view.system_user',
         meta: {
           title: 'system_user',
           i18nKey: 'route.system_user'
+        }
+      }
+    ]
+  },
+  {
+    name: 'tms',
+    path: '/tms',
+    component: 'layout.base',
+    meta: {
+      title: 'tms',
+      i18nKey: 'route.tms'
+    },
+    children: [
+      {
+        name: 'tms_dispatch',
+        path: '/tms/dispatch',
+        component: 'view.tms_dispatch',
+        meta: {
+          title: 'tms_dispatch',
+          i18nKey: 'route.tms_dispatch'
+        }
+      },
+      {
+        name: 'tms_dock-board',
+        path: '/tms/dock-board',
+        component: 'view.tms_dock-board',
+        meta: {
+          title: 'tms_dock-board',
+          i18nKey: 'route.tms_dock-board'
+        }
+      },
+      {
+        name: 'tms_driver',
+        path: '/tms/driver',
+        component: 'view.tms_driver',
+        meta: {
+          title: 'tms_driver',
+          i18nKey: 'route.tms_driver'
+        }
+      },
+      {
+        name: 'tms_exception',
+        path: '/tms/exception',
+        component: 'view.tms_exception',
+        meta: {
+          title: 'tms_exception',
+          i18nKey: 'route.tms_exception'
+        }
+      },
+      {
+        name: 'tms_freight-settlement',
+        path: '/tms/freight-settlement',
+        component: 'view.tms_freight-settlement',
+        meta: {
+          title: 'tms_freight-settlement',
+          i18nKey: 'route.tms_freight-settlement'
+        }
+      },
+      {
+        name: 'tms_home',
+        path: '/tms/home',
+        component: 'view.tms_home',
+        meta: {
+          title: 'tms_home',
+          i18nKey: 'route.tms_home'
+        }
+      },
+      {
+        name: 'tms_log',
+        path: '/tms/log',
+        component: 'view.tms_log',
+        meta: {
+          title: 'tms_log',
+          i18nKey: 'route.tms_log'
+        }
+      },
+      {
+        name: 'tms_pod',
+        path: '/tms/pod',
+        component: 'view.tms_pod',
+        meta: {
+          title: 'tms_pod',
+          i18nKey: 'route.tms_pod'
+        }
+      },
+      {
+        name: 'tms_supplier',
+        path: '/tms/supplier',
+        meta: {
+          title: 'tms_supplier',
+          i18nKey: 'route.tms_supplier'
+        },
+        children: [
+          {
+            name: 'tms_supplier_account',
+            path: '/tms/supplier/account',
+            component: 'view.tms_supplier_account',
+            meta: {
+              title: 'tms_supplier_account',
+              i18nKey: 'route.tms_supplier_account'
+            }
+          },
+          {
+            name: 'tms_supplier_bill',
+            path: '/tms/supplier/bill',
+            component: 'view.tms_supplier_bill',
+            meta: {
+              title: 'tms_supplier_bill',
+              i18nKey: 'route.tms_supplier_bill'
+            }
+          },
+          {
+            name: 'tms_supplier_devanning-loading',
+            path: '/tms/supplier/devanning-loading',
+            component: 'view.tms_supplier_devanning-loading',
+            meta: {
+              title: 'tms_supplier_devanning-loading',
+              i18nKey: 'route.tms_supplier_devanning-loading'
+            }
+          },
+          {
+            name: 'tms_supplier_drayage',
+            path: '/tms/supplier/drayage',
+            component: 'view.tms_supplier_drayage',
+            meta: {
+              title: 'tms_supplier_drayage',
+              i18nKey: 'route.tms_supplier_drayage'
+            }
+          },
+          {
+            name: 'tms_supplier_fleet',
+            path: '/tms/supplier/fleet',
+            component: 'view.tms_supplier_fleet',
+            meta: {
+              title: 'tms_supplier_fleet',
+              i18nKey: 'route.tms_supplier_fleet'
+            }
+          },
+          {
+            name: 'tms_supplier_kpi',
+            path: '/tms/supplier/kpi',
+            component: 'view.tms_supplier_kpi',
+            meta: {
+              title: 'tms_supplier_kpi',
+              i18nKey: 'route.tms_supplier_kpi'
+            }
+          },
+          {
+            name: 'tms_supplier_linehaul',
+            path: '/tms/supplier/linehaul',
+            component: 'view.tms_supplier_linehaul',
+            meta: {
+              title: 'tms_supplier_linehaul',
+              i18nKey: 'route.tms_supplier_linehaul'
+            }
+          },
+          {
+            name: 'tms_supplier_ltl',
+            path: '/tms/supplier/ltl',
+            component: 'view.tms_supplier_ltl',
+            meta: {
+              title: 'tms_supplier_ltl',
+              i18nKey: 'route.tms_supplier_ltl'
+            }
+          },
+          {
+            name: 'tms_supplier_quote',
+            path: '/tms/supplier/quote',
+            component: 'view.tms_supplier_quote',
+            meta: {
+              title: 'tms_supplier_quote',
+              i18nKey: 'route.tms_supplier_quote'
+            }
+          }
+        ]
+      },
+      {
+        name: 'tms_supplier-task',
+        path: '/tms/supplier-task',
+        component: 'view.tms_supplier-task',
+        meta: {
+          title: 'tms_supplier-task',
+          i18nKey: 'route.tms_supplier-task'
+        }
+      },
+      {
+        name: 'tms_vehicle',
+        path: '/tms/vehicle',
+        component: 'view.tms_vehicle',
+        meta: {
+          title: 'tms_vehicle',
+          i18nKey: 'route.tms_vehicle'
         }
       }
     ]
@@ -694,9 +1509,19 @@ export const generatedRoutes: GeneratedRoute[] = [
     component: 'layout.base',
     meta: {
       title: 'wms',
-      i18nKey: 'route.wms'
+      i18nKey: 'route.wms',
+      icon: 'mdi:package-variant-closed'
     },
     children: [
+      {
+        name: 'wms_bol-pod',
+        path: '/wms/bol-pod',
+        component: 'view.wms_bol-pod',
+        meta: {
+          title: 'wms_bol-pod',
+          i18nKey: 'route.wms_bol-pod'
+        }
+      },
       {
         name: 'wms_devanning-dock-qr',
         path: '/wms/devanning-dock-qr',
@@ -749,21 +1574,21 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
-        name: 'wms_inbound-order',
-        path: '/wms/inbound-order',
-        component: 'view.wms_inbound-order',
+        name: 'wms_dock-auto-schedule',
+        path: '/wms/dock-auto-schedule',
+        component: 'view.wms_dock-auto-schedule',
         meta: {
-          title: 'wms_inbound-order',
-          i18nKey: 'route.wms_inbound-order'
+          title: 'wms_dock-auto-schedule',
+          i18nKey: 'route.wms_dock-auto-schedule'
         }
       },
       {
-        name: 'wms_inbound-task',
-        path: '/wms/inbound-task',
-        component: 'view.wms_inbound-task',
+        name: 'wms_driver-checkin',
+        path: '/wms/driver-checkin',
+        component: 'view.wms_driver-checkin',
         meta: {
-          title: 'wms_inbound-task',
-          i18nKey: 'route.wms_inbound-task'
+          title: 'wms_driver-checkin',
+          i18nKey: 'route.wms_driver-checkin'
         }
       },
       {
@@ -866,24 +1691,6 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
-        name: 'wms_putaway-pda',
-        path: '/wms/putaway-pda',
-        component: 'view.wms_putaway-pda',
-        meta: {
-          title: 'wms_putaway-pda',
-          i18nKey: 'route.wms_putaway-pda'
-        }
-      },
-      {
-        name: 'wms_putaway-task',
-        path: '/wms/putaway-task',
-        component: 'view.wms_putaway-task',
-        meta: {
-          title: 'wms_putaway-task',
-          i18nKey: 'route.wms_putaway-task'
-        }
-      },
-      {
         name: 'wms_stock-prep-exec',
         path: '/wms/stock-prep-exec',
         component: 'view.wms_stock-prep-exec',
@@ -908,6 +1715,42 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'wms_stock-prep-task',
           i18nKey: 'route.wms_stock-prep-task'
+        }
+      },
+      {
+        name: 'wms_transfer-workbench',
+        path: '/wms/transfer-workbench',
+        component: 'view.wms_transfer-workbench',
+        meta: {
+          title: 'wms_transfer-workbench',
+          i18nKey: 'route.wms_transfer-workbench'
+        }
+      },
+      {
+        name: 'wms_trip-exception',
+        path: '/wms/trip-exception',
+        component: 'view.wms_trip-exception',
+        meta: {
+          title: 'wms_trip-exception',
+          i18nKey: 'route.wms_trip-exception'
+        }
+      },
+      {
+        name: 'wms_trip-fee',
+        path: '/wms/trip-fee',
+        component: 'view.wms_trip-fee',
+        meta: {
+          title: 'wms_trip-fee',
+          i18nKey: 'route.wms_trip-fee'
+        }
+      },
+      {
+        name: 'wms_trip-outbound-plan',
+        path: '/wms/trip-outbound-plan',
+        component: 'view.wms_trip-outbound-plan',
+        meta: {
+          title: 'wms_trip-outbound-plan',
+          i18nKey: 'route.wms_trip-outbound-plan'
         }
       },
       {

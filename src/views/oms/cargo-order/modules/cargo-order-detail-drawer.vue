@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { POPUP_TO_BODY } from '@/constants/naive-popup';
-import { computed, ref, watch } from 'vue';
-import { NTag } from 'naive-ui';
+import { displayAppointmentNo } from '@/utils/oms/appointment-no';
+import { CARGO_OPERATION_STATUS_META, type CargoOperationStatus } from '@/utils/oms/operation-status';
+import { resolveShippingMarkFromOrder } from '@/utils/oms/shipping-mark';
+import { computed, h, ref, watch } from 'vue';
+import { NButton, NTag } from 'naive-ui';
 import { jsonClone } from '@sa/utils';
 import {
   fetchDeleteShipment,
@@ -26,6 +29,11 @@ import {
 import { useAuth } from '@/hooks/business/auth';
 import { useDict } from '@/hooks/business/dict';
 import AttachmentManager from '../../components/attachment-manager.vue';
+import {
+  LOOSE_PALLET_DELIVERY_MODE_LABEL,
+  toPalletLabelPrintRows
+} from '../../container-order/utils/loose-pallet-order';
+import { printPalletLabel, printPalletLabels } from '@/views/wms/devanning-work/utils/print-pallet-label';
 
 defineOptions({ name: 'CargoOrderDetailDrawer' });
 
@@ -42,6 +50,7 @@ const visible = defineModel<boolean>('visible', { default: false });
 const { hasAuth } = useAuth();
 const { options: addressTypeOptions, record: addressTypeRecord } = useDict('oms_address_type');
 const { options: parcelCarrierOptions } = useDict('oms_parcel_carrier');
+const { options: timelinessLevelOptions, record: timelinessLevelRecord } = useDict('oms_timeliness_level');
 
 const loading = ref(false);
 const shipmentEditModel = ref<ShipmentEditableModel>({ forecastQtyUnit: 'BY_CARTON', shipments: [] });
@@ -69,6 +78,28 @@ const ORDER_SOURCE_LABELS: Record<string, string> = {
 
 function orderSourceLabel(value?: string | null) {
   return (value && ORDER_SOURCE_LABELS[value]) || value || '--';
+}
+
+const isLoosePalletOrder = computed(() => detail.value?.orderSubType === 'LOOSE_PALLET');
+
+const loosePalletLabels = computed(() => detail.value?.loosePalletLabels || []);
+
+function printAllLoosePalletLabels() {
+  const rows = toPalletLabelPrintRows(loosePalletLabels.value, {
+    cargoOrderNo: detail.value?.cargoOrderNo,
+    carriageNo: detail.value?.carriageNo,
+    groupCode: detail.value?.groupCode
+  });
+  printPalletLabels(rows);
+}
+
+function printSingleLoosePalletLabel(row: Api.Oms.LoosePalletLabelItem) {
+  const [printRow] = toPalletLabelPrintRows([row], {
+    cargoOrderNo: detail.value?.cargoOrderNo,
+    carriageNo: detail.value?.carriageNo,
+    groupCode: detail.value?.groupCode
+  });
+  if (printRow) printPalletLabel(printRow);
 }
 
 const isDetailTruckDelivery = computed(() => {
@@ -126,7 +157,7 @@ async function loadDetail(orderId: CommonType.IdType) {
     if (error || !data) {
       detail.value = null;
       editModel.value = null;
-      window.$message?.error('加载货物订单详情失败');
+      window.$message?.error('加载订单详情失败');
       return;
     }
     detail.value = data;
@@ -143,7 +174,7 @@ async function loadDetail(orderId: CommonType.IdType) {
     if (seq !== loadSeq) return;
     detail.value = null;
     editModel.value = null;
-    window.$message?.error('加载货物订单详情失败');
+    window.$message?.error('加载订单详情失败');
   } finally {
     if (seq === loadSeq) loading.value = false;
   }
@@ -426,6 +457,10 @@ function validateShipmentEdit(): string | null {
 
 async function persistShipments(orderId: CommonType.IdType): Promise<boolean> {
   const list = (shipmentEditModel.value.shipments || []).filter(s => s.shipmentNo?.trim());
+  const orderMark = resolveShippingMarkFromOrder({
+    cargoOrderNo: detail.value?.cargoOrderNo,
+    externalOrderNo: detail.value?.externalOrderNo
+  });
   const keptIds = new Set<string>();
   for (const row of list) {
     const payload: Api.Oms.CargoOrderShipmentItem = {
@@ -433,7 +468,7 @@ async function persistShipments(orderId: CommonType.IdType): Promise<boolean> {
       id: row.id ?? null,
       shipmentNo: row.shipmentNo?.trim() || '',
       poNo: row.poNo?.trim() || null,
-      shippingMark: row.shippingMark?.trim() || null,
+      shippingMark: orderMark || row.shippingMark?.trim() || null,
       cartonQty: row.cartonQty ?? null,
       palletQty: row.palletQty ?? null,
       weight: row.weight ?? null,
@@ -589,7 +624,7 @@ function holdTagType() {
 
 <template>
   <NDrawer v-model:show="visible" display-directive="show" :width="1200" class="max-w-98%">
-    <NDrawerContent title="货物订单详情" :native-scrollbar="false" closable>
+    <NDrawerContent title="订单详情" :native-scrollbar="false" closable>
       <NSpin :show="loading">
         <NEmpty v-if="!loading && !detail" description="暂无详情或加载失败" />
         <template v-else-if="detail">
@@ -605,6 +640,7 @@ function holdTagType() {
                 >扣</span>
               </span>
               <NTag type="info" size="small">{{ FULFILLMENT_STEPS.find(s => s.code === detail?.fulfillmentStatus)?.label ?? detail?.fulfillmentStatus }}</NTag>
+              <NTag v-if="isLoosePalletOrder" type="warning" size="small">散板订单</NTag>
               <NTag v-if="isHolding()" type="warning" size="small">暂扣</NTag>
               <NTag v-if="detail.exceptionFlag" type="error" size="small">异常({{ detail.exceptionCount }})</NTag>
             </NSpace>
@@ -667,10 +703,6 @@ function holdTagType() {
                 <NDescriptions bordered :column="4" label-placement="left">
                   <template #header>订单信息</template>
                   <NDescriptionsItem label="订单号">{{ detail.cargoOrderNo }}</NDescriptionsItem>
-                  <NDescriptionsItem label="参考号/外部单号">
-                    <NInput v-if="editMode && editModel" v-model:value="(editModel as any).externalOrderNo" size="small" />
-                    <template v-else>{{ detail.externalOrderNo || '--' }}</template>
-                  </NDescriptionsItem>
                   <NDescriptionsItem label="订单来源">
                     <NSelect :to="POPUP_TO_BODY"
                       v-if="editMode && editModel"
@@ -688,7 +720,9 @@ function holdTagType() {
                   <NDescriptionsItem label="HOLD">
                     <NTag :type="holdTagType()" size="small">{{ holdLabel() }}</NTag>
                   </NDescriptionsItem>
-                  <NDescriptionsItem label="货件编码汇总" :span="2">{{ detail.shipmentCodes || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem :label="isLoosePalletOrder ? '仓库代码' : 'FBA/SKU'" :span="2">
+                    {{ isLoosePalletOrder ? (detail.platformWarehouseCode || '--') : (detail.shipmentCodes || '--') }}
+                  </NDescriptionsItem>
                   <NDescriptionsItem label="PO汇总">{{ detail.poNos || '--' }}</NDescriptionsItem>
                   <NDescriptionsItem label="唛头号">{{ detail.marks || '--' }}</NDescriptionsItem>
                 </NDescriptions>
@@ -826,6 +860,25 @@ function holdTagType() {
                   <NDescriptionsItem label="到仓时间">{{ detail.actualArrivalTime || '--' }}</NDescriptionsItem>
                   <NDescriptionsItem label="拆柜完成">{{ detail.devanningFinishTime || '--' }}</NDescriptionsItem>
                   <NDescriptionsItem label="入库完成">{{ detail.actualInboundTime || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="时效等级">
+                    <NSelect
+                      :to="POPUP_TO_BODY"
+                      v-if="editMode && editModel"
+                      v-model:value="(editModel as any).timelinessLevel"
+                      size="small"
+                      clearable
+                      :options="timelinessLevelOptions"
+                      placeholder="请选择时效等级"
+                    />
+                    <NTag
+                      v-else-if="detail.timelinessLevel"
+                      size="small"
+                      :type="detail.timelinessLevel === 'T' ? 'error' : detail.timelinessLevel === 'K' ? 'warning' : 'default'"
+                    >
+                      {{ timelinessLevelRecord[detail.timelinessLevel as string]?.dictLabel || detail.timelinessLevel }}
+                    </NTag>
+                    <template v-else>--</template>
+                  </NDescriptionsItem>
                   <NDescriptionsItem label="是否转仓">
                     <NSelect :to="POPUP_TO_BODY"
                       v-if="editMode && editModel"
@@ -837,7 +890,7 @@ function holdTagType() {
                       {{ detail.transferFlag ? '需要转仓' : '不转仓' }}
                     </NTag>
                   </NDescriptionsItem>
-                  <NDescriptionsItem label="转仓仓库" :span="2">
+                  <NDescriptionsItem label="转仓仓库">
                     <NInput v-if="editMode && editModel" v-model:value="(editModel as any).transferWarehouseCode" size="small" />
                     <template v-else>{{ detail.transferWarehouseCode || '--' }}</template>
                   </NDescriptionsItem>
@@ -891,11 +944,16 @@ function holdTagType() {
 
                 <NDivider class="my-12px" />
 
-                <!-- 履约状态与时间 -->
+                <!-- 操作状态与时间 -->
                 <NDescriptions bordered :column="4" label-placement="left">
-                  <template #header>履约状态与时间</template>
-                  <NDescriptionsItem label="履约状态">
-                    <NTag type="info" size="small">{{ FULFILLMENT_STEPS.find(s => s.code === detail?.fulfillmentStatus)?.label ?? detail?.fulfillmentStatus }}</NTag>
+                  <template #header>操作状态与时间</template>
+                  <NDescriptionsItem label="操作状态">
+                    <NTag
+                      size="small"
+                      :type="CARGO_OPERATION_STATUS_META[(detail?.operationStatus as CargoOperationStatus)]?.type || 'default'"
+                    >
+                      {{ CARGO_OPERATION_STATUS_META[(detail?.operationStatus as CargoOperationStatus)]?.label ?? detail?.operationStatus ?? '—' }}
+                    </NTag>
                   </NDescriptionsItem>
                   <NDescriptionsItem label="预出单状态">
                     <NTag :type="preOutboundStatusTag(detail.preOutboundStatus).type" size="small">
@@ -915,6 +973,9 @@ function holdTagType() {
                       clearable
                     />
                     <template v-else>{{ detail.deliveryLfd || '--' }}</template>
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="预约号">
+                    {{ displayAppointmentNo(detail.appointmentNo, { platformName: detail.platformName }) }}
                   </NDescriptionsItem>
                   <NDescriptionsItem label="派送预约时间">{{ detail.deliveryAppointmentTime || '--' }}</NDescriptionsItem>
                   <NDescriptionsItem label="实际出库">{{ detail.actualOutboundTime || '--' }}</NDescriptionsItem>
@@ -975,6 +1036,52 @@ function holdTagType() {
             </NTabPane>
 
             <!-- ===== 货件/SKU ===== -->
+            <NTabPane v-if="isLoosePalletOrder" name="loose-pallet" tab="散板信息">
+              <NCard size="small" class="mt-8px" title="散板下单信息">
+                <NDescriptions bordered :column="3" label-placement="left" size="small">
+                  <NDescriptionsItem label="订单类型">同行散板</NDescriptionsItem>
+                  <NDescriptionsItem label="同行客户">{{ detail.peerCustomerName || detail.customerName || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="卡板数量">{{ detail.declaredPalletQty ?? '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="收货方式">
+                    {{ LOOSE_PALLET_DELIVERY_MODE_LABEL[(detail.deliveryMode as any)] || detail.deliveryMode || '--' }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="预约送货时间">{{ detail.deliveryAppointmentTime || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="车厢号">{{ detail.carriageNo || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="仓库代码">{{ detail.platformWarehouseCode || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="目的仓/分组">{{ detail.groupCode || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="联系人">{{ detail.contactName || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="联系电话">{{ detail.contactPhone || '--' }}</NDescriptionsItem>
+                  <NDescriptionsItem label="收货地址" :span="3">
+                    {{ [detail.addressLine1, detail.city, detail.state, detail.zipCode].filter(Boolean).join(', ') || '--' }}
+                  </NDescriptionsItem>
+                </NDescriptions>
+              </NCard>
+              <NCard size="small" class="mt-12px" title="板贴打印">
+                <template #header-extra>
+                  <NButton size="small" type="primary" :disabled="!loosePalletLabels.length" @click="printAllLoosePalletLabels">
+                    批量打印板贴
+                  </NButton>
+                </template>
+                <NDataTable
+                  :columns="[
+                    { title: '板贴号', key: 'palletNo', width: 180 },
+                    { title: '目的地', key: 'groupCode', width: 140 },
+                    {
+                      title: '操作',
+                      key: 'actions',
+                      width: 100,
+                      render: (row: Api.Oms.LoosePalletLabelItem) =>
+                        h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => printSingleLoosePalletLabel(row) }, () => '打印')
+                    }
+                  ]"
+                  :data="loosePalletLabels"
+                  :pagination="false"
+                  size="small"
+                />
+                <NEmpty v-if="!loosePalletLabels.length" description="暂无板贴数据" class="py-20px" />
+              </NCard>
+            </NTabPane>
+
             <NTabPane name="shipments" tab="货件/SKU" lazy>
               <CargoOrderShipmentSkuPanel
                 v-if="canEditShipment"

@@ -35,7 +35,18 @@ export function fetchAddContainerCargoOrders(
   });
 }
 
-/** 海柜详情导入关联货物订单（multipart 上传请用 import modal 直传） */
+export function fetchCreateLoosePalletOrder(
+  containerOrderId: CommonType.IdType,
+  data: Api.Oms.LoosePalletOrderOperateParams
+) {
+  return request<Api.Oms.NewCargoOrder>({
+    url: `/oms/container-order/${containerOrderId}/loose-pallet-order`,
+    method: 'post',
+    data
+  });
+}
+
+/** 海柜详情导入关联订单（multipart 上传请用 import modal 直传） */
 export function getContainerCargoImportUrl(containerOrderId: CommonType.IdType) {
   return `/oms/container-order/${containerOrderId}/cargo-orders/import`;
 }
@@ -44,7 +55,7 @@ export function getContainerCargoImportTemplateUrl() {
   return '/oms/container-order/cargo-orders/importTemplate';
 }
 
-/** 新增海柜时解析 Excel 为货物订单（不落库） */
+/** 新增海柜时解析 Excel 为订单（不落库） */
 export function getContainerCargoParseImportUrl() {
   return '/oms/container-order/cargo-orders/parse-import';
 }

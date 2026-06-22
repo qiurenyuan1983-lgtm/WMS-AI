@@ -38,8 +38,8 @@ const formModel = ref<ContainerCargoOrderDraftRow>(createDefaultContainerCargoOr
 const isDraftMode = computed(() => !props.containerOrderId);
 const isEdit = computed(() => Boolean(props.editCargo));
 const drawerTitle = computed(() => {
-  if (isEdit.value) return '编辑货物订单';
-  return isDraftMode.value ? '新增货物订单' : '新增关联货物订单';
+  if (isEdit.value) return '编辑订单';
+  return isDraftMode.value ? '新增订单' : '新增关联订单';
 });
 
 function resolveTabByValidationMessage(message: string): 'basic' | 'shipment' {
@@ -73,7 +73,7 @@ async function handleSubmit() {
     else ensureDraftKey(cargo);
     visible.value = false;
     emit('saved', { cargo, draftKey: cargo._draftKey });
-    window.$message?.success(isEdit.value ? '货物订单已更新' : '货物订单已添加');
+    window.$message?.success(isEdit.value ? '订单已更新' : '订单已添加');
     return;
   }
   if (!props.containerOrderId) {
@@ -84,7 +84,7 @@ async function handleSubmit() {
   const { error } = await fetchAddContainerCargoOrders(props.containerOrderId, [cargo]);
   loading.value = false;
   if (error) return;
-  window.$message?.success('货物订单已添加');
+  window.$message?.success('订单已添加');
   visible.value = false;
   emit('submitted');
 }

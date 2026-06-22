@@ -82,7 +82,7 @@ function handleFinish(options: { file: UploadFileInfo; event?: ProgressEvent }) 
   } else {
     const rows = (response.data || []) as Api.Oms.CargoOrder[];
     const merged = mergeImportedCargoWithDefaults(rows, props.defaults);
-    message.value = response.msg || `成功解析 ${merged.length} 条货物订单，已加入列表`;
+    message.value = response.msg || `成功解析 ${merged.length} 条订单，已加入列表`;
     window.$message?.success(message.value);
     emit('parsed', merged);
     success.value = true;
@@ -99,7 +99,7 @@ function handleError(options: { event?: ProgressEvent }) {
 }
 
 function handleDownloadTemplate() {
-  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联货物订单导入模板_${Date.now()}.xlsx`);
+  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联订单导入模板_${Date.now()}.xlsx`);
 }
 
 watch(visible, val => {
@@ -114,14 +114,14 @@ watch(visible, val => {
 <template>
   <NModal
     v-model:show="visible"
-    title="导入关联货物订单"
+    title="导入关联订单"
     preset="card"
     class="w-600px max-w-90%"
     @close="closeModal"
   >
     <NAlert type="info" class="mb-12px">
-      同一「导入分组号」多行合并为一条货物订单；每行至少填写货件编码。计量单位填 BY_CARTON（按箱）或 BY_PALLET（按板）。
-      <template v-if="!isBindMode">解析结果将追加到当前货物订单列表，提交海柜时一并保存。</template>
+      同一「导入分组号」多行合并为一条订单；每行至少填写货件编码。计量单位填 BY_CARTON（按箱）或 BY_PALLET（按板）。
+      <template v-if="!isBindMode">解析结果将追加到当前订单列表，提交海柜时一并保存。</template>
     </NAlert>
     <NUpload
       ref="uploadRef"

@@ -12,6 +12,10 @@ declare namespace StorageType {
       data: any;
       time: number;
     };
+    /** PDA home UI language */
+    pdaHomeLang: string;
+    /** PDA bluetooth scanner connected */
+    pdaBluetoothConnected: CommonType.YesOrNo;
   }
 
   interface Local {

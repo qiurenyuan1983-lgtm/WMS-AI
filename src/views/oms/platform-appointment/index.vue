@@ -12,6 +12,8 @@ import OmsListPage from '../components/oms-list-page.vue';
 import PlatformAppointmentDetailDrawer from './modules/platform-appointment-detail-drawer.vue';
 import PlatformAppointmentCreateOutboundModal from './modules/platform-appointment-create-outbound-modal.vue';
 import PlatformAppointmentPreOutboundFilterModal from './modules/platform-appointment-pre-outbound-filter-modal.vue';
+import PlatformAppointmentOperateModal from './modules/platform-appointment-operate-modal.vue';
+import { displayAppointmentNo } from '@/utils/oms/appointment-no';
 
 defineOptions({ name: 'OmsPlatformAppointment' });
 
@@ -55,6 +57,7 @@ const createOrderMode = ref<'outbound' | 'pre-outbound'>('outbound');
 const preOutboundFilter = ref<Api.Oms.PlatformAppointmentPreOutboundFilter | null>(null);
 const preOutboundFilterVisible = ref(false);
 const preOutboundFilterRow = ref<Api.Oms.PlatformAppointment | null>(null);
+const createVisible = ref(false);
 
 const typeOptions = computed(() =>
   Object.entries(typeRecord.value).map(([value, item]) => ({
@@ -104,7 +107,12 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
     columns: () => [
       { key: 'platformName', title: '平台', minWidth: 130, fixed: 'left' },
       { key: 'warehouseCode', title: '仓库代码', width: 110 },
-      { key: 'appointmentNo', title: '预约号', minWidth: 170 },
+      {
+        key: 'appointmentNo',
+        title: '预约号',
+        minWidth: 170,
+        render: row => displayAppointmentNo(row.appointmentNo, { platformName: row.platformName })
+      },
       { key: 'appointmentTime', title: '预约时间', width: 170, render: row => getText(row.appointmentTime) },
       { key: 'createTime', title: '创建时间', width: 170, render: row => getText(row.createTime) },
       {
@@ -271,6 +279,15 @@ function handleTagChange(value: string) {
   handleSearch();
 }
 
+function onAppointmentCreated(row: Api.Oms.PlatformAppointment) {
+  data.value.unshift(row);
+  loadStatusCount();
+}
+
+function openCreate() {
+  createVisible.value = true;
+}
+
 onMounted(handleSearch);
 onActivated(handleSearch);
 </script>
@@ -278,7 +295,8 @@ onActivated(handleSearch);
 <template>
   <OmsListPage content-title="平台预约管理" filter-description="按平台、仓库与预约号筛选，支持状态标签切换">
     <template #filter-actions>
-      <NButton type="primary" @click="handleSearch">查询</NButton>
+      <NButton type="primary" @click="openCreate">新增</NButton>
+      <NButton type="primary" secondary @click="handleSearch">搜索</NButton>
       <NButton @click="handleReset">重置</NButton>
     </template>
 
@@ -378,6 +396,8 @@ onActivated(handleSearch);
       :pre-outbound-filter="preOutboundFilter"
       @success="onOrderCreated"
     />
+
+    <PlatformAppointmentOperateModal v-model:visible="createVisible" @success="onAppointmentCreated" />
   </OmsListPage>
 </template>
 

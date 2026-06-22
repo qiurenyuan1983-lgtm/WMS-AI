@@ -85,7 +85,7 @@ watch(visible, () => {
 
 <template>
   <NModal v-model:show="visible" title="导入库位" preset="card" class="w-600px" @close="closeModal">
-    <p class="mb-12px text-13px text-gray-500">模板字段：所属库区、库位编码、行、列、库位容量、状态</p>
+    <p class="mb-12px text-13px text-gray-500">模板字段：所属库区、库位编码、行号、库位容量、状态</p>
     <NUpload
       ref="uploadRef"
       v-model:file-list="fileList"

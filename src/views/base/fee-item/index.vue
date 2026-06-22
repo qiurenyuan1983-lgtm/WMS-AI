@@ -193,7 +193,7 @@ function handleReset() {
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="编码/名称">
           <NInput v-model:value="searchParams.keyword" clearable placeholder="费项编码或名称" class="w-160px" />
         </NFormItem>
@@ -225,11 +225,11 @@ function handleReset() {
           />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
           <NButton class="ml-8px" @click="handleReset">重置</NButton>
         </NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
 
     <NCard title="费项管理" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>

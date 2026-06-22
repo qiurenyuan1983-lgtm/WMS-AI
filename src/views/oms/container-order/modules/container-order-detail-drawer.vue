@@ -23,6 +23,7 @@ import AttachmentManager from '../../components/attachment-manager.vue';
 import CargoOrderDetailDrawer from '../../cargo-order/modules/cargo-order-detail-drawer.vue';
 import ContainerCargoOrderAddDrawer from './container-cargo-order-add-drawer.vue';
 import ContainerCargoOrderImportModal from './container-cargo-order-import-modal.vue';
+import LoosePalletOrderDrawer from './loose-pallet-order-drawer.vue';
 import { useCargoOrderTransfer } from '../composables/use-cargo-order-transfer';
 import { normalizeCargoOrderFromVo, normalizeDatePickerDate, normalizeDatePickerDateTime, type ContainerCargoDefaults } from '../utils/container-cargo-order';
 import { useContainerCargoTableColumns } from '../composables/use-container-cargo-table-columns';
@@ -51,6 +52,7 @@ const activeTab = ref('basic');
 const editMode = ref(true);
 const privilegedEditMode = ref(false);
 const cargoAddDrawerVisible = ref(false);
+const loosePalletDrawerVisible = ref(false);
 const cargoImportVisible = ref(false);
 const cargoDetailVisible = ref(false);
 const viewingCargoId = ref<CommonType.IdType>();
@@ -286,7 +288,7 @@ const currentStep = computed(() => {
 
 function openCargoDetailDrawer(row: Api.Oms.CargoOrder, startEdit = false, initialTab = 'basic') {
   if (!row.id) {
-    window.$message?.warning('货物订单不存在');
+    window.$message?.warning('订单不存在');
     return;
   }
   viewingCargoId.value = row.id;
@@ -378,8 +380,12 @@ function openAddCargoDrawer() {
   cargoAddDrawerVisible.value = true;
 }
 
+function openLoosePalletDrawer() {
+  loosePalletDrawerVisible.value = true;
+}
+
 function handleDownloadCargoTemplate() {
-  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联货物订单导入模板_${Date.now()}.xlsx`);
+  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联订单导入模板_${Date.now()}.xlsx`);
 }
 
 async function onCargoAdded() {
@@ -963,10 +969,6 @@ watch(visible, async () => {
                 <NGridItem>
                   <NCard title="拆柜信息" size="small">
                     <NDescriptions :column="1" v-bind="DESC_PROPS">
-                      <NDescriptionsItem label="拆柜单号">
-                        <NInput :class="FIELD_CLS" v-if="editMode && editModel" v-model:value="editModel.devanningNo" size="small" />
-                        <template v-else>{{ valueText(detail.devanningNo || detail.devanningOrderNo) }}</template>
-                      </NDescriptionsItem>
                       <NDescriptionsItem label="预计拆柜时间">
                         <NDatePicker :class="FIELD_CLS" :to="POPUP_TO_BODY"
                           v-if="editMode && editModel"
@@ -1039,13 +1041,14 @@ watch(visible, async () => {
               </NForm>
             </NTabPane>
 
-            <NTabPane name="cargo" tab="关联货物订单">
+            <NTabPane name="cargo" tab="关联订单">
               <NCard size="small">
                 <template #header>
                   <NSpace>
-                    <NButton type="primary" @click="openAddCargoDrawer">新增货物订单</NButton>
+                    <NButton type="primary" @click="openAddCargoDrawer">新增订单</NButton>
+                    <NButton type="warning" @click="openLoosePalletDrawer">散板订单</NButton>
                     <NButton v-if="hasAuth('oms:containerOrder:importCargo')" @click="cargoImportVisible = true">
-                      导入货物订单
+                      导入订单
                     </NButton>
                     <NButton
                       v-if="hasAuth('oms:containerOrder:importCargo')"
@@ -1056,13 +1059,13 @@ watch(visible, async () => {
                     </NButton>
                   </NSpace>
                 </template>
-                <div class="mb-8px text-12px text-#9ca3af">点击货物订单号或「查看详情」打开货物订单详情；在「货件/SKU」页可直接编辑货件行并保存</div>
+                <div class="mb-8px text-12px text-#9ca3af">点击订单号或「查看详情」打开订单详情；在「货件/SKU」页可直接编辑货件行并保存</div>
                 <NDataTable
                   :columns="cargoColumns"
                   :data="detail.cargoOrders || []"
                   :pagination="false"
                   :row-key="(row: Api.Oms.CargoOrder) => row.id"
-                  :scroll-x="4300"
+                  :scroll-x="4540"
                   size="small"
                 />
               </NCard>
@@ -1121,6 +1124,13 @@ watch(visible, async () => {
     v-model:visible="cargoAddDrawerVisible"
     :container-order-id="detail?.id"
     :defaults="cargoDefaults"
+    @submitted="onCargoAdded"
+  />
+
+  <LoosePalletOrderDrawer
+    v-model:visible="loosePalletDrawerVisible"
+    :container-order-id="detail?.id"
+    :container-no="detail?.containerNo"
     @submitted="onCargoAdded"
   />
 

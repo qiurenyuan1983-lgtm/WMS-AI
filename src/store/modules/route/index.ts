@@ -7,9 +7,9 @@ import { router } from '@/router';
 import { fetchGetRoutes } from '@/service/api';
 import { isNotNull } from '@/utils/common';
 import { SetupStoreId } from '@/enum';
-import { createDynamicRoutes, createStaticRoutes, getAuthVueRoutes } from '@/router/routes';
+import { createDynamicRoutes, createStaticRoutes, getAuthVueRoutes, invalidatePrototypeAuthRoutesCache } from '@/router/routes';
 import { ROOT_ROUTE } from '@/router/routes/builtin';
-import { getRouteName, getRoutePath } from '@/router/elegant/transform';
+import { getRouteName, getRoutePath } from '@/router/elegant/route-helpers';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
 import {
@@ -280,8 +280,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   }
 
   /** Init static auth route */
-  function initStaticAuthRoute() {
-    const { authRoutes: staticAuthRoutes } = createStaticRoutes();
+  function initStaticAuthRoute(applyMenuOrder = false) {
+    const { authRoutes: staticAuthRoutes } = createStaticRoutes({ applyMenuOrder });
 
     if (authStore.isStaticSuper) {
       addAuthRoutes(staticAuthRoutes);
@@ -294,6 +294,17 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     handleConstantAndAuthRoutes();
 
     setIsInitAuthRoute(true);
+  }
+
+  /** 菜单排序/编辑后重新加载侧边栏（Mock 方案 B） */
+  async function reloadAuthRoutesFromMenu() {
+    if (authRouteMode.value !== 'static' || !isInitAuthRoute.value) return;
+
+    invalidatePrototypeAuthRoutesCache();
+    authRoutes.value = [];
+    resetVueRoutes();
+    initStaticAuthRoute(true);
+    updateGlobalMenusByLocale();
   }
 
   /** Init dynamic auth route */
@@ -417,6 +428,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     initConstantRoute,
     isInitConstantRoute,
     initAuthRoute,
+    reloadAuthRoutesFromMenu,
     isInitAuthRoute,
     setIsInitAuthRoute,
     getIsAuthRouteExist,

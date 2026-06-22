@@ -61,7 +61,7 @@ function removeCargoOrder(index: number) {
 }
 
 function handleDownloadTemplate() {
-  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联货物订单导入模板_${Date.now()}.xlsx`);
+  download(getContainerCargoImportTemplateUrl(), {}, `海柜关联订单导入模板_${Date.now()}.xlsx`);
 }
 
 function handleParsed(orders: Api.Oms.ContainerCargoOrderForm[]) {
@@ -111,15 +111,15 @@ onMounted(loadBusinessTypes);
 <template>
   <div>
     <NAlert type="info" class="mb-12px">
-      新增或编辑货物订单时，在抽屉内通过「基础信息」「货件信息」两个页签切换填写；列表中仍可点击「货件」单独维护货件。
+      新增或编辑订单时，在抽屉内通过「基础信息」「货件信息」两个页签切换填写；列表中仍可点击「货件」单独维护货件。
     </NAlert>
     <NSpace class="mb-12px">
-      <NButton type="primary" @click="openAddDrawer">新增货物订单</NButton>
-      <NButton v-if="canImport()" @click="importVisible = true">导入货物订单</NButton>
+      <NButton type="primary" @click="openAddDrawer">新增订单</NButton>
+      <NButton v-if="canImport()" @click="importVisible = true">导入订单</NButton>
       <NButton v-if="canImport()" secondary @click="handleDownloadTemplate">下载模板</NButton>
     </NSpace>
 
-    <NEmpty v-if="!cargoOrders.length" description="暂未添加货物订单，可直接进入确认提交" />
+    <NEmpty v-if="!cargoOrders.length" description="暂未添加订单，可直接进入确认提交" />
     <template v-else>
       <div class="mb-8px text-12px text-#9ca3af">点击「编辑」维护订单；点击「货件」可快速打开货件页签</div>
       <NDataTable

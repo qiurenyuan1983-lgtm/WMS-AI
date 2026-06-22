@@ -11,8 +11,11 @@ import {
   fetchGetYardTaskList, fetchLeaveYard, fetchRelease
 } from '@/service/api/yms/dispatch';
 import { useAuth } from '@/hooks/business/auth';
+import { useTripDeadlineColumns } from '@/views/tms/composables/use-trip-deadline-columns';
 import { WMS_READY_META } from '../dispatch/modules/dispatch-meta';
 import { YMS_ROUTE, ymsTo } from '../shared/yms-route';
+
+const loadingDeadlineCols = useTripDeadlineColumns<Api.Yms.YardTask>();
 
 defineOptions({ name: 'YmsTask' });
 
@@ -270,7 +273,7 @@ const TASK_TYPE_LABEL: Record<string, string> = {
   RETURN_LOADING: '退货装车', OTHER: '其他',
 };
 
-const columns = [
+const baseColumns = [
   { type: 'selection' as const, align: 'center' as const, width: 40 },
   {
     key: 'yardTaskNo', title: '任务号', width: 160, ellipsis: { tooltip: true },
@@ -320,8 +323,10 @@ const columns = [
     }
   },
   {
-    key: 'priority', title: '优先级', width: 64, align: 'center' as const,
-    render: (row: Api.Yms.YardTask) => <span class="text-12px font-semibold">{row.priority ?? 5}</span>
+    key: 'priority', title: '时效优先级', width: 80, align: 'center' as const,
+    render: (row: Api.Yms.YardTask) => (
+      <span class="text-12px font-semibold">{row.priority ?? 5}</span>
+    )
   },
   {
     key: 'etaYardTime', title: '计划到仓', width: 120,
@@ -385,6 +390,14 @@ const columns = [
     }
   },
 ];
+
+const columns = computed(() => {
+  if (activeTypeTab.value !== 'LOADING') return baseColumns;
+  const insertAt = baseColumns.findIndex(c => 'key' in c && c.key === 'priority');
+  const head = baseColumns.slice(0, insertAt >= 0 ? insertAt + 1 : 5);
+  const tail = baseColumns.slice(insertAt >= 0 ? insertAt + 1 : 5);
+  return [...head, ...loadingDeadlineCols, ...tail];
+});
 
 const pagination = computed(() => ({
   page: pageNum.value,
@@ -495,7 +508,7 @@ onMounted(async () => {
             />
           </NFormItem>
           <NFormItem class="ml-8px">
-            <NButton type="primary" @click="handleSearch">查询</NButton>
+            <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton class="ml-8px" @click="handleReset">重置</NButton>
           </NFormItem>
         </NForm>
@@ -543,7 +556,7 @@ onMounted(async () => {
         size="small"
         flex-height
         remote
-        scroll-x="1360"
+        :scroll-x="activeTypeTab === 'LOADING' ? 2100 : 1360"
         class="flex-1 min-h-0"
       />
     </NCard>

@@ -151,6 +151,7 @@ watch(visible, () => {
             v-model:options="menuOptions"
             v-model:cascade="model.menuCheckStrictly"
             v-model:loading="menuLoading"
+            permission-mode
             :immediate="false"
           />
         </NFormItem>

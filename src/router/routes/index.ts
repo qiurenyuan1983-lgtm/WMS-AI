@@ -1,6 +1,8 @@
 import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-router/types';
 import { isMockMode } from '@/mock/enable';
-import { buildPrototypeAuthRoutes } from '@/mock/auth-routes';
+import { buildPrototypeAuthRoutes, invalidatePrototypeAuthRoutesCache } from '@/mock/auth-routes';
+import { getMenuFlat } from '@/mock/data/system';
+import { applyMenuOrderToRoutes, buildMenuOrderMap } from '@/utils/system/apply-menu-order-to-routes';
 import { generatedRoutes } from '../elegant/routes';
 import { layouts, views } from '../elegant/view-registry';
 import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
@@ -14,12 +16,18 @@ import { getRoutesWithPersistentChildren } from '../persistent-routes';
 const customRoutes: CustomRoute[] = [];
 
 /** create routes when the auth route mode is static */
-export function createStaticRoutes() {
+export function createStaticRoutes(options?: { applyMenuOrder?: boolean }) {
   const constantRoutes: ElegantRoute[] = [];
 
   const authRoutes: ElegantRoute[] = [];
 
-  const sourceRoutes = isMockMode() ? buildPrototypeAuthRoutes() : getRoutesWithPersistentChildren(generatedRoutes);
+  let sourceRoutes = isMockMode()
+    ? buildPrototypeAuthRoutes()
+    : getRoutesWithPersistentChildren(generatedRoutes);
+
+  if (isMockMode() && options?.applyMenuOrder) {
+    sourceRoutes = applyMenuOrderToRoutes(sourceRoutes, buildMenuOrderMap(getMenuFlat()));
+  }
 
   [...customRoutes, ...sourceRoutes].forEach(item => {
     if (item.meta?.constant) {
@@ -199,3 +207,5 @@ export function createDynamicRoutes() {
 export function getAuthVueRoutes(routes: ElegantConstRoute[]) {
   return transformElegantRoutesToVueRoutes(routes, layouts, views);
 }
+
+export { invalidatePrototypeAuthRoutesCache };

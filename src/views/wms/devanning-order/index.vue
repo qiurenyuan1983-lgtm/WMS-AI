@@ -11,6 +11,7 @@ import {
   NForm,
   NFormItem,
   NInput,
+  NInputNumber,
   NModal,
   NProgress,
   NSelect,
@@ -24,6 +25,7 @@ import {
   fetchGetDevanningOrderStatusCount,
   fetchUpdateDevanningOrder
 } from '@/service/api/wms';
+import { fetchUpdateDevanningWorkExtraFee } from '@/service/api/wms/devanning-work';
 import { useAuth } from '@/hooks/business/auth';
 import { useDict } from '@/hooks/business/dict';
 import { useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
@@ -249,6 +251,28 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
         render: row => fmtFee(row.devanningFee)
       },
       {
+        key: 'extraOperationFee',
+        title: '额外操作费',
+        width: 108,
+        render: row => (
+          <NButton
+            size="tiny"
+            quaternary
+            type={row.extraOperationFee > 0 ? 'primary' : 'default'}
+            onClick={(e: MouseEvent) => openExtraFeeModal(row, e)}
+          >
+            {row.extraOperationFee > 0 ? fmtFee(row.extraOperationFee) : '填写'}
+          </NButton>
+        )
+      },
+      {
+        key: 'extraOperationFeeRemark',
+        title: '额外操作费原因备注',
+        width: 180,
+        ellipsis: { tooltip: true },
+        render: row => valueText(row.extraOperationFeeRemark)
+      },
+      {
         key: 'operationStatus',
         title: '操作状态',
         width: 110,
@@ -351,18 +375,11 @@ const detailVisible = ref(false);
 const detailId = ref<CommonType.IdType>();
 const detailInitialTab = ref('basic');
 
-const SOURCE_ORDER_NO_TO_CONTAINER_ID: Record<string, string> = {
-  'CTN-2026-0001': '70001',
-  'CTN-2026-0002': '70002'
-};
-
-function resolveContainerOrderId(row: Api.Wms.DevanningOrder) {
-  if (row.sourceOrderId != null && row.sourceOrderId !== '') return String(row.sourceOrderId);
-  if (row.sourceOrderNo && SOURCE_ORDER_NO_TO_CONTAINER_ID[row.sourceOrderNo]) {
-    return SOURCE_ORDER_NO_TO_CONTAINER_ID[row.sourceOrderNo];
-  }
-  return null;
-}
+const extraFeeModalVisible = ref(false);
+const extraFeeEditOrderId = ref<CommonType.IdType | null>(null);
+const extraFeeEditRemark = ref('');
+const extraFeeEditAmount = ref<number | null>(null);
+const extraFeeSaving = ref(false);
 
 function handleView(id: CommonType.IdType, initialTab = 'basic') {
   detailId.value = id;
@@ -370,16 +387,44 @@ function handleView(id: CommonType.IdType, initialTab = 'basic') {
   detailVisible.value = true;
 }
 
+function openExtraFeeModal(row: Api.Wms.DevanningOrder, e?: Event) {
+  e?.stopPropagation();
+  extraFeeEditOrderId.value = row.id;
+  extraFeeEditRemark.value = row.extraOperationFeeRemark || '';
+  extraFeeEditAmount.value = row.extraOperationFee > 0 ? row.extraOperationFee : null;
+  extraFeeModalVisible.value = true;
+}
+
+async function confirmExtraFeeChange() {
+  if (!extraFeeEditOrderId.value) return false;
+  const remark = extraFeeEditRemark.value.trim();
+  if (!remark) {
+    window.$message?.warning('请填写原因备注');
+    return false;
+  }
+  if (extraFeeEditAmount.value == null || extraFeeEditAmount.value < 0) {
+    window.$message?.warning('请填写有效的费用金额');
+    return false;
+  }
+  extraFeeSaving.value = true;
+  const { data, error } = await fetchUpdateDevanningWorkExtraFee(extraFeeEditOrderId.value, {
+    amount: extraFeeEditAmount.value,
+    remark
+  });
+  extraFeeSaving.value = false;
+  if (error || !data) return false;
+  window.$message?.success('额外操作费已保存');
+  await getData();
+  return true;
+}
+
 function buildRowActions(row: Api.Wms.DevanningOrder) {
   const opts: Array<{ label: string; key: string; type?: string; disabled?: boolean }> = [];
   if (allowAuth('wms:devanningOrder:query')) {
-    opts.push({ label: '查看详情', key: 'view' });
+    opts.push({ label: '拆柜订单详情', key: 'view' });
     opts.push({ label: '文件管理', key: 'files' });
     opts.push({ label: '查看轨迹', key: 'trace' });
     opts.push({ label: '操作日志', key: 'log' });
-  }
-  if (allowAuth('wms:devanningOrder:query') || allowAuth('oms:containerOrder:inboundPlan') || isMockMode()) {
-    opts.push({ label: '入库计划', key: 'inboundPlan' });
   }
   opts.push({ label: '拆柜作业', key: 'work' });
   if (allowAuth('wms:devanningOrder:edit')) opts.push({ label: '编辑', key: 'edit' });
@@ -401,18 +446,6 @@ function handleRowAction(key: string, row: Api.Wms.DevanningOrder) {
   }
   if (key === 'log') {
     window.$message?.info('操作日志功能开发中，敬请期待');
-    return;
-  }
-  if (key === 'inboundPlan') {
-    const containerOrderId = resolveContainerOrderId(row);
-    if (!containerOrderId) {
-      window.$message?.warning('未关联海柜订单，无法打开入库计划');
-      return;
-    }
-    router.push({
-      path: '/oms/inbound-plan',
-      query: { containerOrderId, warehouseId: String(row.warehouseId) }
-    });
     return;
   }
   if (key === 'work') {
@@ -516,7 +549,7 @@ handleSearch();
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="关键词">
           <NInput v-model:value="searchParams.keyword" clearable placeholder="单号/柜号/客户" class="w-200px" />
         </NFormItem>
@@ -524,11 +557,11 @@ handleSearch();
           <NSelect v-model:value="searchParams.warehouseId" clearable class="w-200px" :options="warehouseOptions" />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
           <NButton v-if="allowAuth('wms:devanningOrder:add')" class="ml-8px" @click="openCreate">新建</NButton>
         </NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
 
     <NCard :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
@@ -622,6 +655,41 @@ handleSearch();
       :initial-tab="detailInitialTab"
       @updated="handleSearch"
     />
+
+    <NModal
+      v-model:show="extraFeeModalVisible"
+      preset="dialog"
+      title="额外操作费"
+      positive-text="确认"
+      negative-text="取消"
+      :positive-button-props="{ loading: extraFeeSaving }"
+      @positive-click="confirmExtraFeeChange"
+    >
+      <p class="mb-12px text-13px text-#6b7280">填写产生额外操作的原因备注及费用金额，确认后保存至拆柜订单。</p>
+      <NForm label-placement="left" label-width="80" class="pt-8px">
+        <NFormItem label="原因备注" required>
+          <NInput
+            v-model:value="extraFeeEditRemark"
+            type="textarea"
+            :rows="3"
+            placeholder="如：超重货物人工搬运、夜间加班费等"
+            maxlength="200"
+            show-count
+          />
+        </NFormItem>
+        <NFormItem label="费用金额" required>
+          <NInputNumber
+            v-model:value="extraFeeEditAmount"
+            class="w-full"
+            :min="0"
+            :precision="2"
+            placeholder="0.00"
+          >
+            <template #prefix>$</template>
+          </NInputNumber>
+        </NFormItem>
+      </NForm>
+    </NModal>
   </div>
 </template>
 

@@ -89,7 +89,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
   api: () => fetchGetPreOutboundList(searchParams.value),
   columns: () => [
     { key: 'preOutboundNo', title: '预出单号', minWidth: 170, fixed: 'left' },
-    { key: 'cargoOrderNo', title: '运单号汇总', minWidth: 240, ellipsis: { tooltip: true }, render: row => getCargoOrderSummary(row) },
+    { key: 'cargoOrderNo', title: '订单号汇总', minWidth: 240, ellipsis: { tooltip: true }, render: row => getCargoOrderSummary(row) },
     { key: 'appointmentNo', title: '预约号', minWidth: 130, render: row => getText(row.appointmentNo) },
     { key: 'appointmentTime', title: '预约日期', minWidth: 170, render: row => getText(row.appointmentTime) },
     { key: 'deliveryTruck', title: '派送卡车', minWidth: 130, render: row => getText(row.deliveryTruck) },
@@ -231,7 +231,7 @@ onActivated(getData);
       <NButton quaternary @click="searchCollapsed = !searchCollapsed">
         {{ searchCollapsed ? '展开筛选' : '收起筛选' }}
       </NButton>
-      <NButton type="primary" @click="handleSearch">查询</NButton>
+      <NButton type="primary" @click="handleSearch">搜索</NButton>
       <NButton @click="handleReset">重置</NButton>
     </template>
 
@@ -239,7 +239,7 @@ onActivated(getData);
       <div v-show="!searchCollapsed" class="mt-14px">
         <NForm inline label-placement="left" :show-feedback="false">
           <NFormItem label="关键词">
-            <NInput v-model:value="searchParams.keyword" placeholder="预出单/运单/柜号/货件" clearable class="w-240px" />
+            <NInput v-model:value="searchParams.keyword" placeholder="预出单/订单/柜号/货件" clearable class="w-240px" />
           </NFormItem>
           <NFormItem label="状态">
             <NSelect

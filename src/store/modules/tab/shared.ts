@@ -1,7 +1,7 @@
 import type { Router } from 'vue-router';
 import type { LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
 import { $t } from '@/locales';
-import { getRoutePath } from '@/router/elegant/transform';
+import { getRoutePath } from '@/router/elegant/route-helpers';
 
 /**
  * Get all tabs

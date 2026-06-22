@@ -191,7 +191,7 @@ onMounted(async () => {
 <template>
   <div class="flex-col gap-12px">
     <NDescriptions bordered :column="4" label-placement="left" size="small" title="订单信息">
-      <NDescriptionsItem label="货物订单号">
+      <NDescriptionsItem label="订单号">
         <NInput v-model:value="model.cargoOrderNo" size="small" placeholder="留空则系统自动生成" />
       </NDescriptionsItem>
       <NDescriptionsItem label="参考号">
@@ -325,6 +325,14 @@ onMounted(async () => {
           size="small"
           :disabled="!model.transferFlag"
           placeholder="转仓时必填"
+        />
+      </NDescriptionsItem>
+      <NDescriptionsItem label="转仓代码">
+        <NInput
+          v-model:value="model.transferOutboundWarehouseCode"
+          size="small"
+          :disabled="!model.transferFlag"
+          placeholder="转仓代码"
         />
       </NDescriptionsItem>
       <NDescriptionsItem :label="isExpressDelivery ? '* 快递商' : '快递商'">

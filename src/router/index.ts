@@ -22,9 +22,14 @@ export const router = createRouter({
   routes: createBuiltinVueRoutes()
 });
 
-/** Setup Vue Router */
-export async function setupRouter(app: App) {
+/** Install router plugin and guards (safe before app.mount) */
+export function installRouter(app: App) {
   app.use(router);
   createRouterGuard(router);
+}
+
+/** Setup Vue Router */
+export async function setupRouter(app: App) {
+  installRouter(app);
   await router.isReady();
 }

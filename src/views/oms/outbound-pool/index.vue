@@ -39,6 +39,7 @@ import {
   fetchGetOutboundPoolList,
   fetchGetOutboundPoolStats
 } from '@/service/api/oms/outbound-pool';
+import SupplierQuoteRecommendField from '../shared/modules/supplier-quote-recommend-field.vue';
 
 defineOptions({ name: 'OmsOutboundPool' });
 
@@ -113,7 +114,7 @@ const cachedActionMode = computed<'pre' | 'outbound'>(() =>
   cachedOrders.value.some(row => resolveReadiness(row) !== 'INBOUNDED') ? 'pre' : 'outbound'
 );
 
-const cachedActionText = computed(() => (cachedActionMode.value === 'pre' ? '创建预出单' : '创建出库单'));
+const cachedActionText = computed(() => (cachedActionMode.value === 'pre' ? '创建预出单' : '生成车次订单'));
 const cachedTotals = computed(() =>
   cachedOrders.value.reduce(
     (total, row) => {
@@ -216,7 +217,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       { type: 'selection', width: 48, fixed: 'left' },
       {
         key: 'cargoOrderNo',
-        title: '运单号',
+        title: '订单号',
         minWidth: 170,
         fixed: 'left',
         render: row => (
@@ -230,7 +231,7 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
       },
       {
         key: 'readiness',
-        title: '出单准备',
+        title: '排车准备',
         width: 110,
         render: row => {
           const meta = READINESS_META[resolveReadiness(row)];
@@ -356,6 +357,16 @@ const deliveryForm = reactive({
   transferFlag: 0,
   transferWarehouseCode: '' as string
 });
+const preOutboundSupplierId = ref<CommonType.IdType | null>(null);
+const preOutboundSupplierQuoteId = ref<CommonType.IdType | null>(null);
+const preOutboundRecommendedSupplierId = ref<CommonType.IdType | null>(null);
+
+const supplierRecommendContext = computed(() => ({
+  destination: deliveryForm.destination,
+  warehouseName: actionForm.outboundWarehouseName,
+  transportType: deliveryForm.transportType,
+  loadingType: deliveryForm.loadingType
+}));
 
 const amazonPlatformId = computed(() => {
   const amazon = platformRows.value.find(
@@ -405,7 +416,7 @@ const noteForm = reactive({
 const rowRemarkMap = ref<Record<string, string>>({});
 const rowFollowMap = ref<Record<string, string[]>>({});
 
-const actionTitle = computed(() => '创建派送');
+const actionTitle = computed(() => (actionMode.value === 'pre' ? '创建预出单' : '生成车次订单'));
 const noteTitle = computed(() => (noteMode.value === 'remark' ? '填写备注' : '填写跟进记录'));
 
 function getRowOperateOptions(row: Api.Oms.NewCargoOrder) {
@@ -413,7 +424,7 @@ function getRowOperateOptions(row: Api.Oms.NewCargoOrder) {
     { label: '详情', key: 'detail' },
     { label: '填写备注', key: 'remark' },
     { label: '填写跟进记录', key: 'follow' },
-    { label: resolveReadiness(row) === 'INBOUNDED' ? '出单' : '预出单', key: 'create' }
+    { label: resolveReadiness(row) === 'INBOUNDED' ? '生成车次' : '预出单', key: 'create' }
   ];
 }
 
@@ -516,6 +527,9 @@ function openCreate(row: Api.Oms.NewCargoOrder | null) {
   deliveryForm.outboundType = row?.transferFlag === 1 || cachedOrders.value[0]?.transferFlag === 1 ? 'TRANSFER' : 'DELIVERY';
   deliveryForm.transferFlag = Number(row?.transferFlag ?? cachedOrders.value[0]?.transferFlag ?? 0);
   deliveryForm.transferWarehouseCode = row?.transferWarehouseCode || cachedOrders.value[0]?.transferWarehouseCode || '';
+  preOutboundSupplierId.value = null;
+  preOutboundSupplierQuoteId.value = null;
+  preOutboundRecommendedSupplierId.value = null;
   actionModalVisible.value = true;
 }
 
@@ -563,7 +577,12 @@ async function submitCreate() {
   payload.destination = deliveryForm.destination;
   payload.followRecord = deliveryForm.followRecord;
   payload.remark = actionForm.remark;
+  payload.appointmentType = deliveryForm.appointmentType;
+  payload.deliveryCost = deliveryForm.deliveryCost;
   if (actionMode.value === 'pre') {
+    payload.supplierId = preOutboundSupplierId.value;
+    payload.supplierQuoteId = preOutboundSupplierQuoteId.value;
+    payload.recommendedSupplierId = preOutboundRecommendedSupplierId.value;
     if (actionRow.value) await fetchCreatePoolPreOutbound(payload);
     else await fetchBatchCreatePoolPreOutbound(payload);
   } else if (actionRow.value) {
@@ -726,9 +745,9 @@ onActivated(() => {
               <span class="stat-value">{{ cachedTotals.cartonQty }}</span>
             </span>
           </div>
-          <NButton type="primary" :disabled="!cachedOrders.length" @click="openCachedCreate">创建出库单</NButton>
+          <NButton type="primary" :disabled="!cachedOrders.length" @click="openCachedCreate">生成车次订单</NButton>
           <NButton @click="handleReset">重置</NButton>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
         </NSpace>
       </template>
 
@@ -919,6 +938,16 @@ onActivated(() => {
                 <NRadioButton value="SUPPLIER">供应商约</NRadioButton>
               </NRadioGroup>
             </NFormItem>
+            <SupplierQuoteRecommendField
+              v-if="actionMode === 'pre'"
+              v-model:supplier-id="preOutboundSupplierId"
+              v-model:supplier-quote-id="preOutboundSupplierQuoteId"
+              v-model:recommended-supplier-id="preOutboundRecommendedSupplierId"
+              v-model:delivery-cost="deliveryForm.deliveryCost"
+              :context="supplierRecommendContext"
+              :enabled="actionMode === 'pre'"
+              label="推荐供应商"
+            />
             <NFormItem label="派送成本">
               <NInputGroup>
                 <NInputNumber v-model:value="deliveryForm.deliveryCost" class="w-full" :min="0" placeholder="请输入" />
@@ -1030,7 +1059,7 @@ onActivated(() => {
     <NModal
       v-model:show="detailModalVisible"
       preset="card"
-      title="货物订单详情"
+      title="订单详情"
       class="detail-modal"
       style="width: min(980px, 72vw); max-width: calc(100vw - 96px)"
     >
@@ -1115,7 +1144,7 @@ onActivated(() => {
 
     <NModal v-model:show="noteModalVisible" preset="card" :title="noteTitle" class="action-modal">
       <NForm label-placement="left" :label-width="96">
-        <NFormItem label="货物订单">
+        <NFormItem label="订单">
           <NInput :value="noteRow?.cargoOrderNo || ''" readonly />
         </NFormItem>
         <NFormItem :label="noteMode === 'remark' ? '备注' : '跟进记录'">

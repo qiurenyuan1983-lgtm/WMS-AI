@@ -1,5 +1,6 @@
+import { resolveCargoOperationStatus } from '@/utils/oms/operation-status';
 import { MOCK_COMPANY, MOCK_WAREHOUSE } from './common';
-import { MOCK_CONTAINER_ORDERS } from './oms';
+import { MOCK_CARGO_ORDERS, MOCK_CONTAINER_ORDERS } from './oms';
 
 const base = {
   tenantId: '000000',
@@ -25,6 +26,7 @@ type ShipmentRow = {
   platformName: string;
   addressType: string;
   preLocation: string;
+  actualInboundLocation?: string | null;
 };
 
 type CargoPreset = {
@@ -56,10 +58,10 @@ const CARGO_BY_CONTAINER: Record<string, CargoPreset[]> = {
       businessTypeName: '整送',
       forecastQtyUnit: 'BY_CARTON',
       shipments: [
-        { id: 90001, shipmentNo: 'SHP-001', shippingMark: 'MK-A01', cartonQty: 80, weight: 900, cbm: 7.2, palletQty: 2, poNo: 'PO-10001', groupCode: 'FedEx-LAX', platformWarehouseCode: 'LAX9', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'A-01-01' },
-        { id: 90002, shipmentNo: 'SHP-002', shippingMark: 'MK-A02', cartonQty: 40, weight: 600, cbm: 5.6, palletQty: 1, poNo: 'PO-10002', groupCode: 'FedEx-LAX', platformWarehouseCode: 'LAX9', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'A-01-02' },
-        { id: 90003, shipmentNo: 'SHP-003', shippingMark: 'MK-B01', cartonQty: 120, weight: 1500, cbm: 12.5, palletQty: 3, poNo: 'PO-10003', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-01' },
-        { id: 90004, shipmentNo: 'SHP-004', shippingMark: 'MK-B02', cartonQty: 60, weight: 720, cbm: 6.1, palletQty: 2, poNo: 'PO-10004', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-02' }
+        { id: 90001, shipmentNo: 'SHP-001', shippingMark: 'CO-2026-0001', cartonQty: 80, weight: 900, cbm: 7.2, palletQty: 2, poNo: 'PO-10001', groupCode: 'FedEx-LAX', platformWarehouseCode: 'LAX9', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'A-01-01', actualInboundLocation: 'A-01-01' },
+        { id: 90002, shipmentNo: 'SHP-002', shippingMark: 'CO-2026-0001', cartonQty: 40, weight: 600, cbm: 5.6, palletQty: 1, poNo: 'PO-10002', groupCode: 'FedEx-LAX', platformWarehouseCode: 'LAX9', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'A-01-02', actualInboundLocation: 'A-01-02' },
+        { id: 90003, shipmentNo: 'SHP-003', shippingMark: 'CO-2026-0001', cartonQty: 120, weight: 1500, cbm: 12.5, palletQty: 3, poNo: 'PO-10003', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-01', actualInboundLocation: 'B-02-05' },
+        { id: 90004, shipmentNo: 'SHP-004', shippingMark: 'CO-2026-0001', cartonQty: 60, weight: 720, cbm: 6.1, palletQty: 2, poNo: 'PO-10004', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-02', actualInboundLocation: 'B-02-02' }
       ]
     },
     {
@@ -74,7 +76,7 @@ const CARGO_BY_CONTAINER: Record<string, CargoPreset[]> = {
       businessTypeName: '整送',
       forecastQtyUnit: 'BY_PALLET',
       shipments: [
-        { id: 90005, shipmentNo: 'SHP-005', shippingMark: 'MK-B03', cartonQty: 60, weight: 700, cbm: 6, palletQty: 3, poNo: 'PO-10005', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-03' }
+        { id: 90005, shipmentNo: 'SHP-005', shippingMark: 'CO-2026-0003', cartonQty: 60, weight: 700, cbm: 6, palletQty: 3, poNo: 'PO-10005', groupCode: 'UPS-ORD', platformWarehouseCode: 'ORD2', platformName: 'Walmart', addressType: 'PLATFORM_WH', preLocation: 'B-02-03', actualInboundLocation: 'B-02-03' }
       ]
     }
   ],
@@ -83,16 +85,16 @@ const CARGO_BY_CONTAINER: Record<string, CargoPreset[]> = {
       id: 80002,
       cargoOrderNo: 'CO-2026-0002',
       customerName: '演示客户 B',
-      fulfillmentStatus: 'OUTBOUND_ORDERED',
-      billingStatus: 'BILLED',
+      fulfillmentStatus: 'ARRIVED_WAREHOUSE',
+      billingStatus: 'UNBILLED',
       addressType: 'PLATFORM_WH',
       platformName: 'Amazon',
       groupCode: 'FBA-ONT',
       businessTypeName: '整送',
       forecastQtyUnit: 'BY_CARTON',
       shipments: [
-        { id: 90011, shipmentNo: 'SHP-011', shippingMark: 'MK-C01', cartonQty: 35, weight: 420, cbm: 3.5, palletQty: 1, poNo: 'PO-20001', groupCode: 'FBA-ONT', platformWarehouseCode: 'ONT8', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'C-03-01' },
-        { id: 90012, shipmentNo: 'SHP-012', shippingMark: 'MK-C02', cartonQty: 25, weight: 380, cbm: 2.7, palletQty: 1, poNo: 'PO-20002', groupCode: 'FBA-ONT', platformWarehouseCode: 'ONT8', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'C-03-02' }
+        { id: 90011, shipmentNo: 'SHP-011', shippingMark: 'CO-2026-0002', cartonQty: 35, weight: 420, cbm: 3.5, palletQty: 1, poNo: 'PO-20001', groupCode: 'FBA-ONT', platformWarehouseCode: 'ONT8', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'C-03-01', actualInboundLocation: 'C-03-01' },
+        { id: 90012, shipmentNo: 'SHP-012', shippingMark: 'CO-2026-0002', cartonQty: 25, weight: 380, cbm: 2.7, palletQty: 1, poNo: 'PO-20002', groupCode: 'FBA-ONT', platformWarehouseCode: 'ONT8', platformName: 'Amazon', addressType: 'PLATFORM_WH', preLocation: 'C-03-02', actualInboundLocation: 'C-03-02' }
       ]
     }
   ]
@@ -102,9 +104,32 @@ function sumShipments(shipments: ShipmentRow[], field: 'cartonQty' | 'weight' | 
   return shipments.reduce((s, row) => s + (row[field] || 0), 0);
 }
 
+function joinUnique(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter(Boolean) as string[])].join(', ');
+}
+
+function mapListCargoToDetail(row: (typeof MOCK_CARGO_ORDERS)[number]) {
+  const r = row as Record<string, any>;
+  return {
+    ...row,
+    preOutboundStatus: r.preOutboundStatus ?? 'NONE',
+    exceptionFlag: r.exceptionFlag ?? 0,
+    exceptionCount: r.exceptionCount ?? 0,
+    holdFlag: r.holdFlag ?? 0,
+    holdStatus: r.holdStatus ?? 'NORMAL',
+    transferFlag: r.transferFlag ?? 0,
+    shipments: r.shipments ?? []
+  };
+}
+
 export function buildCargoOrdersForContainer(containerOrderId: string | number) {
   const cid = String(containerOrderId);
   const container = MOCK_CONTAINER_ORDERS.find(c => String(c.id) === cid) ?? MOCK_CONTAINER_ORDERS[0];
+  const fromList = MOCK_CARGO_ORDERS.filter(c => String(c.containerOrderId) === cid);
+  if (fromList.length > 0) {
+    return fromList.map(mapListCargoToDetail);
+  }
+
   const presets = CARGO_BY_CONTAINER[cid] ?? CARGO_BY_CONTAINER['70001'];
 
   return presets.map(preset => {
@@ -119,7 +144,13 @@ export function buildCargoOrdersForContainer(containerOrderId: string | number) 
       palletQty: s.palletQty,
       poNo: s.poNo
     }));
-    const shipmentCodes = preset.shipments.map(s => s.shipmentNo).join(', ');
+    const shipmentCodes = preset.shipments
+      .map(s => {
+        const fba = s.shipmentNo;
+        const sku = (s as { skuSummary?: string }).skuSummary || `SKU-${s.poNo}`;
+        return `${fba} / ${sku}`;
+      })
+      .join('; ');
     const poNos = preset.shipments.map(s => s.poNo).join(', ');
     const marks = preset.shipments.map(s => s.shippingMark).join(', ');
 
@@ -161,6 +192,11 @@ export function buildCargoOrdersForContainer(containerOrderId: string | number) 
       expectedPalletQty: sumShipments(preset.shipments, 'palletQty'),
       expectedWeight: sumShipments(preset.shipments, 'weight'),
       expectedCbm: sumShipments(preset.shipments, 'cbm'),
+      preLocation: joinUnique(preset.shipments.map(s => s.preLocation)),
+      actualInboundLocation: joinUnique(preset.shipments.map(s => s.actualInboundLocation)) || null,
+      actualInboundTime: preset.fulfillmentStatus === 'INBOUNDED' || preset.fulfillmentStatus === 'OUTBOUND_ORDERED'
+        ? '2026-05-26 10:30:00'
+        : null,
       remark: null,
       shipments
     };
@@ -174,43 +210,63 @@ export function buildInboundPlanItemsFromContainer(containerOrderId: string | nu
   let seq = planId * 1000 + 1;
   for (const co of cargoOrders) {
     for (const sh of co.shipments || []) {
-      const preset = (CARGO_BY_CONTAINER[String(containerOrderId)] ?? CARGO_BY_CONTAINER['70001'])
-        .flatMap(p => p.shipments)
-        .find(s => s.id === sh.id);
+      const shRow = sh as Record<string, any>;
       items.push({
         id: seq++,
         planId,
         cargoOrderId: co.id,
         shipmentId: sh.id,
-        groupCode: preset?.groupCode ?? co.groupCode,
-        preLocation: preset?.preLocation ?? null,
+        groupCode: shRow.groupCode ?? co.groupCode,
+        preLocation: shRow.preLocation ?? co.preLocation ?? null,
         cargoOrderNo: co.cargoOrderNo,
         businessTypeName: co.businessTypeName ?? '整送',
-        platformName: preset?.platformName ?? co.platformName,
-        addressType: preset?.addressType ?? co.addressType,
+        platformName: shRow.platformName ?? co.platformName,
+        addressType: shRow.addressType ?? co.addressType,
         orderStatus: co.fulfillmentStatus,
         shipmentNo: sh.shipmentNo,
-        poNo: sh.poNo,
+        poNo: sh.poNo ?? shRow.poNo,
         shippingMark: sh.shippingMark,
-        platformWarehouseCode: preset?.platformWarehouseCode ?? null,
+        platformWarehouseCode: shRow.platformWarehouseCode ?? co.platformWarehouseCode ?? null,
         cartonQty: sh.cartonQty,
         weight: sh.weight,
         cbm: sh.cbm,
-        palletQty: sh.palletQty
+        palletQty: sh.palletQty,
+        outboundStatus: 'NOT_OUTBOUND',
+        deliveryMethod: co.businessTypeName ?? 'LTL',
+        holdFlag: null
       });
     }
   }
   return items;
 }
 
-const CONTAINER_STATUS_MAP: Record<string, string> = {
-  '70001': 'DEVANNING',
-  '70002': 'ARRIVED_WAREHOUSE'
-};
-
 export function getCargoOrderDetail(id: string | number) {
-  for (const cid of Object.keys(CARGO_BY_CONTAINER)) {
-    const found = buildCargoOrdersForContainer(cid).find(c => String(c.id) === String(id));
+  const fromList = MOCK_CARGO_ORDERS.find(c => String(c.id) === String(id));
+  if (fromList) {
+    const row = mapListCargoToDetail(fromList) as Record<string, any>;
+    return {
+      ...row,
+      orderSubType: row.orderSubType ?? 'STANDARD',
+      peerCustomerName: row.peerCustomerName ?? null,
+      deliveryMode: row.deliveryMode ?? null,
+      deliveryAppointmentTime: row.deliveryAppointmentTime ?? null,
+      loosePalletLabels: row.loosePalletLabels ?? [],
+      palletLabelPrinted: row.palletLabelPrinted ?? false,
+      orderStatus: row.orderStatus ?? row.fulfillmentStatus,
+      preOutboundStatus: row.preOutboundStatus ?? 'NONE',
+      outboundOrderStatus: row.outboundOrderStatus ?? 'NONE',
+      appointmentStatus: row.appointmentStatus ?? 'NONE',
+      podStatus: row.podStatus ?? 'PENDING',
+      billingStatus: row.billingStatus ?? 'UNBILLED',
+      exceptionFlag: row.exceptionFlag ?? 0,
+      exceptionCount: row.exceptionCount ?? 0,
+      nodeTraces: row.nodeTraces ?? [],
+      shipments: row.shipments ?? [],
+      operationStatus: resolveCargoOperationStatus(row)
+    };
+  }
+  for (const container of MOCK_CONTAINER_ORDERS) {
+    const found = buildCargoOrdersForContainer(container.id).find(c => String(c.id) === String(id));
     if (found) return found;
   }
   return null;
@@ -221,26 +277,27 @@ export function getContainerOrderDetail(id: string | number) {
   const row = MOCK_CONTAINER_ORDERS.find(c => String(c.id) === cid);
   if (!row) return null;
   const cargoOrders = buildCargoOrdersForContainer(cid);
-  const containerStatus = CONTAINER_STATUS_MAP[cid] || (row as any).status || 'ARRIVED_WAREHOUSE';
+  const r = row as Record<string, any>;
+  const containerStatus = r.containerStatus ?? r.status ?? 'ARRIVED_WAREHOUSE';
 
   return {
     ...row,
     ...base,
     containerStatus,
-    channelName: '\u6574\u67dc\u6d77\u8fd0',
-    channelId: 1,
-    customerName: cargoOrders[0]?.customerName ?? '\u6f14\u793a\u5ba2\u6237',
-    customerServiceName: '\u5c0f\u738b',
-    ownerUserName: '\u5c0f\u738b',
-    orderSource: 'SELF',
-    terminalReleaseStatus: cid === '70002' ? 'HOLD' : 'RELEASE',
-    examStatus: cid === '70002' ? 'EXAMINING' : 'NONE',
-    attachmentCount: 2,
-    doAttachmentCount: 1,
-    containerExceptionFlag: 0,
-    containerExceptionCount: 0,
-    downstreamExceptionFlag: 0,
-    downstreamExceptionCount: 0,
+    channelName: r.channelName ?? '\u6574\u67dc\u6d77\u8fd0',
+    channelId: r.channelId ?? 1,
+    customerName: r.customerName ?? cargoOrders[0]?.customerName ?? '\u6f14\u793a\u5ba2\u6237',
+    customerServiceName: r.customerServiceName ?? '\u5c0f\u738b',
+    ownerUserName: r.ownerUserName ?? '\u5c0f\u738b',
+    orderSource: r.orderSource ?? 'SELF',
+    terminalReleaseStatus: r.terminalReleaseStatus ?? 'RELEASE',
+    examStatus: r.examStatus ?? 'NONE',
+    attachmentCount: r.attachmentCount ?? 2,
+    doAttachmentCount: r.doAttachmentCount ?? 1,
+    containerExceptionFlag: r.containerExceptionFlag ?? 0,
+    containerExceptionCount: r.containerExceptionCount ?? 0,
+    downstreamExceptionFlag: r.downstreamExceptionFlag ?? 0,
+    downstreamExceptionCount: r.downstreamExceptionCount ?? 0,
     cargoOrders,
     traces: [
       { id: 1, action: 'CREATE', actionDesc: '创建海柜订单', statusFrom: 'DRAFT', statusTo: 'PENDING_ACCEPT', operatorName: 'admin', createTime: '2026-05-01 10:00:00' },

@@ -17,6 +17,7 @@ import { useDict } from '@/hooks/business/dict';
 import DictTag from '@/components/custom/dict-tag.vue';
 import { $t } from '@/locales';
 import ButtonIcon from '@/components/custom/button-icon.vue';
+import { formatIntlPhoneDisplay } from '@/utils/phone/intl-phone';
 import TenantOperateDrawer from './modules/tenant-operate-drawer.vue';
 import TenantSearch from './modules/tenant-search.vue';
 
@@ -82,7 +83,8 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
         key: 'contactPhone',
         title: '联系电话',
         align: 'center',
-        minWidth: 120
+        minWidth: 140,
+        render: row => formatIntlPhoneDisplay(row.contactPhoneCountryCode, row.contactPhone) || '-'
       },
       {
         key: 'companyName',

@@ -62,7 +62,9 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
   wms_zone_type: [
     { label: "快递区", value: 'EXPRESS', listClass: 'info' },
     { label: "暂存区", value: 'TEMP', listClass: 'success' },
-    { label: "私货库区", value: 'PRIVATE', listClass: 'warning' },
+    { label: "私仓库区", value: 'PRIVATE', listClass: 'warning' },
+    { label: "大货库区", value: 'BULK', listClass: 'warning' },
+    { label: "FBA常规库区", value: 'FBA', listClass: 'info' },
     { label: "异常区", value: 'EXCEPTION', listClass: 'error' },
   ],
   wms_zone_status: [
@@ -70,13 +72,28 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: "停用", value: 'DISABLED', listClass: 'default' },
   ],
   wms_storage_method: [
-    { label: "地面", value: 'FLOOR', listClass: 'info' },
+    { label: "地堆", value: 'FLOOR', listClass: 'info' },
     { label: "货架", value: 'RACK', listClass: 'success' },
   ],
   wms_location_status: [
-    { label: "正常", value: 'NORMAL', listClass: 'success' },
-    { label: "停用", value: 'DISABLED', listClass: 'default' },
-    { label: "锁定", value: 'LOCKED', listClass: 'warning' },
+    { label: '空闲', value: 'EMPTY', listClass: 'success' },
+    { label: '部分占用', value: 'PARTIAL', listClass: 'info' },
+    { label: '已满', value: 'FULL', listClass: 'warning' },
+    { label: '锁定', value: 'LOCKED', listClass: 'warning' },
+    { label: '禁用', value: 'DISABLED', listClass: 'default' },
+    { label: '维修', value: 'MAINTENANCE', listClass: 'default' },
+    { label: '异常', value: 'ABNORMAL', listClass: 'error' },
+    { label: '预占用', value: 'PRE_OCCUPIED', listClass: 'primary' },
+    { label: '待清理', value: 'PENDING_CLEAN', listClass: 'error' }
+  ],
+  wms_location_purpose: [
+    { label: '通用存储', value: 'GENERAL', listClass: 'default' },
+    { label: 'FBA 备货', value: 'FBA', listClass: 'primary' },
+    { label: '私仓暂存', value: 'PRIVATE', listClass: 'info' },
+    { label: '贵品区', value: 'PREMIUM', listClass: 'warning' },
+    { label: '尾板散货', value: 'TAIL', listClass: 'success' },
+    { label: '快进快出', value: 'EXPRESS', listClass: 'error' },
+    { label: '暂扣中转', value: 'HOLD', listClass: 'warning' }
   ],
   wms_inventory_status: [
     { label: "在库", value: 'IN_STOCK', listClass: 'success' },
@@ -134,10 +151,19 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: '已打拆柜单', value: 'ORDER_PRINTED', listClass: 'success' },
     { label: '未打拆柜单', value: 'NOT_PRINTED', listClass: 'default' }
   ],
+  oms_timeliness_level: [
+    { label: 'T（第一等级）', value: 'T', listClass: 'error' },
+    { label: 'K（第二等级）', value: 'K', listClass: 'warning' },
+    { label: '普船（第三等级）', value: 'NORMAL_SHIP', listClass: 'default' }
+  ],
   oms_address_type: [
     { label: "平台仓", value: 'PLATFORM_WH' },
     { label: "私仓", value: 'PRIVATE' },
     { label: "商业地址", value: 'COMMERCIAL' },
+  ],
+  oms_inbound_outbound_status: [
+    { label: '未出库', value: 'NOT_OUTBOUND', listClass: 'default' },
+    { label: '已出库', value: 'OUTBOUND', listClass: 'success' }
   ],
   oms_parcel_carrier: [
     { label: "UPS", value: 'UPS', listClass: 'primary' },
@@ -164,6 +190,37 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: '删约', value: 'DELETE_APPOINTMENT', listClass: 'error' },
     { label: '平台删约', value: 'PLATFORM_DELETE', listClass: 'default' }
   ],
+  oms_supplier_type: [
+    { label: '提柜供应商', value: 'DRAYAGE', listClass: 'info' },
+    { label: '卡派供应商', value: 'LINEHAUL', listClass: 'primary' },
+    { label: 'LTL供应商', value: 'LTL', listClass: 'success' },
+    { label: '拆柜/装车供应商', value: 'DEVANNING_LOADING', listClass: 'warning' }
+  ],
+  oms_supplier_status: [
+    { label: '启用', value: 'ENABLED', listClass: 'success' },
+    { label: '停用', value: 'DISABLED', listClass: 'default' }
+  ],
+  oms_supplier_bill_status: [
+    { label: '草稿', value: 'DRAFT', listClass: 'default' },
+    { label: '供应商已确认', value: 'SUPPLIER_CONFIRMED', listClass: 'info' },
+    { label: '待审核', value: 'PENDING_AUDIT', listClass: 'warning' },
+    { label: '仓库已确认', value: 'WAREHOUSE_CONFIRMED', listClass: 'info' },
+    { label: '财务已审核', value: 'FINANCE_APPROVED', listClass: 'success' },
+    { label: '已付款', value: 'PAID', listClass: 'success' },
+    { label: '已驳回', value: 'REJECTED', listClass: 'error' }
+  ],
+  oms_supplier_equipment_type: [
+    { label: '叉车', value: 'FORKLIFT' },
+    { label: 'PDA', value: 'PDA' },
+    { label: '打印机', value: 'PRINTER' },
+    { label: '触摸屏', value: 'TOUCH_SCREEN' }
+  ],
+  oms_supplier_equipment_status: [
+    { label: '空闲', value: 'IDLE', listClass: 'success' },
+    { label: '使用中', value: 'IN_USE', listClass: 'warning' },
+    { label: '维修中', value: 'MAINTENANCE', listClass: 'error' },
+    { label: '已报废', value: 'RETIRED', listClass: 'default' }
+  ],
   oms_devanning_method: [
     { label: "人工拆柜", value: 'MANUAL' },
     { label: "叉车拆柜", value: 'FORKLIFT' },
@@ -187,6 +244,24 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: "Intensive", value: 'INTENSIVE', listClass: 'warning' },
     { label: "CES", value: 'CES' },
   ],
+  oms_container_operation_status: [
+    { label: '已提柜', value: 'PICKED_UP', listClass: 'warning' },
+    { label: '已到仓', value: 'ARRIVED_WAREHOUSE', listClass: 'success' },
+    { label: '安排DOCK', value: 'DOCK_SCHEDULED', listClass: 'info' },
+    { label: '待上DOCK', value: 'PENDING_DOCK', listClass: 'warning' },
+    { label: '拆柜中', value: 'DEVANNING', listClass: 'warning' },
+    { label: '拆柜完成', value: 'DEVANNED', listClass: 'success' }
+  ],
+  oms_cargo_operation_status: [
+    { label: '已入库', value: 'INBOUNDED', listClass: 'success' },
+    { label: '已生成车次', value: 'TRIP_GENERATED', listClass: 'info' },
+    { label: '已安排派送供应商', value: 'SUPPLIER_DISPATCHED', listClass: 'success' }
+  ],
+  oms_outbound_operation_status: [
+    { label: '已登记', value: 'REGISTERED' },
+    { label: '出库中', value: 'OUTBOUNDING', listClass: 'warning' },
+    { label: '出库完成', value: 'OUTBOUND_COMPLETED', listClass: 'success' }
+  ],
   oms_cargo_fulfillment_status: [
     { label: "待接单", value: 'PENDING_ACCEPT' },
     { label: "已接单", value: 'ACCEPTED', listClass: 'info' },
@@ -197,7 +272,7 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
     { label: "拆柜中", value: 'DEVANNING', listClass: 'warning' },
     { label: "拆柜完成", value: 'DEVANNED', listClass: 'warning' },
     { label: "已入库", value: 'INBOUNDED', listClass: 'success' },
-    { label: "已出库单", value: 'OUTBOUND_ORDERED', listClass: 'success' },
+    { label: "已排车次", value: 'OUTBOUND_ORDERED', listClass: 'success' },
     { label: "已预约派送", value: 'DELIVERY_APPOINTED', listClass: 'success' },
     { label: "已出库", value: 'OUTBOUNDED', listClass: 'success' },
     { label: "派送中", value: 'DELIVERING', listClass: 'primary' },
@@ -225,6 +300,114 @@ const DICT_DEFINITIONS: Record<string, DictItem[]> = {
   oms_cargo_grouping_rule_status: [
     { label: "启用", value: 'ENABLED', listClass: 'success' },
     { label: "停用", value: 'DISABLED', listClass: 'danger' },
+  ],
+  oms_business_rule_category: [
+    { label: '订单规则', value: 'ORDER', listClass: 'primary' },
+    { label: '入库与拆柜', value: 'INBOUND_DEVANNING', listClass: 'info' },
+    { label: '库位推荐', value: 'LOCATION', listClass: 'success' },
+    { label: '调度与车次', value: 'DISPATCH', listClass: 'warning' },
+    { label: '出库与装车', value: 'OUTBOUND', listClass: 'error' },
+    { label: '异常与预警', value: 'EXCEPTION_ALERT', listClass: 'error' },
+    { label: '费用与账单', value: 'FEE_BILL', listClass: 'default' },
+    { label: '通知与任务', value: 'NOTIFY_TASK', listClass: 'info' }
+  ],
+  oms_business_rule_status: [
+    { label: '启用', value: 'enabled', listClass: 'success' },
+    { label: '停用', value: 'disabled', listClass: 'default' },
+    { label: '草稿', value: 'draft', listClass: 'warning' }
+  ],
+  oms_business_rule_priority_tier: [
+    { label: 'P0 禁止/安全', value: 'P0', listClass: 'error' },
+    { label: 'P1 客户强制', value: 'P1', listClass: 'warning' },
+    { label: 'P2 业务强制', value: 'P2', listClass: 'warning' },
+    { label: 'P3 仓库运营', value: 'P3', listClass: 'info' },
+    { label: 'P4 效率推荐', value: 'P4', listClass: 'primary' },
+    { label: 'P5 普通提醒', value: 'P5', listClass: 'default' }
+  ],
+  oms_business_rule_action_level: [
+    { label: '提示', value: 'HINT', listClass: 'default' },
+    { label: '预警', value: 'WARN', listClass: 'warning' },
+    { label: '强提醒', value: 'STRONG_WARN', listClass: 'warning' },
+    { label: '阻止', value: 'BLOCK', listClass: 'error' },
+    { label: '自动执行', value: 'AUTO', listClass: 'success' }
+  ],
+  oms_business_rule_conflict_strategy: [
+    { label: '首条命中', value: 'FIRST_MATCH' },
+    { label: '禁止优先', value: 'FIRST_BLOCK_WINS' },
+    { label: '非阻止全部执行', value: 'ALL_NON_BLOCK' },
+    { label: '需人工确认', value: 'MANUAL_CONFIRM' }
+  ],
+  oms_approval_flow_category: [
+    { label: '费用审批流', value: 'FEE', listClass: 'primary' },
+    { label: '供应商账单审批流', value: 'SUPPLIER_BILL', listClass: 'info' },
+    { label: '异常赔付审批流', value: 'EXCEPTION_COMPENSATION', listClass: 'warning' },
+    { label: '操作调整审批流', value: 'OPERATION_ADJUSTMENT', listClass: 'success' },
+    { label: '权限变更审批流', value: 'PERMISSION_CHANGE', listClass: 'error' },
+    { label: '价格修改审批流', value: 'PRICE_MODIFY', listClass: 'warning' },
+    { label: '删除数据审批流', value: 'DATA_DELETE', listClass: 'error' },
+    { label: '临时授权审批流', value: 'TEMP_AUTH', listClass: 'info' }
+  ],
+  oms_approval_flow_status: [
+    { label: '启用', value: 'enabled', listClass: 'success' },
+    { label: '停用', value: 'disabled', listClass: 'default' },
+    { label: '草稿', value: 'draft', listClass: 'warning' }
+  ],
+  print_template_type: [
+    { label: '卡板贴', value: 'pallet_label', listClass: 'primary' },
+    { label: '拆柜单', value: 'devanning', listClass: 'info' },
+    { label: 'BOL提单', value: 'bol', listClass: 'primary' },
+    { label: '报表', value: 'report', listClass: 'success' },
+    { label: '发票', value: 'invoice', listClass: 'warning' },
+    { label: '箱贴', value: 'carton', listClass: 'default' },
+    { label: '库位标签', value: 'location', listClass: 'info' },
+    { label: '自定义单据', value: 'custom', listClass: 'default' }
+  ],
+  print_template_status: [
+    { label: '草稿', value: 'draft', listClass: 'default' },
+    { label: '测试中', value: 'testing', listClass: 'warning' },
+    { label: '待审批', value: 'pending_approval', listClass: 'warning' },
+    { label: '已发布', value: 'published', listClass: 'success' },
+    { label: '已停用', value: 'disabled', listClass: 'error' },
+    { label: '已归档', value: 'archived', listClass: 'default' }
+  ],
+  print_task_status: [
+    { label: '待打印', value: 'pending', listClass: 'warning' },
+    { label: '打印中', value: 'printing', listClass: 'info' },
+    { label: '已完成', value: 'completed', listClass: 'success' },
+    { label: '失败', value: 'failed', listClass: 'error' }
+  ],
+  print_doc_type: [
+    { label: '卡板贴', value: 'pallet_label', listClass: 'primary' },
+    { label: '拆柜单', value: 'devanning', listClass: 'info' },
+    { label: 'BOL提单', value: 'bol', listClass: 'primary' },
+    { label: '发票', value: 'invoice', listClass: 'warning' },
+    { label: '报表', value: 'report', listClass: 'success' },
+    { label: '库位标签', value: 'location', listClass: 'info' },
+    { label: '箱贴', value: 'carton', listClass: 'default' },
+    { label: '自定义', value: 'custom', listClass: 'default' }
+  ],
+  print_printer_type: [
+    { label: 'A4 打印机', value: 'a4' },
+    { label: '标签打印机', value: 'label' },
+    { label: '热敏打印机', value: 'thermal' },
+    { label: '条码打印机', value: 'barcode' },
+    { label: '工业打印机', value: 'industrial' }
+  ],
+  print_printer_online: [
+    { label: '在线', value: 'online', listClass: 'success' },
+    { label: '离线', value: 'offline', listClass: 'default' },
+    { label: '异常', value: 'error', listClass: 'error' }
+  ],
+  print_record_result: [
+    { label: '成功', value: 'success', listClass: 'success' },
+    { label: '失败', value: 'failed', listClass: 'error' }
+  ],
+  print_invoice_subtype: [
+    { label: '海柜费用发票', value: 'sea_container', listClass: 'primary' },
+    { label: '卡车派送费用发票', value: 'truck_delivery', listClass: 'info' },
+    { label: '拆柜费用发票', value: 'devanning', listClass: 'warning' },
+    { label: '装车费用发票', value: 'loading', listClass: 'success' },
+    { label: '自定义费用发票', value: 'custom_fee', listClass: 'default' }
   ],
   yms_zone_type: [
     { label: "集装箱区", value: 'CONTAINER' },

@@ -13,7 +13,7 @@ import {
 } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { fetchDeleteDevanningWorkPallet } from '@/service/api/wms/devanning-work';
-import { printPalletLabel } from '../utils/print-pallet-label';
+import { enrichPalletForPrint, printPalletLabel } from '../utils/print-pallet-label';
 
 defineOptions({ name: 'DevanningPalletHistoryDrawer' });
 
@@ -48,7 +48,7 @@ async function handleDelete(row: Api.Wms.DevanningWorkPallet) {
 }
 
 const detailItemColumns: DataTableColumns<Api.Wms.DevanningWorkPalletItem> = [
-  { title: '货物订单号', key: 'cargoOrderNo', width: 140 },
+  { title: '订单号', key: 'cargoOrderNo', width: 140 },
   {
     title: '收货量',
     key: 'receiveQty',
@@ -82,7 +82,7 @@ function buildColumns(): DataTableColumns<Api.Wms.DevanningWorkPallet> {
           <NButton size="tiny" type="primary" secondary onClick={() => openDetail(row)}>
             详情
           </NButton>
-          <NButton size="tiny" onClick={() => printPalletLabel(row)}>
+          <NButton size="tiny" onClick={() => printPalletLabel(enrichPalletForPrint(row, session.value))}>
             打印标签
           </NButton>
           <NPopconfirm onPositiveClick={() => handleDelete(row)}>
@@ -126,7 +126,7 @@ const columns = buildColumns();
         <NDescriptionsItem label="分组">{{ detailPallet.groupCode }}</NDescriptionsItem>
         <NDescriptionsItem label="订单数">{{ detailPallet.orderCount ?? detailPallet.items?.length ?? 0 }}</NDescriptionsItem>
         <NDescriptionsItem label="箱数合计">{{ detailPallet.boxQty }}</NDescriptionsItem>
-        <NDescriptionsItem v-if="detailPallet.lengthCm" label="尺寸">
+        <NDescriptionsItem v-if="detailPallet.lengthCm" label="卡板尺寸">
           {{ detailPallet.lengthCm }} × {{ detailPallet.widthCm }} × {{ detailPallet.heightCm }} cm
         </NDescriptionsItem>
         <NDescriptionsItem v-if="detailPallet.weightKg" label="重量">{{ detailPallet.weightKg }} kg</NDescriptionsItem>

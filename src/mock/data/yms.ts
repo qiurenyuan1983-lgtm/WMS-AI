@@ -1,6 +1,12 @@
+import {
+  computeDispatchPriorityScore,
+  computeTripDeadline,
+  enrichTripDeadlineFields
+} from '@/utils/tms/trip-deadline';
 import { MOCK_WAREHOUSE } from './common';
 import { getYardDockFree } from './yard';
 import { mockPage } from '../utils';
+import { buildDevanningDispatchDockBoard, getDevanningDispatchTasks } from './devanning-work';
 
 const wh = {
   tenantId: '000000',
@@ -9,6 +15,57 @@ const wh = {
   warehouseName: MOCK_WAREHOUSE.warehouseName,
   createTime: '2026-05-01 10:00:00'
 };
+
+const LOADING_DEST_BY_ID: Record<number, string> = {
+  100002: 'ONT8',
+  100004: 'LGB8'
+};
+
+function formatYmsDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function enrichLoadingTask(row: Api.Yms.YardTask): Api.Yms.YardTask {
+  if (!row.taskType.includes('LOADING')) return row;
+  const finishOffsets = [22, 48, -8, 65];
+  const finishInMin = finishOffsets[Number(row.id) % finishOffsets.length];
+  const destination = LOADING_DEST_BY_ID[Number(row.id)] ?? 'ONT8';
+  const palletQty = row.totalPalletQty ?? 8;
+  const probe = computeTripDeadline({
+    appointmentTime: '2099-06-06 20:00:00',
+    originWarehouse: 'LA',
+    destination,
+    palletQty,
+    cartonQty: palletQty * 12
+  });
+  const routeMinutes =
+    probe.estimatedTravelMinutes +
+    probe.trafficBufferMinutes +
+    probe.exitCheckMinutes +
+    probe.sealSignMinutes;
+  const appointmentTime = formatYmsDateTime(new Date(Date.now() + (finishInMin + routeMinutes) * 60_000));
+  const deadline = enrichTripDeadlineFields({
+    appointmentTime,
+    originWarehouse: 'LA',
+    destination,
+    palletQty,
+    cartonQty: palletQty * 12
+  });
+  return {
+    ...row,
+    appointmentTime,
+    destination,
+    originWarehouse: 'LA',
+    distanceMiles: deadline.distanceMiles,
+    estimatedTravelMinutes: deadline.estimatedTravelMinutes,
+    latestStartLoadingTime: deadline.latestStartLoadingTime,
+    latestFinishTime: deadline.latestFinishTime,
+    remainingMinutes: deadline.remainingMinutes,
+    deadlineRiskLevel: deadline.deadlineRiskLevel,
+    priority: computeDispatchPriorityScore(deadline)
+  };
+}
 
 function task(partial: Partial<Api.Yms.YardTask> & Pick<Api.Yms.YardTask, 'id' | 'yardTaskNo' | 'taskType' | 'yardStatus'>): Api.Yms.YardTask {
   return {
@@ -151,8 +208,9 @@ export function getYmsDispatchList(params?: Record<string, any>) {
     rows = rows.filter(t => t.taskType.includes('LOADING'));
   }
   if (params?.taskGroup === 'DEVANNING') {
-    rows = rows.filter(t => t.taskType === 'DEVANNING');
+    rows = getDevanningDispatchTasks();
   }
+  rows = rows.map(enrichLoadingTask);
   if (params?.yardStatus) {
     const statuses = String(params.yardStatus).split(',');
     rows = rows.filter(t => statuses.includes(t.yardStatus));
@@ -177,14 +235,14 @@ function filterTasksByGroup(taskGroup?: string) {
     return MOCK_YMS_DISPATCH.filter(t => t.taskType.includes('LOADING'));
   }
   if (taskGroup === 'DEVANNING') {
-    return MOCK_YMS_DISPATCH.filter(t => t.taskType === 'DEVANNING');
+    return getDevanningDispatchTasks();
   }
   return MOCK_YMS_DISPATCH;
 }
 
 export function getYmsDispatchStats(params?: Record<string, any>): Api.Yms.DispatchStats {
   const rows = filterTasksByGroup(params?.taskGroup);
-  const devanning = MOCK_YMS_DISPATCH.filter(t => t.taskType === 'DEVANNING').length;
+  const devanning = getDevanningDispatchTasks().length;
   const loading = MOCK_YMS_DISPATCH.filter(t => t.taskType.includes('LOADING')).length;
   const working = rows.filter(t =>
     ['DOCK_WORKING', 'DEVANNING', 'LOADING', 'OPERATION_PAUSED'].includes(t.yardStatus)
@@ -311,8 +369,8 @@ const LOADING_DOCK_BOARD: Api.Yms.DockBoard[] = [
 
 export function getYmsDockBoard(params?: Record<string, any>): Api.Yms.DockBoard[] {
   if (params?.taskGroup === 'LOADING') return LOADING_DOCK_BOARD;
-  if (params?.taskGroup === 'DEVANNING') return DEVANNING_DOCK_BOARD;
-  return [...DEVANNING_DOCK_BOARD, ...LOADING_DOCK_BOARD];
+  if (params?.taskGroup === 'DEVANNING') return buildDevanningDispatchDockBoard();
+  return [...buildDevanningDispatchDockBoard(), ...LOADING_DOCK_BOARD];
 }
 
 export function getYmsInternalTaskBoard(): Api.Yms.InternalTaskBoardColumn[] {

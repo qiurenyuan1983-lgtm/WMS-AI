@@ -83,7 +83,7 @@ onMounted(loadWarehouses);
 <template>
   <div class="h-full flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="仓库">
           <NSelect v-model:value="searchParams.warehouseId" clearable filterable placeholder="选择仓库" class="w-180px" :options="warehouseOptions" />
         </NFormItem>
@@ -91,10 +91,10 @@ onMounted(loadWarehouses);
           <NInput v-model:value="searchParams.zoneCode" clearable placeholder="分区编码" />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" @click="() => { searchParams.pageNum = 1; getData(); }">查询</NButton>
+          <NButton type="primary" @click="() => { searchParams.pageNum = 1; getData(); }">搜索</NButton>
         </NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
 
     <NCard :bordered="false" class="flex-1 card-wrapper overflow-hidden">
       <div class="mb-12px flex gap-8px">

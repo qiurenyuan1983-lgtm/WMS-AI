@@ -49,7 +49,7 @@ function handleClose() {
         </div>
       </template>
 
-      <NEmpty v-if="!editModel" description="请先选择货物订单" />
+      <NEmpty v-if="!editModel" description="请先选择订单" />
       <div v-else class="flex-col gap-16px">
         <NDescriptions :column="4" size="small" bordered label-placement="left">
           <NDescriptionsItem label="参考号">{{ editModel.externalOrderNo || '--' }}</NDescriptionsItem>

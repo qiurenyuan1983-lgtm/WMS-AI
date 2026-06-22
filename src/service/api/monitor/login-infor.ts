@@ -1,6 +1,9 @@
 import { request } from '@/service/request';
 
-/** 获取系统访问记录列表 */
+export function fetchGetLoginLogStats() {
+  return request<Api.Monitor.LoginLogStats>({ url: '/monitor/logininfor/stats', method: 'get' });
+}
+
 export function fetchGetLoginInforList(params?: Api.Monitor.LoginInforSearchParams) {
   return request<Api.Monitor.LoginInforList>({
     url: '/monitor/logininfor/list',
@@ -9,7 +12,14 @@ export function fetchGetLoginInforList(params?: Api.Monitor.LoginInforSearchPara
   });
 }
 
-/** 批量删除系统访问记录 */
+export function fetchGetLoginInforDetail(infoId: CommonType.IdType) {
+  return request<Api.Monitor.LoginInfor>({ url: `/monitor/logininfor/${infoId}`, method: 'get' });
+}
+
+export function fetchExecuteLoginLogAction(data: Api.Monitor.LoginLogActionParams) {
+  return request<Api.Monitor.LoginInfor[]>({ url: '/monitor/logininfor/action', method: 'put', data });
+}
+
 export function fetchBatchDeleteLoginInfor(infoIds: CommonType.IdType[]) {
   return request<boolean>({
     url: `/monitor/logininfor/${infoIds.join(',')}`,
@@ -17,7 +27,6 @@ export function fetchBatchDeleteLoginInfor(infoIds: CommonType.IdType[]) {
   });
 }
 
-/** 解锁系统访问记录 */
 export function fetchUnlockLoginInfor(username: string) {
   return request<boolean>({
     url: `/monitor/logininfor/unlock/${username}`,
@@ -25,7 +34,6 @@ export function fetchUnlockLoginInfor(username: string) {
   });
 }
 
-/** 清空系统访问记录 */
 export function fetchCleanLoginInfor() {
   return request<boolean>({
     url: '/monitor/logininfor/clean',

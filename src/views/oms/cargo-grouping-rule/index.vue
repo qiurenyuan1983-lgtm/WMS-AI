@@ -535,7 +535,7 @@ onMounted(async () => {
           <NButton v-if="hasRuleAuth('oms:cargoGroupingRule:test')" @click="testVisible = true">规则试算</NButton>
           <NButton v-if="hasRuleAuth('oms:cargoGroupingRule:add')" type="primary" @click="openDrawer()">新增规则</NButton>
           <NButton @click="handleReset">重置</NButton>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
         </NSpace>
       </div>
       <NForm v-show="!searchCollapsed" inline label-placement="left" :show-feedback="false" class="mt-14px">
@@ -743,7 +743,7 @@ onMounted(async () => {
         </NFormItem>
         <NGrid :cols="2" :x-gap="16">
           <NGridItem>
-            <NFormItem label="货物订单ID">
+            <NFormItem label="订单ID">
               <NInput v-model:value="(testForm as any).cargoOrderId" clearable placeholder="可选，填了则优先查库" />
             </NFormItem>
           </NGridItem>

@@ -142,7 +142,7 @@ onActivated(getData);
 <template>
   <div class="h-full flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="仓库">
           <NSelect
             v-model:value="searchParams.warehouseId"
@@ -160,11 +160,11 @@ onActivated(getData);
           <NInput v-model:value="searchParams.containerStatus" clearable placeholder="状态编码" class="w-130px" />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
           <NButton class="ml-8px" @click="handleReset">重置</NButton>
         </NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
 
     <NCard :bordered="false" class="flex-1 card-wrapper overflow-hidden">
       <div class="mb-12px"></div>

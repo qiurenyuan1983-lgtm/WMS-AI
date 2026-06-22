@@ -23,6 +23,7 @@ import {
   fetchGetPlatformAppointmentInboundLines,
   fetchGetPlatformAppointmentPreOutboundLines
 } from '@/service/api/oms/platform-appointment';
+import SupplierQuoteRecommendField from '../../shared/modules/supplier-quote-recommend-field.vue';
 
 defineOptions({ name: 'PlatformAppointmentCreateOutboundModal' });
 
@@ -73,6 +74,17 @@ const deliveryForm = reactive({
   transferWarehouseCode: '',
   remark: ''
 });
+
+const preOutboundSupplierId = ref<CommonType.IdType | null>(null);
+const preOutboundSupplierQuoteId = ref<CommonType.IdType | null>(null);
+const preOutboundRecommendedSupplierId = ref<CommonType.IdType | null>(null);
+
+const supplierRecommendContext = computed(() => ({
+  destination: deliveryForm.destination,
+  warehouseName: null,
+  transportType: deliveryForm.transportType,
+  loadingType: deliveryForm.loadingType
+}));
 
 const detailLabel = computed(() => {
   if (isPreOutbound.value) {
@@ -136,6 +148,9 @@ function resetForm(row: Api.Oms.PlatformAppointment) {
   deliveryForm.deliveryCost = null;
   deliveryForm.followRecord = '';
   deliveryForm.transferWarehouseCode = '';
+  preOutboundSupplierId.value = null;
+  preOutboundSupplierQuoteId.value = null;
+  preOutboundRecommendedSupplierId.value = null;
 }
 
 async function loadDetailLines() {
@@ -165,7 +180,13 @@ async function handleConfirm() {
     return;
   }
   submitting.value = true;
-  const payload = { ...deliveryForm, preOutboundFilter: props.preOutboundFilter };
+  const payload = {
+    ...deliveryForm,
+    preOutboundFilter: props.preOutboundFilter,
+    supplierId: preOutboundSupplierId.value,
+    supplierQuoteId: preOutboundSupplierQuoteId.value,
+    recommendedSupplierId: preOutboundRecommendedSupplierId.value
+  };
   const { data, error } = isPreOutbound.value
     ? await fetchCreatePlatformAppointmentPreOutbound(appointment.value.id, payload)
     : await fetchCreatePlatformAppointmentOutbound(appointment.value.id, payload);
@@ -265,9 +286,18 @@ watch(visible, val => {
           <NFormItem label="* 预约方">
             <NRadioGroup v-model:value="deliveryForm.appointmentType">
               <NRadioButton value="SELF">自有约</NRadioButton>
-              <NRadioButton value="SUPPLIER" disabled>供应商约</NRadioButton>
+              <NRadioButton value="SUPPLIER" :disabled="!isPreOutbound">供应商约</NRadioButton>
             </NRadioGroup>
           </NFormItem>
+          <SupplierQuoteRecommendField
+            v-if="isPreOutbound"
+            v-model:supplier-id="preOutboundSupplierId"
+            v-model:supplier-quote-id="preOutboundSupplierQuoteId"
+            v-model:recommended-supplier-id="preOutboundRecommendedSupplierId"
+            v-model:delivery-cost="deliveryForm.deliveryCost"
+            :context="supplierRecommendContext"
+            label="推荐供应商"
+          />
           <NFormItem label="派送成本">
             <NInputGroup>
               <NInputNumber v-model:value="deliveryForm.deliveryCost" class="w-full" :min="0" placeholder="请输入" />
@@ -319,7 +349,7 @@ watch(visible, val => {
             <thead>
               <tr>
                 <th v-if="isPreOutbound">状态</th>
-                <th>运单号</th>
+                <th>订单号</th>
                 <th>柜号</th>
                 <th>卡板号</th>
                 <th>库位</th>

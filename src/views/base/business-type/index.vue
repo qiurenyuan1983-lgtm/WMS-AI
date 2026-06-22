@@ -94,14 +94,14 @@ function handleReset() {
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="编码/名称"><NInput v-model:value="searchParams.keyword" clearable placeholder="业务类型编码或名称" class="w-180px" /></NFormItem>
         <NFormItem label="业务大类"><NSelect v-model:value="searchParams.businessCategory" :options="BUSINESS_CATEGORY_OPTIONS" clearable placeholder="全部" class="w-120px" /></NFormItem>
         <NFormItem label="流程类型"><NSelect v-model:value="searchParams.operationFlowType" :options="FLOW_OPTIONS" clearable placeholder="全部" class="w-120px" /></NFormItem>
         <NFormItem label="状态"><NSelect v-model:value="searchParams.status" :options="[{ label: '正常', value: '0' }, { label: '禁用', value: '1' }]" clearable placeholder="全部" class="w-100px" /></NFormItem>
-        <NFormItem><NButton type="primary" @click="handleSearch">查询</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
+        <NFormItem><NButton type="primary" @click="handleSearch">搜索</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
     <NCard title="业务类型管理" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
         <TableHeaderOperation v-model:columns="columnChecks" :disabled-delete="checkedRowKeys.length === 0" :loading="loading" :show-add="hasAuth('base:businessType:add')" :show-delete="hasAuth('base:businessType:remove')" :show-export="hasAuth('base:businessType:export')" @add="handleAdd" @delete="handleBatchDelete" @export="handleExport" @refresh="getData" />

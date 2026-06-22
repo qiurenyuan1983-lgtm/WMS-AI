@@ -90,15 +90,15 @@ function handleReset() {
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :bordered="false" size="small" class="card-wrapper">
-      <NForm inline label-placement="left" :show-feedback="false">
+      <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
         <NFormItem label="编码/名称"><NInput v-model:value="searchParams.keyword" clearable placeholder="服务编码或名称" class="w-160px" /></NFormItem>
         <NFormItem label="服务分类"><NSelect v-model:value="searchParams.serviceCategory" :options="SERVICE_CATEGORY_OPTIONS" clearable placeholder="全部" class="w-120px" /></NFormItem>
         <NFormItem label="是否收费"><NSelect v-model:value="searchParams.chargeableFlag" :options="[{ label: '是', value: '1' }, { label: '否', value: '0' }]" clearable placeholder="全部" class="w-100px" /></NFormItem>
         <NFormItem label="需要作业"><NSelect v-model:value="searchParams.operationRequired" :options="[{ label: '是', value: '1' }, { label: '否', value: '0' }]" clearable placeholder="全部" class="w-100px" /></NFormItem>
         <NFormItem label="状态"><NSelect v-model:value="searchParams.status" :options="[{ label: '正常', value: '0' }, { label: '禁用', value: '1' }]" clearable placeholder="全部" class="w-100px" /></NFormItem>
-        <NFormItem><NButton type="primary" @click="handleSearch">查询</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
+        <NFormItem><NButton type="primary" @click="handleSearch">搜索</NButton><NButton class="ml-8px" @click="handleReset">重置</NButton></NFormItem>
       </NForm>
-    </NCard>
+    </NCollapseItem></NCollapse></NCard>
     <NCard title="增值服务管理" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
         <TableHeaderOperation v-model:columns="columnChecks" :disabled-delete="checkedRowKeys.length === 0" :loading="loading" :show-add="hasAuth('base:vas:add')" :show-delete="hasAuth('base:vas:remove')" :show-export="hasAuth('base:vas:export')" @add="handleAdd" @delete="handleBatchDelete" @export="handleExport" @refresh="getData" />

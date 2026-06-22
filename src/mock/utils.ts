@@ -30,6 +30,8 @@ export function getBody(config: CustomAxiosRequestConfig): Record<string, any> {
   return data as Record<string, any>;
 }
 
+export { fuzzyIncludes, fuzzyKeyword, hasFuzzyKeyword, matchMultiValue } from './fuzzy-search';
+
 /** 分页列表数据 */
 export function mockPage<T extends Record<string, any>>(
   rows: T[],

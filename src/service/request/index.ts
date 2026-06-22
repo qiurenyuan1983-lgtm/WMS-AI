@@ -1,7 +1,7 @@
 import type { CustomAxiosRequestConfig } from '@sa/axios';
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { BACKEND_ERROR_CODE, REQUEST_CANCELED_CODE, createFlatRequest } from '@sa/axios';
-import { isMockMode, resolveMockResponse } from '@/mock';
+import { isMockMode } from '@/mock/enable';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg, sessionStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
@@ -182,10 +182,20 @@ const _realRequest = createFlatRequest(
   }
 );
 
+let resolveMockResponsePromise: Promise<typeof import('@/mock/handler').resolveMockResponse> | null = null;
+
+function loadResolveMockResponse() {
+  if (!resolveMockResponsePromise) {
+    resolveMockResponsePromise = import('@/mock/handler').then(mod => mod.resolveMockResponse);
+  }
+  return resolveMockResponsePromise;
+}
+
 /** 统一请求入口：原型模式下走 Mock，否则走真实后端 */
 export const request = (async (config: CustomAxiosRequestConfig) => {
   if (isMockMode()) {
     try {
+      const resolveMockResponse = await loadResolveMockResponse();
       const data = await resolveMockResponse(config);
       const responseType = config.responseType || 'json';
       if (responseType === 'blob' || responseType === 'arraybuffer') {

@@ -42,7 +42,7 @@ async function search() {
 </script>
 
 <template>
-  <NForm ref="formRef" :model="model" label-placement="left" :label-width="80">
+  <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm ref="formRef" :model="model" label-placement="left" :label-width="80">
     <NGrid responsive="screen" item-responsive>
       <NFormItemGi span="24 s:12" label="数据源" label-width="auto" path="dataName" class="pr-24px">
         <NSelect v-model:value="model.dataName" :options="options" placeholder="请选择数据源" />
@@ -70,7 +70,7 @@ async function search() {
         </NSpace>
       </NFormItemGi>
     </NGrid>
-  </NForm>
+  </NForm></NCollapseItem></NCollapse>
 </template>
 
 <style scoped></style>

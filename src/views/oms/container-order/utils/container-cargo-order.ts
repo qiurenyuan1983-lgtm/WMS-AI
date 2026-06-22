@@ -1,7 +1,8 @@
 import { jsonClone } from '@sa/utils';
+import { applyShippingMarkRule, resolveShippingMarkFromOrder } from '@/utils/oms/shipping-mark';
 import type { ContainerCargoOrderDraftRow } from './container-cargo-order-display';
 
-/** 海柜上下文下创建/编辑货物订单的默认值来源 */
+/** 海柜上下文下创建/编辑订单的默认值来源 */
 export type ContainerCargoDefaults = {
   customerId?: CommonType.IdType | null;
   customerName?: string | null;
@@ -22,7 +23,7 @@ export function isByPallet(cargo?: Pick<Api.Oms.ContainerCargoOrderForm, 'foreca
   return cargo?.forecastQtyUnit === 'BY_PALLET';
 }
 
-/** 根据关联货物订单的下单计量推断海柜装载类型 */
+/** 根据关联订单的下单计量推断海柜装载类型 */
 export function resolveLoadingTypeFromCargoOrders(
   cargoOrders?: Api.Oms.ContainerCargoOrderForm[] | null
 ): 'FLOOR' | 'PALLET' | 'MIXED' | null {
@@ -161,6 +162,7 @@ export function createDefaultContainerCargoOrder(
     contactEmail: null,
     transferFlag: 0,
     transferWarehouseCode: null,
+    transferOutboundWarehouseCode: null,
     forecastQtyUnit: 'BY_CARTON',
     declaredCartonQty: null,
     declaredPalletQty: null,
@@ -212,10 +214,12 @@ export function normalizeCargoOrderFromVo(item: Api.Oms.CargoOrder): Api.Oms.Con
     dwTime: normalizeDatePickerDateTime(shipment.dwTime),
     remark: shipment.remark ?? null
   }));
-  return {
+  const form = {
     ...(jsonClone(item) as Api.Oms.ContainerCargoOrderForm),
     shipments: shipments.length ? shipments : [createDefaultShipment()]
   };
+  applyShippingMarkRule(form);
+  return form;
 }
 
 function joinDistinct(values: Array<string | null | undefined>) {
@@ -227,13 +231,39 @@ function joinDistinct(values: Array<string | null | undefined>) {
   return [...set].join(', ') || null;
 }
 
-/** 同步表格展示字段（货件汇总、预报量等），与详情列表 VO 对齐 */
+type ShipmentFbaSkuSource = {
+  shipmentNo?: string | null;
+  skuItems?: Array<{ sku?: string | null }> | null;
+  skuSummary?: string | null;
+};
+
+/** 单货件 FBA/SKU 展示：FBA18xxx / SKU-A, SKU-B */
+export function buildFbaSkuLine(shipment: ShipmentFbaSkuSource): string | null {
+  const fba = shipment.shipmentNo?.trim();
+  if (!fba) return null;
+  const skuFromItems = (shipment.skuItems || [])
+    .map(item => item.sku?.trim())
+    .filter(Boolean)
+    .join(', ');
+  const skus = skuFromItems || shipment.skuSummary?.trim();
+  return skus ? `${fba} / ${skus}` : fba;
+}
+
+/** 订单列表 FBA/SKU 汇总 */
+export function buildFbaSkuSummary(shipments: ShipmentFbaSkuSource[]): string | null {
+  const lines = shipments.map(buildFbaSkuLine).filter((line): line is string => Boolean(line));
+  return lines.length ? lines.join('; ') : null;
+}
+
+/** 同步表格展示字段（FBA/SKU 汇总、预报量等），与详情列表 VO 对齐 */
 export function syncCargoOrderTableFields(cargo: ContainerCargoOrderDraftRow) {
   summarizeCargoOrderForm(cargo);
+  applyShippingMarkRule(cargo);
   const shipments = (cargo.shipments || []).filter(item => item.shipmentNo?.trim());
-  cargo.shipmentCodes = joinDistinct(shipments.map(item => item.shipmentNo));
+  cargo.shipmentCodes = buildFbaSkuSummary(shipments);
   cargo.poNos = joinDistinct(shipments.map(item => item.poNo));
-  cargo.marks = joinDistinct(shipments.map(item => item.shippingMark));
+  const orderMark = resolveShippingMarkFromOrder(cargo);
+  cargo.marks = orderMark || joinDistinct(shipments.map(item => item.shippingMark));
   const dwTimes = shipments.map(item => item.dwTime).filter(Boolean) as string[];
   cargo.earliestDwTime = dwTimes.length ? dwTimes.sort()[0] : null;
 }
@@ -262,13 +292,15 @@ export function summarizeCargoOrderForm(cargo: Api.Oms.ContainerCargoOrderForm) 
 /** 提交前转为后端 CargoOrderBo 结构 */
 export function toApiCargoOrder(cargo: Api.Oms.ContainerCargoOrderForm): Api.Oms.ContainerCargoOrderForm {
   summarizeCargoOrderForm(cargo);
+  applyShippingMarkRule(cargo);
+  const orderMark = resolveShippingMarkFromOrder(cargo);
   const shipments = (cargo.shipments || [])
     .filter(item => item.shipmentNo?.trim())
     .map(item => ({
       id: item.id ?? null,
       shipmentNo: item.shipmentNo?.trim() || null,
       poNo: item.poNo?.trim() || null,
-      shippingMark: item.shippingMark?.trim() || null,
+      shippingMark: orderMark || item.shippingMark?.trim() || null,
       cartonQty: item.cartonQty ?? null,
       palletQty: item.palletQty ?? null,
       weight: item.weight ?? null,

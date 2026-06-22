@@ -1,193 +1,159 @@
 <script setup lang="tsx">
-import { computed, ref } from 'vue';
-import { NAvatar, NButton, NDivider, NEllipsis } from 'naive-ui';
-import { useBoolean, useLoading } from '@sa/hooks';
+import { ref } from 'vue';
+import { NAvatar, NButton, NDivider, NEllipsis, NTag } from 'naive-ui';
+import { useBoolean } from '@sa/hooks';
 import { jsonClone } from '@sa/utils';
-import { fetchBatchDeleteUser, fetchGetDeptTree, fetchGetUserList, fetchUpdateUserStatus } from '@/service/api/system';
+import { fetchBatchDeleteUser, fetchGetUserList, fetchUpdateUserStatus } from '@/service/api/system';
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
 import { useDict } from '@/hooks/business/dict';
 import { useAuth } from '@/hooks/business/auth';
 import { useDownload } from '@/hooks/business/download';
 import ButtonIcon from '@/components/custom/button-icon.vue';
-import { $t } from '@/locales';
 import StatusSwitch from '@/components/custom/status-switch.vue';
-import DictTag from '@/components/custom/dict-tag.vue';
 import UserOperateDrawer from './modules/user-operate-drawer.vue';
 import UserImportModal from './modules/user-import-modal.vue';
 import UserPasswordDrawer from './modules/user-password-drawer.vue';
-import UserSearch from './modules/user-search.vue';
+import UserWorkbenchSearch from './modules/user-workbench-search.vue';
+import UserOrgSidebar, { type OrgSidebarTab } from './modules/user-org-sidebar.vue';
+import UserPermissionPanel from './modules/user-permission-panel.vue';
+import UserAuditLogPanel from './modules/user-audit-log-panel.vue';
+import { useUserWorkbenchOptions } from './modules/use-user-workbench-options';
 
-defineOptions({
-  name: 'UserList'
-});
+defineOptions({ name: 'UserList' });
 
-useDict('sys_user_sex');
 useDict('sys_normal_disable');
 
 const { hasAuth } = useAuth();
 const appStore = useAppStore();
 const { download } = useDownload();
+const { options: workbenchOptions, loading: workbenchOptionsLoading, ensureLoaded } = useUserWorkbenchOptions();
+
+ensureLoaded();
 
 const { bool: importVisible, setTrue: openImportModal } = useBoolean();
 const { bool: passwordVisible, setTrue: openPasswordDrawer } = useBoolean();
 
-const searchParams = ref<Api.System.UserSearchParams>({
+type UserRow = Api.System.User & {
+  roleNames?: string[];
+  postName?: string;
+  warehouseLabel?: string;
+  accountTypeLabel?: string;
+  lastLoginTime?: string;
+};
+
+const workbenchSearch = ref({
+  keyword: null as string | null,
+  deptId: null as CommonType.IdType | null,
+  warehouseId: null as CommonType.IdType | null,
+  roleId: null as CommonType.IdType | null,
+  accountType: null as string | null,
+  status: null as Api.Common.EnableStatus | null
+});
+
+const searchParams = ref<Record<string, any>>({
   pageNum: 1,
   pageSize: 10,
   deptId: null,
-  userName: null,
-  nickName: null,
-  phonenumber: null,
   status: null,
   params: {}
 });
 
-const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagination, scrollX } =
+const selectedUser = ref<UserRow | null>(null);
+
+function syncSearchParams() {
+  searchParams.value = {
+    ...searchParams.value,
+    deptId: workbenchSearch.value.deptId,
+    warehouseId: workbenchSearch.value.warehouseId,
+    roleId: workbenchSearch.value.roleId,
+    accountType: workbenchSearch.value.accountType,
+    status: workbenchSearch.value.status,
+    keyword: workbenchSearch.value.keyword
+  };
+}
+
+const { columns, data, getData, getDataByPage, loading, mobilePagination, scrollX } =
   useNaivePaginatedTable({
-    api: () => fetchGetUserList(searchParams.value),
+    api: () => {
+      syncSearchParams();
+      return fetchGetUserList(searchParams.value as Api.System.UserSearchParams);
+    },
     transform: response => defaultTransform(response),
     onPaginationParamsChange: params => {
       searchParams.value.pageNum = params.page;
       searchParams.value.pageSize = params.pageSize;
     },
     columns: () => [
-      {
-        type: 'selection',
-        align: 'center',
-        width: 48
-      },
+      { type: 'selection', align: 'center', width: 48 },
       {
         key: 'userName',
-        title: $t('page.system.user.userName'),
+        title: '用户名',
         align: 'left',
-        width: 220,
-        ellipsis: true,
-        render: row => {
-          return (
-            <div class="flex items-center justify-center gap-2">
-              <NAvatar src={row.avatar} class="bg-primary">
-                {row.avatar ? undefined : row.nickName.charAt(0)}
-              </NAvatar>
-              <div class="max-w-160px flex flex-col">
-                <NEllipsis>{row.userName}</NEllipsis>
-                <NEllipsis>{row.nickName}</NEllipsis>
-              </div>
+        width: 200,
+        render: row => (
+          <div class="flex items-center gap-8px cursor-pointer" onClick={() => selectUser(row)}>
+            <NAvatar src={row.avatar} class="bg-primary shrink-0" size="small">
+              {row.avatar ? undefined : row.nickName?.charAt(0)}
+            </NAvatar>
+            <div class="min-w-0">
+              <NEllipsis class="text-13px font-500">{row.userName}</NEllipsis>
+              <NEllipsis class="text-12px text-gray">{row.nickName}</NEllipsis>
             </div>
-          );
-        }
+          </div>
+        )
       },
+      { key: 'nickName', title: '姓名', width: 100, ellipsis: true },
+      { key: 'deptName', title: '部门', width: 100, ellipsis: true },
+      { key: 'postName', title: '岗位', width: 100, ellipsis: true },
       {
-        key: 'sex',
-        title: $t('page.system.user.sex'),
-        align: 'center',
-        width: 80,
-        ellipsis: true,
-        render(row) {
-          return <DictTag value={row.sex} dictCode="sys_user_sex" />;
-        }
+        key: 'roleNames',
+        title: '角色',
+        width: 160,
+        render: row => (
+          <div class="flex flex-wrap gap-4px justify-center">
+            {(row.roleNames || []).map((name: string) => (
+              <NTag size="small" type={name.includes('超级') ? 'error' : 'info'} bordered={false}>
+                {name}
+              </NTag>
+            ))}
+          </div>
+        )
       },
-      {
-        key: 'deptName',
-        title: $t('page.system.user.deptName'),
-        align: 'center',
-        width: 120,
-        ellipsis: true
-      },
-      {
-        key: 'email',
-        title: $t('page.system.user.email'),
-        align: 'center',
-        width: 120,
-        ellipsis: true
-      },
-      {
-        key: 'phonenumber',
-        title: $t('page.system.user.phonenumber'),
-        align: 'center',
-        width: 120,
-        ellipsis: true
-      },
+      { key: 'warehouseLabel', title: '仓库', width: 120, ellipsis: true },
+      { key: 'accountTypeLabel', title: '账号类型', width: 100, ellipsis: true },
       {
         key: 'status',
-        title: $t('page.system.user.status'),
-        align: 'center',
+        title: '状态',
         width: 80,
-        render(row) {
-          return (
-            <StatusSwitch
-              v-model:value={row.status}
-              disabled={row.userId === 1}
-              info={row.userName}
-              onSubmitted={(value, callback) => handleStatusChange(row, value, callback)}
-            />
-          );
-        }
-      },
-      {
-        key: 'createTime',
-        title: $t('page.system.user.createTime'),
         align: 'center',
-        width: 120
+        render: row => (
+          <StatusSwitch
+            v-model:value={row.status}
+            disabled={row.userId === 1}
+            info={row.userName}
+            onSubmitted={(value, callback) => handleStatusChange(row, value, callback)}
+          />
+        )
       },
+      { key: 'lastLoginTime', title: '最后登录', width: 150, ellipsis: true },
       {
         key: 'operate',
-        title: $t('common.operate'),
+        title: '操作',
+        width: 140,
         align: 'center',
-        width: 150,
+        fixed: 'right',
         render: row => {
           if (row.userId === 1) return null;
-
-          const editBtn = () => {
-            return (
-              <ButtonIcon
-                text
-                type="primary"
-                icon="material-symbols:drive-file-rename-outline-outline"
-                tooltipContent={$t('common.edit')}
-                onClick={() => edit(row.userId)}
-              />
-            );
-          };
-
-          const passwordBtn = () => {
-            return (
-              <ButtonIcon
-                text
-                type="primary"
-                icon="material-symbols:key-vertical-outline"
-                tooltipContent="重置密码"
-                onClick={() => handleResetPwd(row.userId)}
-              />
-            );
-          };
-
-          const deleteBtn = () => {
-            return (
-              <ButtonIcon
-                text
-                type="error"
-                icon="material-symbols:delete-outline"
-                tooltipContent={$t('common.delete')}
-                popconfirmContent={$t('common.confirmDelete')}
-                onPositiveClick={() => handleDelete(row.userId)}
-              />
-            );
-          };
-
-          const buttons = [];
-          if (hasAuth('system:user:edit')) buttons.push(editBtn());
-          if (hasAuth('system:user:resetPwd')) buttons.push(passwordBtn());
-          if (hasAuth('system:user:remove')) buttons.push(deleteBtn());
-
           return (
-            <div class="flex-center gap-8px">
-              {buttons.map((btn, index) => (
-                <>
-                  {index !== 0 && <NDivider vertical />}
-                  {btn}
-                </>
-              ))}
+            <div class="flex-center gap-4px">
+              <ButtonIcon text type="primary" icon="material-symbols:drive-file-rename-outline-outline" tooltipContent="编辑" onClick={() => edit(row.userId)} />
+              <NDivider vertical />
+              <ButtonIcon text type="info" icon="material-symbols:account-tree-outline" tooltipContent="权限图谱" onClick={() => selectUser(row)} />
+              <NDivider vertical />
+              <ButtonIcon text type="primary" icon="material-symbols:key-vertical-outline" tooltipContent="重置密码" onClick={() => handleResetPwd(row.userId)} />
+              <NDivider vertical />
+              <ButtonIcon text type="error" icon="material-symbols:delete-outline" tooltipContent="删除" popconfirmContent="确认删除？" onPositiveClick={() => handleDelete(row.userId)} />
             </div>
           );
         }
@@ -198,245 +164,201 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
 const { drawerVisible, operateType, editingData, handleAdd, handleEdit, checkedRowKeys, onBatchDeleted, onDeleted } =
   useTableOperate(data, 'userId', getData);
 
+function selectUser(row: UserRow) {
+  selectedUser.value = row;
+}
+
+function handleOrgSelect(payload: { tab: OrgSidebarTab; key: string | null }) {
+  workbenchSearch.value.deptId = null;
+  workbenchSearch.value.warehouseId = null;
+  workbenchSearch.value.roleId = null;
+  workbenchSearch.value.accountType = null;
+  searchParams.value.postId = null;
+
+  if (!payload.key) {
+    getDataByPage();
+    return;
+  }
+  if (payload.tab === 'dept') workbenchSearch.value.deptId = payload.key;
+  if (payload.tab === 'warehouse') workbenchSearch.value.warehouseId = payload.key;
+  if (payload.tab === 'post') searchParams.value.postId = payload.key;
+  if (payload.tab === 'accountType') workbenchSearch.value.accountType = payload.key;
+  getDataByPage();
+}
+
+function handleSearch() {
+  getDataByPage();
+}
+
+function handleResetSearch() {
+  workbenchSearch.value.deptId = null;
+  searchParams.value.postId = null;
+  selectedUser.value = null;
+  getDataByPage();
+}
+
 async function handleBatchDelete() {
-  // request
   const { error } = await fetchBatchDeleteUser(checkedRowKeys.value);
   if (error) return;
   onBatchDeleted();
+  selectedUser.value = null;
 }
 
 async function handleDelete(userId: CommonType.IdType) {
-  // request
   const { error } = await fetchBatchDeleteUser([userId]);
   if (error) return;
   onDeleted();
+  if (String(selectedUser.value?.userId) === String(userId)) selectedUser.value = null;
 }
 
-async function edit(userId: CommonType.IdType) {
+function edit(userId: CommonType.IdType) {
   handleEdit(userId);
 }
 
-async function handleResetPwd(userId: CommonType.IdType) {
+function handleResetPwd(userId: CommonType.IdType) {
   const findItem = data.value.find(item => item.userId === userId) || null;
   editingData.value = jsonClone(findItem);
   openPasswordDrawer();
 }
 
-const { loading: treeLoading, startLoading: startTreeLoading, endLoading: endTreeLoading } = useLoading();
-const deptPattern = ref<string>();
-const deptData = ref<Api.Common.CommonTreeRecord>([]);
-const selectedKeys = ref<string[]>([]);
-
-async function getTreeData() {
-  startTreeLoading();
-  const { data: tree, error } = await fetchGetDeptTree();
-  if (!error) {
-    deptData.value = tree;
-  }
-  endTreeLoading();
+function handlePanelResetPwd() {
+  if (!selectedUser.value) return;
+  handleResetPwd(selectedUser.value.userId);
 }
 
-getTreeData();
-
-function handleClickTree(keys: string[]) {
-  searchParams.value.deptId = keys.length ? keys[0] : null;
-  checkedRowKeys.value = [];
-  getDataByPage();
-}
-
-function handleResetTreeData() {
-  deptPattern.value = undefined;
-  getTreeData();
-}
-
-function handleImport() {
-  openImportModal();
-}
-
-/** 处理状态切换 */
-async function handleStatusChange(
-  row: Api.System.User,
-  value: Api.Common.EnableStatus,
-  callback: (flag: boolean) => void
-) {
-  const { error } = await fetchUpdateUserStatus({
-    userId: row.userId,
-    status: value
-  });
-
+async function handleStatusChange(row: Api.System.User, value: Api.Common.EnableStatus, callback: (flag: boolean) => void) {
+  const { error } = await fetchUpdateUserStatus({ userId: row.userId, status: value });
   callback(!error);
-
   if (!error) {
-    window.$message?.success($t('page.system.user.statusChangeSuccess'));
+    window.$message?.success('状态更新成功');
     getData();
   }
 }
 
 function handleExport() {
-  download('/system/user/export', searchParams.value, `${$t('page.system.user.title')}_${new Date().getTime()}.xlsx`);
+  syncSearchParams();
+  download('/system/user/export', searchParams.value, `用户与权限_${Date.now()}.xlsx`);
 }
 
-const expandedKeys = ref<CommonType.IdType[]>([100]);
+function handleBatchAction(action: string) {
+  window.$message?.info(`原型：${action}`);
+}
 
-const selectable = computed(() => {
-  return !loading.value;
-});
-
-function handleResetSearch() {
-  selectedKeys.value = [];
-  getDataByPage();
+function handleRowClick(_e: MouseEvent, row: UserRow) {
+  selectUser(row);
 }
 </script>
 
 <template>
-  <TableSiderLayout :sider-title="$t('page.system.dept.title')">
-    <template #header-extra>
-      <NButton size="small" text class="h-18px" @click.stop="() => handleResetTreeData()">
-        <template #icon>
-          <SvgIcon icon="ic:round-refresh" />
-        </template>
-      </NButton>
-    </template>
-    <template #sider>
-      <NInput v-model:value="deptPattern" clearable :placeholder="$t('common.keywordSearch')" />
-      <NSpin class="dept-tree" :show="treeLoading">
-        <NTree
-          v-model:expanded-keys="expandedKeys"
-          v-model:selected-keys="selectedKeys"
-          block-node
-          show-line
-          :data="deptData as []"
-          :show-irrelevant-nodes="false"
-          :pattern="deptPattern"
-          class="infinite-scroll h-full min-h-200px py-3"
-          key-field="id"
-          label-field="label"
-          virtual-scroll
-          :selectable="selectable"
-          @update:selected-keys="handleClickTree"
-        >
-          <template #empty>
-            <NEmpty :description="$t('page.system.dept.empty')" class="h-full min-h-200px justify-center" />
-          </template>
-        </NTree>
-      </NSpin>
-    </template>
-    <div class="h-full flex-col-stretch gap-12px overflow-hidden lt-sm:overflow-auto">
-      <UserSearch v-model:model="searchParams" @reset="handleResetSearch" @search="getDataByPage" />
-      <TableRowCheckAlert v-model:checked-row-keys="checkedRowKeys" />
-      <NCard :title="$t('page.system.user.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
-        <template #header-extra>
-          <TableHeaderOperation
-            v-model:columns="columnChecks"
-            :disabled-delete="checkedRowKeys.length === 0"
+  <div class="user-workbench min-h-500px flex-col-stretch gap-12px overflow-hidden">
+    <UserWorkbenchSearch
+      v-model:model="workbenchSearch"
+      :role-options="workbenchOptions.roleOptions"
+      @search="handleSearch"
+      @reset="handleResetSearch"
+    />
+
+    <div class="workbench-main min-h-0 flex flex-1 gap-12px overflow-hidden">
+      <UserOrgSidebar
+        :dept-data="workbenchOptions.deptData"
+        :post-options="workbenchOptions.postOptions"
+        :options-loading="workbenchOptionsLoading"
+        @select="handleOrgSelect"
+      />
+
+      <div class="center-column min-w-0 flex-col-stretch flex-1 gap-12px overflow-hidden">
+        <NCard :bordered="false" size="small" class="user-list-card card-wrapper flex-1-hidden">
+          <div class="mb-8px flex flex-wrap gap-8px">
+            <NButton v-if="hasAuth('system:user:add')" type="primary" size="small" @click="handleAdd">新增用户</NButton>
+            <NButton v-if="hasAuth('system:user:import')" type="success" size="small" ghost @click="openImportModal">批量导入</NButton>
+            <NButton size="small" type="info" ghost @click="handleBatchAction('批量分配角色')">批量分配角色</NButton>
+            <NButton size="small" type="info" ghost @click="handleBatchAction('批量设置仓库权限')">批量设置仓库权限</NButton>
+            <NButton size="small" type="warning" ghost @click="handleBatchAction('批量停用')">批量停用</NButton>
+            <NButton
+              v-if="hasAuth('system:user:remove')"
+              size="small"
+              type="error"
+              ghost
+              :disabled="checkedRowKeys.length === 0"
+              @click="handleBatchDelete"
+            >
+              批量删除
+            </NButton>
+            <NButton size="small" ghost @click="handleBatchAction('重置密码')">重置密码</NButton>
+            <NDivider vertical class="mx-4px h-24px" />
+            <NButton v-if="hasAuth('system:user:export')" size="small" ghost @click="handleExport">导出</NButton>
+            <NButton size="small" ghost @click="handleBatchAction('列设置')">列设置</NButton>
+            <NButton size="small" ghost @click="handleBatchAction('权限模板')">权限模板</NButton>
+          </div>
+
+          <NDataTable
+            v-model:checked-row-keys="checkedRowKeys"
+            :columns="columns"
+            :data="data"
+            size="small"
+            :flex-height="!appStore.isMobile"
+            :scroll-x="scrollX"
             :loading="loading"
-            :show-add="hasAuth('system:user:add')"
-            :show-delete="hasAuth('system:user:remove')"
-            :show-export="hasAuth('system:user:export')"
-            @add="handleAdd"
-            @delete="handleBatchDelete"
-            @export="handleExport"
-            @refresh="getData"
-          >
-            <template #after>
-              <NButton v-if="hasAuth('system:user:import')" size="small" ghost @click="handleImport">
-                <template #icon>
-                  <icon-material-symbols-upload-rounded class="text-icon" />
-                </template>
-                {{ $t('common.import') }}
-              </NButton>
-            </template>
-          </TableHeaderOperation>
-        </template>
-        <NDataTable
-          v-model:checked-row-keys="checkedRowKeys"
-          :columns="columns"
-          :data="data"
-          size="small"
-          :flex-height="!appStore.isMobile"
-          :scroll-x="scrollX"
-          :loading="loading"
-          remote
-          :row-key="row => row.userId"
-          :pagination="mobilePagination"
-          class="h-full"
-        />
-        <UserImportModal v-model:visible="importVisible" @submitted="getData" />
-        <UserOperateDrawer
-          v-model:visible="drawerVisible"
-          :operate-type="operateType"
-          :row-data="editingData"
-          :dept-data="deptData"
-          :dept-id="searchParams.deptId"
-          @submitted="getDataByPage"
-        />
-        <UserPasswordDrawer v-model:visible="passwordVisible" :row-data="editingData" />
-      </NCard>
+            remote
+            :row-key="row => row.userId"
+            :pagination="mobilePagination"
+            :row-props="row => ({ style: selectedUser?.userId === row.userId ? 'background: rgb(var(--primary-color) / 0.06)' : '' })"
+            class="user-table h-full"
+            @row-click="handleRowClick"
+          />
+        </NCard>
+
+        <UserAuditLogPanel :selected-user-id="selectedUser?.userId" />
+      </div>
+
+      <UserPermissionPanel
+        :user="selectedUser"
+        :dept-data="workbenchOptions.deptData"
+        :post-options="workbenchOptions.postOptions"
+        @saved="getData"
+        @reset-password="handlePanelResetPwd"
+        @copy-permissions="handleBatchAction('复制权限')"
+      />
     </div>
-  </TableSiderLayout>
+
+    <UserImportModal v-model:visible="importVisible" @submitted="getData" />
+    <UserOperateDrawer
+      v-model:visible="drawerVisible"
+      :operate-type="operateType"
+      :row-data="editingData"
+      :dept-data="workbenchOptions.deptData"
+      :dept-id="workbenchSearch.deptId"
+      @submitted="getDataByPage"
+    />
+    <UserPasswordDrawer v-model:visible="passwordVisible" :row-data="editingData" />
+  </div>
 </template>
 
 <style scoped lang="scss">
-.dept-tree {
-  .n-button {
-    --n-padding: 8px !important;
-  }
+.user-workbench {
+  height: calc(100vh - 120px - var(--calc-footer-height, 0px));
+}
 
-  :deep(.n-tree__empty) {
+.center-column {
+  min-height: 0;
+}
+
+.user-list-card {
+  :deep(.n-card__content) {
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    justify-content: center;
+    min-height: 0;
   }
+}
 
-  :deep(.n-spin-content) {
+.user-table {
+  min-height: 240px;
+
+  :deep(.n-data-table-wrapper),
+  :deep(.n-data-table-base-table),
+  :deep(.n-data-table-base-table-body) {
     height: 100%;
   }
-
-  :deep(.infinite-scroll) {
-    height: calc(100vh - 228px - var(--calc-footer-height, 0px)) !important;
-    max-height: calc(100vh - 228px - var(--calc-footer-height, 0px)) !important;
-  }
-
-  @media screen and (max-width: 1024px) {
-    :deep(.infinite-scroll) {
-      height: calc(100vh - 227px - var(--calc-footer-height, 0px)) !important;
-      max-height: calc(100vh - 227px - var(--calc-footer-height, 0px)) !important;
-    }
-  }
-
-  :deep(.n-tree-node) {
-    height: 30px;
-  }
-
-  :deep(.n-tree-node-switcher) {
-    height: 30px;
-  }
-
-  :deep(.n-tree-node-switcher__icon) {
-    font-size: 16px !important;
-    height: 16px !important;
-    width: 16px !important;
-  }
-}
-
-:deep(.n-data-table-wrapper),
-:deep(.n-data-table-base-table),
-:deep(.n-data-table-base-table-body) {
-  height: 100%;
-}
-
-@media screen and (max-width: 800px) {
-  :deep(.n-data-table-base-table-body) {
-    max-height: calc(100vh - 400px - var(--calc-footer-height, 0px));
-  }
-}
-
-@media screen and (max-width: 802px) {
-  :deep(.n-data-table-base-table-body) {
-    max-height: calc(100vh - 473px - var(--calc-footer-height, 0px));
-  }
-}
-
-:deep(.n-card-header__main) {
-  min-width: 69px !important;
 }
 </style>

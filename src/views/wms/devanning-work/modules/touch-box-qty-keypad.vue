@@ -6,6 +6,7 @@ defineOptions({ name: 'TouchBoxQtyKeypad' });
 const props = defineProps<{
   max?: number;
   disabled?: boolean;
+  allowDecimal?: boolean;
 }>();
 
 const model = defineModel<number | null>({ default: null });
@@ -15,27 +16,42 @@ const draft = ref('');
 const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 function syncDraftFromModel() {
-  draft.value = model.value != null && model.value > 0 ? String(model.value) : '';
+  if (model.value == null || (typeof model.value === 'number' && Number.isNaN(model.value))) {
+    draft.value = '';
+    return;
+  }
+  draft.value = String(model.value);
 }
 
 function emitModel() {
-  if (!draft.value) {
+  if (!draft.value || draft.value === '.') {
     model.value = null;
     return;
   }
   const num = Number(draft.value);
-  model.value = num > 0 ? num : null;
+  if (Number.isNaN(num) || num <= 0) {
+    model.value = null;
+    return;
+  }
+  if (props.max != null && props.max > 0 && num > props.max) {
+    model.value = props.max;
+    draft.value = String(props.max);
+    return;
+  }
+  model.value = num;
 }
 
 function appendDigit(digit: string) {
   if (props.disabled) return;
-  const next = `${draft.value}${digit}`.replace(/^0+(?=\d)/, '');
-  const num = Number(next);
-  if (props.max != null && props.max > 0 && num > props.max) {
-    draft.value = String(props.max);
-  } else {
-    draft.value = next;
+  if (digit === '.') {
+    if (!props.allowDecimal || draft.value.includes('.')) return;
+    draft.value = draft.value ? `${draft.value}.` : '0.';
+    return;
   }
+  const next = draft.value.includes('.')
+    ? `${draft.value}${digit}`
+    : `${draft.value}${digit}`.replace(/^0+(?=\d)/, '');
+  draft.value = next;
   emitModel();
 }
 
@@ -71,8 +87,19 @@ watch(
       >
         {{ key }}
       </button>
+    </div>
+    <div class="keypad-bottom" :class="{ 'keypad-bottom--decimal': allowDecimal }">
       <button type="button" class="keypad-key keypad-key-muted" :disabled="disabled" @click="handleBackspace">
         删
+      </button>
+      <button
+        v-if="allowDecimal"
+        type="button"
+        class="keypad-key"
+        :disabled="disabled"
+        @click="appendDigit('.')"
+      >
+        .
       </button>
       <button type="button" class="keypad-key" :disabled="disabled" @click="appendDigit('0')">0</button>
       <button type="button" class="keypad-key keypad-key-muted" :disabled="disabled" @click="handleClear">
@@ -84,7 +111,7 @@ watch(
 
 <style scoped>
 .inline-keypad {
-  margin-top: 8px;
+  width: 100%;
 }
 
 .inline-keypad-disabled {
@@ -95,11 +122,22 @@ watch(
 .keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 8px;
+}
+
+.keypad-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.keypad-bottom--decimal {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .keypad-key {
-  height: 40px;
+  height: 44px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f8fafc;

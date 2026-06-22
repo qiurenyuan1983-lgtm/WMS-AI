@@ -113,7 +113,7 @@ function handleReset() { searchParams.value = { pageNum: 1, pageSize: 20 }; getD
         <span>今日入场记录</span>
       </template>
       <template #header-extra>
-        <NForm inline label-placement="left" :show-feedback="false">
+        <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NForm inline label-placement="left" :show-feedback="false">
           <NFormItem label="车牌号">
             <NInput v-model:value="searchParams.plateNo" clearable placeholder="请输入车牌号" size="small" />
           </NFormItem>
@@ -127,10 +127,10 @@ function handleReset() { searchParams.value = { pageNum: 1, pageSize: 20 }; getD
             />
           </NFormItem>
           <NFormItem>
-            <NButton size="small" type="primary" @click="handleSearch">查询</NButton>
+            <NButton size="small" type="primary" @click="handleSearch">搜索</NButton>
             <NButton size="small" class="ml-8px" @click="handleReset">重置</NButton>
           </NFormItem>
-        </NForm>
+        </NForm></NCollapseItem></NCollapse>
       </template>
       <NDataTable
         :columns="columns" :data="data" :loading="loading"

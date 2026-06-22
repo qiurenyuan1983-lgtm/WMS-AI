@@ -7,3 +7,4 @@ export * from './role';
 export * from './org-scope';
 export * from './post';
 export * from './social';
+export * from './theme-config';

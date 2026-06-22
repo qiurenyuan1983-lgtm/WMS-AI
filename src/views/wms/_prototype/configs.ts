@@ -27,56 +27,6 @@ export type PrototypeListConfig = {
 };
 
 export const PROTOTYPE_LIST_CONFIGS: Record<string, PrototypeListConfig> = {
-  'inbound-order': {
-    title: '\u5165\u5e93\u5355\u5217\u8868\uff08\u6309\u5361\u677f\uff09',
-    mockKey: 'inbound-order',
-    statusDict: 'wms_inbound_status',
-    searchFields: [
-      { key: 'palletNo', label: '\u6258\u76d8\u53f7' },
-      { key: 'inboundNo', label: '\u5165\u5e93\u6279\u6b21' },
-      { key: 'containerNo', label: '\u67dc\u53f7' },
-      { key: 'groupCode', label: '\u5206\u7ec4' },
-      { key: 'customerName', label: '\u5ba2\u6237' },
-      { key: 'status', label: '\u72b6\u6001', type: 'select', options: [] }
-    ],
-    columns: [
-      { key: 'palletNo', title: '\u6258\u76d8\u53f7', width: 150 },
-      { key: 'inboundNo', title: '\u5165\u5e93\u6279\u6b21', width: 140 },
-      { key: 'containerNo', title: '\u67dc\u53f7', width: 130 },
-      { key: 'groupCode', title: '\u5206\u7ec4', width: 100 },
-      { key: 'customerName', title: '\u5ba2\u6237', width: 110 },
-      { key: 'boxQty', title: '\u7bb1\u6570', width: 72 },
-      { key: 'recommendLocation', title: '\u63a8\u8350\u5e93\u4f4d', width: 100 },
-      { key: 'status', title: '\u72b6\u6001', width: 100, dictKey: 'wms_inbound_status', tag: true },
-      { key: 'createTime', title: '\u521b\u5efa\u65f6\u95f4', width: 160 }
-    ],
-    toolbarButtons: ['\u5bfc\u51fa'],
-    rowButtons: ['\u5361\u677f\u5165\u5e93', '\u67e5\u770b']
-  },
-  'putaway-task': {
-    title: '\u4e0a\u67b6\u4efb\u52a1\u5217\u8868',
-    mockKey: 'putaway-task',
-    statusDict: 'wms_putaway_status',
-    searchFields: [
-      { key: 'taskNo', label: '\u4efb\u52a1\u53f7' },
-      { key: 'containerNo', label: '\u67dc\u53f7' },
-      { key: 'customerName', label: '\u5ba2\u6237' },
-      { key: 'status', label: '\u72b6\u6001', type: 'select', options: [] }
-    ],
-    columns: [
-      { key: 'taskNo', title: '\u4efb\u52a1\u53f7', width: 140 },
-      { key: 'containerNo', title: '\u67dc\u53f7', width: 130 },
-      { key: 'customerName', title: '\u5ba2\u6237', width: 110 },
-      { key: 'palletQty', title: '\u5361\u677f\u6570', width: 72 },
-      { key: 'palletNos', title: '\u5f85\u4e0a\u67b6\u5361\u677f', width: 200, format: 'comma-tags' },
-      { key: 'recommendLocation', title: '\u63a8\u8350\u5e93\u4f4d', width: 100 },
-      { key: 'putawayMode', title: '\u6a21\u5f0f', width: 80, dictKey: 'wms_putaway_mode', tag: true },
-      { key: 'status', title: '\u72b6\u6001', width: 100, dictKey: 'wms_putaway_status', tag: true },
-      { key: 'createTime', title: '\u521b\u5efa\u65f6\u95f4', width: 160 }
-    ],
-    toolbarButtons: ['\u5206\u914d\u4efb\u52a1', '\u5bfc\u51fa'],
-    rowButtons: ['\u6279\u91cf\u4e0a\u67b6', '\u67e5\u770b']
-  },
   'operation-order': {
     title: '\u64cd\u4f5c\u6307\u4ee4\u5355\u5217\u8868',
     mockKey: 'operation-order',
@@ -135,13 +85,13 @@ export const PROTOTYPE_LIST_CONFIGS: Record<string, PrototypeListConfig> = {
     statusDict: 'wms_stock_prep_status',
     searchFields: [
       { key: 'orderNo', label: '\u5907\u8d27\u5355\u53f7' },
-      { key: 'outboundOrderNo', label: '\u51fa\u5e93\u5355\u53f7' },
+      { key: 'outboundOrderNo', label: '车次订单号' },
       { key: 'customerName', label: '\u5ba2\u6237' },
       { key: 'status', label: '\u72b6\u6001', type: 'select', options: [] }
     ],
     columns: [
       { key: 'orderNo', title: '\u5907\u8d27\u5355\u53f7', width: 140 },
-      { key: 'outboundOrderNo', title: '\u51fa\u5e93\u5355\u53f7', width: 140 },
+      { key: 'outboundOrderNo', title: '车次订单号', width: 140 },
       { key: 'customerName', title: '\u5ba2\u6237', width: 110 },
       { key: 'palletQty', title: '\u6258\u76d8\u6570', width: 80 },
       { key: 'status', title: '\u72b6\u6001', width: 100, dictKey: 'wms_stock_prep_status', tag: true },
@@ -151,25 +101,25 @@ export const PROTOTYPE_LIST_CONFIGS: Record<string, PrototypeListConfig> = {
     rowButtons: ['\u5907\u8d27\u6267\u884c', '\u67e5\u770b']
   },
   'outbound-order': {
-    title: '\u51fa\u5e93\u5355\u5217\u8868',
+    title: '车次装车单列表',
     mockKey: 'outbound-order',
     statusDict: 'wms_outbound_status',
     searchFields: [
-      { key: 'outboundOrderNo', label: '\u51fa\u5e93\u5355\u53f7' },
+      { key: 'outboundOrderNo', label: '车次订单号' },
       { key: 'customerName', label: '\u5ba2\u6237' },
-      { key: 'outboundType', label: '\u51fa\u5e93\u7c7b\u578b', type: 'select', options: [] },
+      { key: 'outboundType', label: '\u4e1a\u52a1\u7c7b\u578b', type: 'select', options: [] },
       { key: 'status', label: '\u72b6\u6001', type: 'select', options: [] }
     ],
     columns: [
-      { key: 'outboundOrderNo', title: '\u51fa\u5e93\u5355\u53f7', width: 160 },
+      { key: 'outboundOrderNo', title: '车次订单号', width: 160 },
       { key: 'customerName', title: '\u5ba2\u6237', width: 120 },
-      { key: 'outboundType', title: '\u51fa\u5e93\u7c7b\u578b', width: 100, dictKey: 'wms_outbound_direction', tag: true },
+      { key: 'outboundType', title: '\u4e1a\u52a1\u7c7b\u578b', width: 100, dictKey: 'wms_outbound_direction', tag: true },
       { key: 'palletQty', title: '\u677f\u6570', width: 80 },
       { key: 'boxQty', title: '\u7bb1\u6570', width: 80 },
       { key: 'status', title: '\u72b6\u6001', width: 110, dictKey: 'wms_outbound_status', tag: true },
       { key: 'createTime', title: '\u521b\u5efa\u65f6\u95f4', width: 160 }
     ],
-    toolbarButtons: ['\u67e5\u770b', '\u521b\u5efa\u5907\u8d27', '\u521b\u5efa\u51fa\u5e93\u4efb\u52a1', '\u5bfc\u51fa'],
-    rowButtons: ['\u67e5\u770b', '\u51fa\u5e93\u6267\u884c']
+    toolbarButtons: ['\u67e5\u770b', '\u521b\u5efa\u5907\u8d27', '\u521b\u5efa\u88c5\u8f66\u4efb\u52a1', '\u5bfc\u51fa'],
+    rowButtons: ['\u67e5\u770b', '\u88c5\u8f66\u6267\u884c']
   }
 };

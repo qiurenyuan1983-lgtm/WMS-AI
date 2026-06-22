@@ -105,11 +105,11 @@ const shipmentColumns: DataTableColumns<Api.Oms.CargoOrderShipment> = [
       </template>
 
       <NSpin :show="false">
-        <NEmpty v-if="!cargoOrder" description="请先选择货物订单" />
+        <NEmpty v-if="!cargoOrder" description="请先选择订单" />
         <div v-else class="flex-col gap-16px">
-          <!-- 货物订单摘要 -->
+          <!-- 订单摘要 -->
           <NDescriptions :column="4" size="small" bordered label-placement="left">
-            <NDescriptionsItem label="货物订单号">{{ cargoOrder.cargoOrderNo }}</NDescriptionsItem>
+            <NDescriptionsItem label="订单号">{{ cargoOrder.cargoOrderNo }}</NDescriptionsItem>
             <NDescriptionsItem label="客户">{{ val(cargoOrder.customerName) }}</NDescriptionsItem>
             <NDescriptionsItem label="地址类型">{{ val(cargoOrder.addressType) }}</NDescriptionsItem>
             <NDescriptionsItem label="DW 时间">{{ val(cargoOrder.earliestDwTime) }}</NDescriptionsItem>
@@ -122,7 +122,7 @@ const shipmentColumns: DataTableColumns<Api.Oms.CargoOrderShipment> = [
           <!-- 货件表格，可展开看 SKU -->
           <div>
             <div class="mb-8px text-13px font-medium text-#374151">货件层（点击行左侧箭头查看 SKU 明细）</div>
-            <NEmpty v-if="!shipments.length" description="该货物订单暂无货件数据" size="small" />
+            <NEmpty v-if="!shipments.length" description="该订单暂无货件数据" size="small" />
             <NDataTable
               v-else
               :columns="shipmentColumns"

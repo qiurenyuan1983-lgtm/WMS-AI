@@ -148,7 +148,7 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" :title="title" display-directive="show" :width="800" class="max-w-90%">
+  <NDrawer v-model:show="visible" :title="title" display-directive="show" :width="920" class="max-w-95%">
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem label="角色名称" path="roleName">
@@ -179,6 +179,7 @@ watch(visible, () => {
             v-model:options="menuOptions"
             v-model:cascade="model.menuCheckStrictly"
             v-model:loading="menuLoading"
+            permission-mode
             :immediate="operateType === 'add'"
           />
         </NFormItem>

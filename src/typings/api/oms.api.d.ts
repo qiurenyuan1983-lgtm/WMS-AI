@@ -35,6 +35,8 @@ declare namespace Api {
       terminalName: string | null;
       eta: string | null;
       ata: string | null;
+      /** 推荐 DW 时间区间，如 2026/06/28-2026/06/30 */
+      recommendedDwTime?: string | null;
       pickupLfd: string | null;
       emptyReturnLfd: string | null;
       availableTime: string | null;
@@ -91,6 +93,8 @@ declare namespace Api {
       latestAttachmentTime: string | null;
       latestDoUploadTime: string | null;
       containerStatus: string;
+      /** 海柜操作状态：已提柜 / 已到仓 / 安排DOCK / 待上DOCK / 拆柜中 / 拆柜完成 */
+      operationStatus?: string | null;
       internalRemark: string | null;
       status: string;
       remark: string | null;
@@ -134,6 +138,15 @@ declare namespace Api {
       releaseTime: string | null;
       transferFlag: number | null;
       transferWarehouseCode: string | null;
+      transferOutboundWarehouseCode: string | null;
+      orderSubType?: CargoOrderSubType | string | null;
+      channelCode?: string | null;
+      peerCustomerName?: string | null;
+      carriageNo?: string | null;
+      deliveryMode?: LoosePalletDeliveryMode | string | null;
+      deliveryAppointmentTime?: string | null;
+      loosePalletLabels?: LoosePalletLabelItem[] | null;
+      palletLabelPrinted?: boolean | null;
       forecastQtyUnit: string | null;
       outboundBatchNo: string | null;
       consigneeName: string | null;
@@ -161,7 +174,10 @@ declare namespace Api {
       earliestDwTime: string | null;
       eta: string | null;
       actualInboundTime: string | null;
+      preLocation: string | null;
+      actualInboundLocation: string | null;
       deliveryLfd: string | null;
+      appointmentNo?: string | null;
       remark: string | null;
       followUpRemark: string | null;
       customerRemark: string | null;
@@ -372,7 +388,7 @@ declare namespace Api {
 
     type ContainerOrderList = Api.Common.PaginatingQueryRecord<ContainerOrder>;
 
-    // ======================== 货物订单（新主线模块）========================
+    // ======================== 订单（新主线模块）========================
 
     type CargoOrderShipmentItem = {
       id?: CommonType.IdType | null;
@@ -428,6 +444,44 @@ declare namespace Api {
       createTime: string;
     };
 
+    type LoosePalletDeliveryMode = 'SELF_PICKUP' | 'DOOR_DELIVERY';
+
+    type CargoOrderSubType = 'STANDARD' | 'LOOSE_PALLET';
+
+    type LoosePalletLabelItem = {
+      id?: CommonType.IdType | null;
+      palletNo: string;
+      cargoOrderNo?: string | null;
+      groupCode?: string | null;
+      carriageNo?: string | null;
+      boxQty?: number | null;
+      weightKg?: number | null;
+      cbm?: number | null;
+      items?: Array<{
+        cargoOrderNo?: string;
+        receiveQty?: number;
+        receiveUnitLabel?: string;
+        boxQty?: number;
+      }>;
+    };
+
+    type LoosePalletOrderOperateParams = {
+      peerCustomerName: string;
+      carriageNo: string;
+      declaredPalletQty: number;
+      deliveryMode: LoosePalletDeliveryMode;
+      deliveryAppointmentTime: string;
+      groupCode?: string | null;
+      platformWarehouseCode?: string | null;
+      contactName?: string | null;
+      contactPhone?: string | null;
+      addressLine1?: string | null;
+      city?: string | null;
+      state?: string | null;
+      zipCode?: string | null;
+      remark?: string | null;
+    };
+
     type NewCargoOrder = Common.CommonRecord<{
       id: CommonType.IdType;
       bizRootId?: CommonType.IdType | null;
@@ -436,6 +490,14 @@ declare namespace Api {
       cargoOrderNo: string;
       externalOrderNo?: string | null;
       orderSource?: string | null;
+      orderSubType?: CargoOrderSubType | string | null;
+      channelCode?: string | null;
+      peerCustomerName?: string | null;
+      carriageNo?: string | null;
+      deliveryMode?: LoosePalletDeliveryMode | string | null;
+      deliveryAppointmentTime?: string | null;
+      loosePalletLabels?: LoosePalletLabelItem[] | null;
+      palletLabelPrinted?: boolean | null;
 
       customerId?: CommonType.IdType | null;
       customerName?: string | null;
@@ -449,6 +511,8 @@ declare namespace Api {
       customerServiceName?: string | null;
       orderTag?: string | null;
       orderTagName?: string | null;
+      /** 时效等级：T 第一等级 / K 第二等级 / NORMAL_SHIP 普船第三等级 */
+      timelinessLevel?: string | null;
       dispatchRemark?: string | null;
       storageLocation?: string | null;
 
@@ -482,6 +546,7 @@ declare namespace Api {
       releaseTime?: string | null;
       holdRemark?: string | null;
       deliveryLfd?: string | null;
+      appointmentNo?: string | null;
       followUpRemark?: string | null;
       remark?: string | null;
 
@@ -490,6 +555,7 @@ declare namespace Api {
 
       transferFlag?: number | null;
       transferWarehouseCode?: string | null;
+      transferOutboundWarehouseCode?: string | null;
 
       declaredCartonQty?: number | null;
       declaredPieceQty?: number | null;
@@ -516,6 +582,8 @@ declare namespace Api {
 
       orderStatus: string;
       fulfillmentStatus: string;
+      /** 订单操作状态：已入库 / 已生成车次 / 已安排派送供应商 */
+      operationStatus?: string | null;
       appointmentStatus: string;
       podStatus: string;
       billingStatus: string;
@@ -571,13 +639,15 @@ declare namespace Api {
       | 'mark'
       | 'shipmentCode'
       | 'poNo'
-      | 'externalOrderNo';
+      | 'externalOrderNo'
+      | 'appointmentNo';
 
     type NewCargoOrderSearchParams = CommonType.RecordNullable<{
       keywordField?: CargoOrderKeywordField | null;
       keyword?: string | null;
       cargoOrderNo?: string | null;
       externalOrderNo?: string | null;
+      appointmentNo?: string | null;
       customerId?: CommonType.IdType | null;
       customerName?: string | null;
       /** 高级筛选多选时为逗号分隔 ID */
@@ -594,13 +664,21 @@ declare namespace Api {
       state?: string | null;
       zipCode?: string | null;
       containerNo?: string | null;
+      carriageNo?: string | null;
+      orderSubType?: CargoOrderSubType | string | null;
       fulfillmentStatus?: string | null;
+      operationStatus?: string | null;
       billingStatus?: string | null;
       preOutboundStatus?: string | null;
       outboundOrderStatus?: string | null;
       podStatus?: string | null;
       exceptionFlag?: string | null;
       transferFlag?: string | null;
+      transferOutboundWarehouseCode?: string | null;
+      /** 同时匹配仓库代码与转仓代码 */
+      warehouseOrTransferCode?: string | null;
+      holdStatus?: string | null;
+      timelinessLevel?: string | null;
       parcelCarrierName?: string | null;
       parcelTrackingNo?: string | null;
       outboundBatchNo?: string | null;
@@ -639,6 +717,7 @@ declare namespace Api {
       platformName?: string | null;
       customerServiceId?: CommonType.IdType | null;
       customerServiceName?: string | null;
+      timelinessLevel?: string | null;
       inboundWarehouseId?: CommonType.IdType | null;
       inboundWarehouseName?: string | null;
       addressType?: string | null;
@@ -657,6 +736,7 @@ declare namespace Api {
       parcelTrackingNo?: string | null;
       transferFlag?: number | null;
       transferWarehouseCode?: string | null;
+      transferOutboundWarehouseCode?: string | null;
       forecastQtyUnit?: 'BY_CARTON' | 'BY_PALLET' | string | null;
       declaredCartonQty?: number | null;
       declaredPalletQty?: number | null;
@@ -675,7 +755,7 @@ declare namespace Api {
       shipments?: CargoOrderShipmentItem[];
     }>;
 
-    /** 海柜场景下关联货物订单表单（与货物订单详情字段对齐） */
+    /** 海柜场景下关联订单表单（与订单详情字段对齐） */
     type ContainerCargoOrderForm = NewCargoOrderOperateParams;
 
     type CargoOrderOperateParams = NewCargoOrderOperateParams;
@@ -780,6 +860,12 @@ declare namespace Api {
       transferFlag?: number | null;
       transferWarehouseCode?: string | null;
       remark?: string | null;
+      appointmentType?: string | null;
+      deliveryCost?: number | null;
+      supplierId?: CommonType.IdType | null;
+      supplierQuoteId?: CommonType.IdType | null;
+      supplierName?: string | null;
+      recommendedSupplierId?: CommonType.IdType | null;
     }>;
 
     type PreOutbound = Common.CommonRecord<{
@@ -818,6 +904,10 @@ declare namespace Api {
       deliveryMethod?: string | null;
       followRecord?: string | null;
       remark?: string | null;
+      supplierId?: CommonType.IdType | null;
+      supplierName?: string | null;
+      supplierQuoteId?: CommonType.IdType | null;
+      deliveryCost?: number | null;
     }>;
 
     type PreOutboundSearchParams = CommonType.RecordNullable<
@@ -875,6 +965,8 @@ declare namespace Api {
       preOutboundNo?: string | null;
       outboundOrderNo: string;
       outboundStatus: string;
+      /** 出库操作状态：已登记 / 出库中 / 出库完成 */
+      operationStatus?: string | null;
       outboundDirection: OutboundDirection;
       outboundWarehouseId?: CommonType.IdType | null;
       outboundWarehouseName?: string | null;
@@ -920,10 +1012,35 @@ declare namespace Api {
       outboundOrderNo: string;
       cargoOrderId: CommonType.IdType;
       cargoOrderNo: string;
+      customerName?: string | null;
+      destination?: string | null;
+      appointmentNo?: string | null;
+      platformName?: string | null;
       actualCartonQty?: number | null;
       actualPalletQty?: number | null;
       actualWeight?: number | null;
       actualCbm?: number | null;
+    };
+
+    type OutboundAvailableOrder = {
+      id: CommonType.IdType;
+      cargoOrderNo: string;
+      customerName: string;
+      destination: string;
+      appointmentNo: string | null;
+      platformName: string | null;
+      transferWarehouseCode: string | null;
+      deliveryFee: number | null;
+      actualCartonQty: number;
+      actualPalletQty: number;
+    };
+
+    type OutboundAvailableOrderList = Api.Common.PaginatingQueryRecord<OutboundAvailableOrder>;
+
+    type AddOutboundCargoResult = {
+      success: boolean;
+      message: string;
+      addedCount: number;
     };
 
     type OutboundOrderSearchParams = CommonType.RecordNullable<
@@ -936,6 +1053,7 @@ declare namespace Api {
         containerNo?: string | null;
         shipmentCodes?: string | null;
         outboundStatus?: string | null;
+        operationStatus?: string | null;
         outboundDirection?: OutboundDirection | null;
         outboundWarehouseId?: CommonType.IdType | null;
         outboundWarehouseName?: string | null;
@@ -1101,6 +1219,227 @@ declare namespace Api {
       }>;
     };
 
+    // ======================== 业务规则中心 ========================
+
+    type BusinessRuleCategory =
+      | 'ORDER'
+      | 'INBOUND_DEVANNING'
+      | 'LOCATION'
+      | 'DISPATCH'
+      | 'OUTBOUND'
+      | 'EXCEPTION_ALERT'
+      | 'FEE_BILL'
+      | 'NOTIFY_TASK';
+
+    type BusinessRuleStatus = 'enabled' | 'disabled' | 'draft';
+
+    type BusinessRulePriorityTier = 'P0' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5';
+
+    type BusinessRuleActionLevel = 'HINT' | 'WARN' | 'STRONG_WARN' | 'BLOCK' | 'AUTO';
+
+    type BusinessRuleConflictStrategy =
+      | 'FIRST_MATCH'
+      | 'FIRST_BLOCK_WINS'
+      | 'ALL_NON_BLOCK'
+      | 'MANUAL_CONFIRM';
+
+    type BusinessRuleCondition = {
+      field: string;
+      op: string;
+      value?: string | number | Array<string | number> | null;
+    };
+
+    type BusinessRuleConditionConfig = {
+      logic?: 'AND' | 'OR';
+      conditions?: BusinessRuleCondition[];
+    };
+
+    type BusinessRuleAction = {
+      level: BusinessRuleActionLevel;
+      type: string;
+      message?: string | null;
+      notifyTargets?: string[] | null;
+      /** 命中后跳转或展示的执行菜单页面（路由名） */
+      execMenuPage?: string | null;
+      params?: Record<string, unknown> | null;
+    };
+
+    type BusinessRule = {
+      id: CommonType.IdType;
+      ruleCode: string;
+      ruleName: string;
+      category: BusinessRuleCategory;
+      warehouseIds: string | null;
+      warehouseName: string | null;
+      customerScope: string | null;
+      bizTypeScope: string | null;
+      triggerEvent: string | null;
+      conditionConfig: string;
+      actionsConfig: string;
+      priorityTier: BusinessRulePriorityTier;
+      priority: number;
+      conflictStrategy: BusinessRuleConflictStrategy;
+      effectiveStart: string | null;
+      effectiveEnd: string | null;
+      status: BusinessRuleStatus;
+      version: number | null;
+      approverName: string | null;
+      creatorName: string | null;
+      hitCount: number | null;
+      hitSuccessRate: number | null;
+      exceptionCount: number | null;
+      remark: string | null;
+      createTime: string | null;
+      updateTime: string | null;
+    };
+
+    type BusinessRuleOperateParams = CommonType.RecordNullable<{
+      id?: CommonType.IdType;
+      ruleCode?: string | null;
+      ruleName: string;
+      category: BusinessRuleCategory;
+      warehouseIds: string;
+      warehouseNames?: string | null;
+      customerScope?: string | null;
+      bizTypeScope?: string | null;
+      triggerEvent?: string | null;
+      conditionConfig: string;
+      actionsConfig: string;
+      priorityTier?: BusinessRulePriorityTier | null;
+      priority?: number | null;
+      conflictStrategy?: BusinessRuleConflictStrategy | null;
+      effectiveStart?: string | null;
+      effectiveEnd?: string | null;
+      status?: BusinessRuleStatus | null;
+      version?: number | null;
+      remark?: string | null;
+    }>;
+
+    type BusinessRuleSearchParams = CommonType.RecordNullable<
+      {
+        category?: BusinessRuleCategory | null;
+        warehouseId?: CommonType.IdType | null;
+        triggerEvent?: string | null;
+        ruleName?: string | null;
+        ruleCode?: string | null;
+        status?: BusinessRuleStatus | null;
+        priorityTier?: BusinessRulePriorityTier | null;
+      } & Api.Common.CommonSearchParams
+    >;
+
+    type BusinessRuleList = Api.Common.PaginatingQueryRecord<BusinessRule>;
+
+    type BusinessRuleTestDraft = {
+      ruleName?: string | null;
+      triggerEvent?: string | null;
+      conditionConfig: string;
+      actionsConfig: string;
+      priority?: number | null;
+      conflictStrategy?: BusinessRuleConflictStrategy | null;
+    };
+
+    type BusinessRuleTestParams = {
+      ruleId?: CommonType.IdType | null;
+      triggerEvent?: string | null;
+      context?: Record<string, unknown> | null;
+      /** 编辑态试算：使用当前表单配置，无需先保存 */
+      draft?: BusinessRuleTestDraft | null;
+    };
+
+    type BusinessRuleTestResult = {
+      matched: boolean;
+      verified?: boolean;
+      ruleId?: CommonType.IdType | null;
+      ruleCode?: string | null;
+      ruleName?: string | null;
+      priorityTier?: BusinessRulePriorityTier | null;
+      finalDecision?: BusinessRuleActionLevel | null;
+      actions?: BusinessRuleAction[];
+      message?: string | null;
+      conditionDetails?: Array<{
+        field: string;
+        fieldValue?: unknown;
+        op: string;
+        expectedValue?: unknown;
+        hit: boolean;
+      }>;
+      conflictNotes?: string[] | null;
+    };
+
+    // ======================== 审批流配置 ========================
+
+    type ApprovalFlowCategory =
+      | 'FEE'
+      | 'SUPPLIER_BILL'
+      | 'EXCEPTION_COMPENSATION'
+      | 'OPERATION_ADJUSTMENT'
+      | 'PERMISSION_CHANGE'
+      | 'PRICE_MODIFY'
+      | 'DATA_DELETE'
+      | 'TEMP_AUTH';
+
+    type ApprovalFlowStatus = 'enabled' | 'disabled' | 'draft';
+
+    type ApprovalNodeType = 'ROLE' | 'USER' | 'DEPT_HEAD' | 'SUPERVISOR';
+
+    type ApprovalMode = 'ANY' | 'ALL';
+
+    type ApprovalFlowNode = {
+      stepNo: number;
+      nodeName: string;
+      nodeType: ApprovalNodeType;
+      approverIds?: string | null;
+      approverNames: string;
+      approveMode: ApprovalMode;
+      timeoutHours?: number | null;
+      autoPass?: boolean | null;
+    };
+
+    type ApprovalFlow = {
+      id: CommonType.IdType;
+      flowCode: string;
+      flowName: string;
+      category: ApprovalFlowCategory;
+      warehouseIds?: string | null;
+      warehouseName?: string | null;
+      triggerDesc: string;
+      triggerConfig?: string | null;
+      nodesConfig: string;
+      nodeSummary: string;
+      version: number;
+      status: ApprovalFlowStatus;
+      remark?: string | null;
+      creatorName?: string | null;
+      updateByName?: string | null;
+      createTime: string;
+      updateTime: string;
+    };
+
+    type ApprovalFlowOperateParams = CommonType.RecordNullable<{
+      id?: CommonType.IdType | null;
+      flowCode?: string | null;
+      flowName?: string | null;
+      category?: ApprovalFlowCategory | null;
+      warehouseIds?: string | null;
+      warehouseName?: string | null;
+      triggerDesc?: string | null;
+      triggerConfig?: string | null;
+      nodesConfig?: string | null;
+      status?: ApprovalFlowStatus | null;
+      remark?: string | null;
+    }>;
+
+    type ApprovalFlowSearchParams = CommonType.RecordNullable<
+      Pick<Api.Common.PaginatingCommonParams, 'pageNum' | 'pageSize'> & {
+        category?: ApprovalFlowCategory | null;
+        flowName?: string | null;
+        status?: ApprovalFlowStatus | null;
+        warehouseId?: CommonType.IdType | null;
+      }
+    >;
+
+    type ApprovalFlowList = Api.Common.PaginatingQueryRecord<ApprovalFlow>;
+
     // ======================== 入库计划 ========================
 
     type InboundPlanStatus = 'draft' | 'in_progress' | 'completed' | 'cancelled';
@@ -1125,6 +1464,9 @@ declare namespace Api {
       weight: number | null;
       cbm: number | null;
       palletQty: number | null;
+      outboundStatus?: string | null;
+      deliveryMethod?: string | null;
+      holdFlag?: string | null;
     };
 
     type InboundPlanGroup = {
@@ -1144,6 +1486,7 @@ declare namespace Api {
       warehouseId: CommonType.IdType;
       containerOrderId: CommonType.IdType;
       containerOrderNo: string | null;
+      containerNo: string | null;
       channelName: string | null;
       customerName: string | null;
       eta: string | null;
@@ -1153,6 +1496,22 @@ declare namespace Api {
       remark: string | null;
       createTime: string | null;
       updateTime: string | null;
+      /** 基础资料 */
+      mblNo: string | null;
+      containerStatusLabel: string | null;
+      devanningFinishTime: string | null;
+      expectedDevanningTime: string | null;
+      warehouseName: string | null;
+      orderLevel: string | null;
+      devanningStatusLabel: string | null;
+      queueNo: string | null;
+      dockCode: string | null;
+      driverPhone: string | null;
+      cargoQty: number | null;
+      cargoWeight: number | null;
+      devanningRoundNo: number | null;
+      attachmentCount: number | null;
+      attachments: { name: string; type?: string | null }[] | null;
       groups: InboundPlanGroup[];
     };
 
@@ -1169,6 +1528,11 @@ declare namespace Api {
       id: CommonType.IdType;
       groupCode?: string | null;
       preLocation?: string | null;
+      platformName?: string | null;
+      platformWarehouseCode?: string | null;
+      addressType?: string | null;
+      deliveryMethod?: string | null;
+      holdFlag?: string | null;
     };
 
     type InboundPlanItemPreview = {
@@ -1257,6 +1621,874 @@ declare namespace Api {
       USED: number;
       DELIVERED: number;
       CANCELLED: number;
+    };
+
+    type PlatformAppointmentOperateParams = {
+      platformName: string;
+      warehouseCode: string;
+      appointmentNo?: string | null;
+      appointmentTime: string;
+      appointmentType: string;
+      remark?: string | null;
+      tagCodes?: string[];
+      existingCargoCbm?: number | null;
+    };
+
+    // ─── 订单工作台 ─────────────────────────────────────────
+
+    type OrderWorkbenchPool = 'PLATFORM' | 'LTL' | 'LOCAL' | 'EXPRESS';
+    type OrderWorkbenchStatus =
+      | 'PENDING_APPT'
+      | 'PRE_TRIP'
+      | 'PENDING_MANUAL'
+      | 'PENDING_CARGO'
+      | 'PENDING_CUSTOMER'
+      | 'GENERATED'
+      | 'ABNORMAL';
+
+    type OrderWorkbenchRow = {
+      id: CommonType.IdType;
+      orderNo: string;
+      pool: OrderWorkbenchPool;
+      orderTypeLabel: string;
+      customerName: string;
+      platform: string | null;
+      destination: string;
+      isaNo: string | null;
+      dwTime: string | null;
+      appointmentTime: string | null;
+      appointmentType: string | null;
+      palletQty: number;
+      cartonQty: number;
+      weightLbs: number | null;
+      weightKg: number | null;
+      volumeCbm: number | null;
+      palletSize: string | null;
+      operationStatus?: string | null;
+      timelinessLevel?: string | null;
+      status: OrderWorkbenchStatus;
+      preTripNo: string | null;
+      generatedTripNo?: string | null;
+      dockNo: string | null;
+      supplierName: string | null;
+      customerConfirmed: boolean;
+      cargoCount: number;
+      workflowStep: number;
+      createTime: string;
+      remark: string | null;
+    };
+
+    type OrderWorkbenchCargoItem = {
+      id: CommonType.IdType;
+      palletNo: string;
+      cargoName: string;
+      cartonQty: number;
+      palletQty: number;
+      weightLbs: number;
+      volumeCbm: number;
+      locationCode: string;
+      status: string;
+    };
+
+    type OrderWorkbenchLog = {
+      id: CommonType.IdType;
+      time: string;
+      operator: string;
+      action: string;
+      status: string;
+    };
+
+    type LtlSupplierCandidate = {
+      supplierId: number;
+      supplierName: string;
+      orderPortalUrl: string | null;
+      recommendTag: string | null;
+      serviceRating: number;
+      onTimeRate: number;
+      quoteAmount: number;
+      leadTimeDays: number;
+      serviceArea: string;
+      liftgateFee: number;
+      insuranceFee: number;
+      totalAmount: number;
+      hasApi: boolean;
+      exceptionRate: number;
+      matchScore: number;
+      matchReason: string;
+      recommended: boolean;
+    };
+
+    type LtlCostBreakdown = {
+      linehaul: number;
+      liftgate: number;
+      insurance: number;
+      other: number;
+      total: number;
+    };
+
+    type LtlConsigneeInfo = {
+      companyName: string;
+      address: string;
+      contactName: string;
+      contactPhone: string;
+      addressType: string;
+      needAppointment: boolean;
+      needLiftgate: boolean;
+      residential: boolean;
+      limitedAccess: boolean;
+      receivingHours: string;
+    };
+
+    type LtlOrderExtension = {
+      originWarehouse: string | null;
+      orderSource: string | null;
+      orderSourceLabel: string | null;
+      cargoType: string | null;
+      urgency: string | null;
+      zipCode: string | null;
+      consignee: LtlConsigneeInfo | null;
+      supplierCandidates: LtlSupplierCandidate[];
+      selectedSupplierId: number | null;
+      costBreakdown: LtlCostBreakdown | null;
+      orderMethod: 'API' | 'RPA' | 'MANUAL' | null;
+      supplierOrderPlaced: boolean;
+      bolNo: string | null;
+      pickupTime: string | null;
+      estimatedDelivery: string | null;
+      supplierOrderMessage: string | null;
+    };
+
+    type LocalEmailRecord = {
+      id: number;
+      subject: string;
+      recipient: string;
+      sentTime: string | null;
+      status: string;
+    };
+
+    type LocalPreTripInfo = {
+      preTripNo: string;
+      vehicleType: string;
+      palletQty: number;
+      weightLbs: number;
+      volumeCbm: number;
+      dockNo: string;
+      estDepartTime: string | null;
+      estArrivalTime: string | null;
+    };
+
+    type LocalOrderExtension = {
+      outboundMethod: string;
+      specialRequirements: string | null;
+      deliveryAddress: string;
+      deliveryContact: string;
+      deliveryPhone: string;
+      needAppointment: boolean;
+      customerConfirmSummary: string | null;
+      customerConfirmTime: string | null;
+      emailRecords: LocalEmailRecord[];
+      preTrip: LocalPreTripInfo | null;
+    };
+
+    type OrderWorkbenchDetail = OrderWorkbenchRow & {
+      contactName: string | null;
+      contactPhone: string | null;
+      warehouseAddress: string | null;
+      loadingMethod: string | null;
+      vehicleType: string | null;
+      driverName: string | null;
+      plateNo: string | null;
+      supplierQuote: string | null;
+      supplierProNo: string | null;
+      emailSentTime: string | null;
+      emailConfirmTime: string | null;
+      cargoItems: OrderWorkbenchCargoItem[];
+      logs: OrderWorkbenchLog[];
+      ltl?: LtlOrderExtension | null;
+      local?: LocalOrderExtension | null;
+    };
+
+    type OrderWorkbenchStats = {
+      pendingGenerate: number;
+      preTrip: number;
+      pendingManual: number;
+      pendingCustomer: number;
+      generated: number;
+      abnormal: number;
+      poolCounts: Record<string, number>;
+      tabCounts: Record<string, number>;
+    };
+
+    type OrderWorkbenchSearchParams = CommonType.RecordNullable<
+      Api.Common.CommonSearchParams & {
+        pool?: string | null;
+        tab?: string | null;
+        status?: string | null;
+        orderType?: string | null;
+        customerName?: string | null;
+        platform?: string | null;
+        destination?: string | null;
+        orderNo?: string | null;
+        isaNo?: string | null;
+        dwTime?: string | null;
+      }
+    >;
+
+    type OrderWorkbenchList = Api.Common.PaginatingQueryRecord<OrderWorkbenchRow>;
+    type LtlGenerateTripPreview = {
+      tripNo: string;
+      orderNo: string;
+      supplierName: string;
+      palletQty: number;
+    };
+
+    type OrderWorkbenchActionResult = {
+      success: boolean;
+      message: string;
+      row?: OrderWorkbenchRow;
+      portalUrl?: string | null;
+      tripOrderPreview?: LtlGenerateTripPreview | null;
+    };
+    type OrderWorkbenchBatchResult = { success: boolean; message: string; count: number };
+
+    type OrderWorkbenchBatchGenerateTripPreview = {
+      tripNo: string;
+      pool: OrderWorkbenchPool;
+      orderNos: string[];
+      totalPalletQty: number;
+      totalCartonQty: number;
+      destination: string;
+      supplierName?: string | null;
+      platform?: string | null;
+    };
+
+    type OrderWorkbenchBatchGenerateTripParams = {
+      supplierId?: CommonType.IdType | null;
+      supplierQuoteId?: CommonType.IdType | null;
+      deliveryCost?: number | null;
+      appointmentId?: number | null;
+      appointmentNo?: string | null;
+      loadingType?: 'PALLET' | 'FLOOR' | null;
+      pickupTime?: string | null;
+      appointmentTime?: string | null;
+    };
+
+    type OrderWorkbenchBatchGenerateTripResult = {
+      success: boolean;
+      message: string;
+      tripNo?: string | null;
+      orderNos?: string[];
+      count?: number;
+      totalPalletQty?: number;
+      pool?: OrderWorkbenchPool | null;
+    };
+
+    // ─── 供应商管理 ─────────────────────────────────────────
+
+    type SupplierType = 'DRAYAGE' | 'LINEHAUL' | 'LTL' | 'DEVANNING_LOADING';
+    type SupplierStatus = 'ENABLED' | 'DISABLED';
+    type SupplierBillStatus = 'DRAFT' | 'SUPPLIER_CONFIRMED' | 'PENDING_AUDIT' | 'WAREHOUSE_CONFIRMED' | 'FINANCE_APPROVED' | 'PAID' | 'REJECTED';
+
+    type Supplier = {
+      id: CommonType.IdType;
+      supplierCode: string;
+      supplierName: string;
+      supplierType: SupplierType;
+      contactName: string | null;
+      contactPhone: string | null;
+      contactEmail: string | null;
+      serviceRegion: string | null;
+      serviceTerminals: string | null;
+      scacCode: string | null;
+      dotNo: string | null;
+      mcNo: string | null;
+      insuranceInfo: string | null;
+      contractExpireDate: string | null;
+      paymentTerms: string | null;
+      status: SupplierStatus;
+      score: number | null;
+      warehouseNames: string | null;
+      orderPortalUrl?: string | null;
+      remark: string | null;
+      createTime: string | null;
+    };
+
+    type SupplierList = CommonType.PaginatingData<Supplier>;
+
+    type SupplierSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierType?: SupplierType | string | null;
+      status?: SupplierStatus | string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierQuote = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      supplierType: SupplierType;
+      feeType: string;
+      feeTypeLabel: string;
+      terminalCode: string | null;
+      warehouseName: string | null;
+      containerType: string | null;
+      destination: string | null;
+      unitPrice: number;
+      currency: string;
+      effectiveFrom: string;
+      effectiveTo: string | null;
+      status: string;
+      versionNo: string;
+      remark: string | null;
+    };
+
+    type SupplierQuoteList = CommonType.PaginatingData<SupplierQuote>;
+
+    type SupplierQuoteSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierType?: SupplierType | string | null;
+      supplierId?: CommonType.IdType | null;
+      status?: string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierQuoteRecommendParams = CommonType.RecordNullable<{
+      destination?: string | null;
+      warehouseName?: string | null;
+      transportType?: string | null;
+      loadingType?: string | null;
+    }>;
+
+    type SupplierQuoteRecommendCandidate = {
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      quoteId: CommonType.IdType;
+      feeTypeLabel: string;
+      unitPrice: number;
+      currency: string;
+      matchReason: string;
+      recommended: boolean;
+    };
+
+    type SupplierQuoteRecommendResult = {
+      recommendedSupplierId: CommonType.IdType | null;
+      recommendedQuoteId: CommonType.IdType | null;
+      recommendedSupplierName: string | null;
+      unitPrice: number | null;
+      currency: string | null;
+      matchReason: string | null;
+      candidates: SupplierQuoteRecommendCandidate[];
+    };
+
+    type SupplierAccount = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      loginName: string;
+      contactName: string | null;
+      contactPhone: string | null;
+      roleCodes: string;
+      status: SupplierStatus;
+      lastLoginTime: string | null;
+      createTime: string | null;
+    };
+
+    type SupplierAccountList = CommonType.PaginatingData<SupplierAccount>;
+
+    type SupplierAccountSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierId?: CommonType.IdType | null;
+      status?: SupplierStatus | string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierContainerFeeAuditStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+    type SupplierContainerFeeBundle = {
+      pickupFee: number | null;
+      detentionFee: number | null;
+      chassisFee: number | null;
+      portFee: number | null;
+      exceptionFee: number | null;
+      emptyReturnFee: number | null;
+      otherFee: number | null;
+      feeRemark: string | null;
+      feeTotal: number | null;
+      auditStatus: SupplierContainerFeeAuditStatus;
+      auditRemark: string | null;
+      auditTime: string | null;
+      auditorName: string | null;
+      submitTime: string | null;
+      submitterName: string | null;
+    };
+
+    type SupplierContainerOpRow = ContainerOrder & {
+      feeAuditStatus?: SupplierContainerFeeAuditStatus | string | null;
+      feeTotal?: number | null;
+      lastSupplierSyncTime?: string | null;
+    };
+
+    type SupplierContainerOpDetail = ContainerOrder & {
+      supplierFee: SupplierContainerFeeBundle;
+    };
+
+    type SupplierContainerOpList = CommonType.PaginatingData<SupplierContainerOpRow>;
+
+    type SupplierContainerOpSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      containerNo?: string | null;
+      drayageVendorId?: CommonType.IdType | null;
+      containerStatus?: string | null;
+      feeAuditStatus?: SupplierContainerFeeAuditStatus | string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierContainerOpSyncParams = CommonType.RecordNullable<
+      Pick<
+        ContainerOrder,
+        | 'id'
+        | 'containerNo'
+        | 'containerType'
+        | 'sealNo'
+        | 'vesselName'
+        | 'voyageNo'
+        | 'mblNo'
+        | 'hblNo'
+        | 'terminalName'
+        | 'eta'
+        | 'ata'
+        | 'pickupLfd'
+        | 'emptyReturnLfd'
+        | 'terminalReleaseStatus'
+        | 'remark'
+        | 'pickupAppointmentNo'
+        | 'pickupAppointmentTime'
+        | 'actualPickupTime'
+        | 'pickupRemark'
+        | 'expectedArrivalTime'
+        | 'requiredArrivalTime'
+        | 'actualArrivalTime'
+        | 'containerLocation'
+        | 'arrivalRemark'
+        | 'expectedDevanningTime'
+        | 'devanningAppointmentTime'
+        | 'devanningStartTime'
+        | 'devanningFinishTime'
+        | 'devanningMethod'
+        | 'loadingType'
+        | 'devanningRemark'
+        | 'emptyReturnLocation'
+        | 'emptyReturnAppointmentNo'
+        | 'emptyReturnTime'
+        | 'emptyReturnStatus'
+        | 'emptyReturnRemark'
+      > & {
+        syncRemark?: string | null;
+      }
+    >;
+
+    type SupplierContainerFeeSaveParams = CommonType.RecordNullable<{
+      containerOrderId?: CommonType.IdType | null;
+      id?: CommonType.IdType | null;
+      pickupFee?: number | null;
+      detentionFee?: number | null;
+      chassisFee?: number | null;
+      portFee?: number | null;
+      exceptionFee?: number | null;
+      emptyReturnFee?: number | null;
+      otherFee?: number | null;
+      feeRemark?: string | null;
+      submitterName?: string | null;
+    }>;
+
+    type SupplierContainerFeeAuditParams = {
+      containerOrderId?: CommonType.IdType | null;
+      id?: CommonType.IdType | null;
+      auditStatus: 'APPROVED' | 'REJECTED';
+      auditRemark?: string | null;
+      auditorName?: string | null;
+    };
+
+    type SupplierBill = {
+      id: CommonType.IdType;
+      billNo: string;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      supplierType: SupplierType;
+      sourceTaskNo: string | null;
+      sourceRefNo: string | null;
+      billAmount: number;
+      currency: string;
+      billStatus: SupplierBillStatus;
+      submitTime: string | null;
+      auditTime: string | null;
+      remark: string | null;
+    };
+
+    type SupplierBillList = CommonType.PaginatingData<SupplierBill>;
+
+    type SupplierBillSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierType?: SupplierType | string | null;
+      billStatus?: SupplierBillStatus | string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierVehicle = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      plateNo: string;
+      vehicleType: string;
+      vehicleSize: string | null;
+      maxWeightLbs: number | null;
+      insuranceExpireDate: string | null;
+      driverName: string | null;
+      gpsDeviceNo: string | null;
+      vehicleStatus: string;
+      annualInspectionDate: string | null;
+    };
+
+    type SupplierVehicleList = CommonType.PaginatingData<SupplierVehicle>;
+
+    type SupplierDriver = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      driverName: string;
+      driverPhone: string | null;
+      licenseNo: string | null;
+      boundPlateNo: string | null;
+      status: string;
+      gpsOnline: number;
+    };
+
+    type SupplierDriverList = CommonType.PaginatingData<SupplierDriver>;
+
+    type SupplierEquipment = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      equipmentType: string;
+      equipmentNo: string;
+      assigneeName: string | null;
+      assignTime: string | null;
+      returnTime: string | null;
+      relatedTaskNo: string | null;
+      equipmentStatus: string;
+      damageFlag: number;
+      remark: string | null;
+    };
+
+    type SupplierEquipmentList = CommonType.PaginatingData<SupplierEquipment>;
+
+    type SupplierFleetSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierId?: CommonType.IdType | null;
+      equipmentType?: string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierKpiRow = {
+      id: CommonType.IdType;
+      supplierId: CommonType.IdType;
+      supplierName: string;
+      supplierType: SupplierType;
+      statMonth: string;
+      warehouseName: string | null;
+      onTimePickupRate?: number | null;
+      onTimeReturnRate?: number | null;
+      gpsOnlineRate?: number | null;
+      onTimeArrivalRate?: number | null;
+      onTimeDeliveryRate?: number | null;
+      podUploadRate?: number | null;
+      checkInPassRate?: number | null;
+      rejectRate?: number | null;
+      onTimeFinishRate?: number | null;
+      devanningEfficiency?: number | null;
+      loadingEfficiency?: number | null;
+      siteExceptionRate?: number | null;
+      equipmentDamageRate?: number | null;
+      reworkRate?: number | null;
+      exceptionRate?: number | null;
+      billAccuracyRate?: number | null;
+      score: number | null;
+    };
+
+    type SupplierKpiList = CommonType.PaginatingData<SupplierKpiRow>;
+
+    type SupplierKpiSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      supplierType?: SupplierType | string | null;
+      statMonth?: string | null;
+    } & Api.Common.CommonSearchParams>;
+
+    type SupplierKpiSummary = {
+      totalSuppliers: number;
+      drayageCount: number;
+      linehaulCount: number;
+      devanningLoadingCount: number;
+      pendingBills: number;
+      avgScore: number;
+    };
+
+    // ======================== 库区规则（入库配置规则） ========================
+
+    type ZoneRuleDeliveryMethod = 'PRIVATE_WH' | 'TRUCK' | 'DROPSHIP' | 'HOLD_TRANSFER' | 'ANY';
+
+    type ZoneRulePlatform = 'ANY' | 'AMAZON' | 'WALMART' | 'TARGET';
+
+    type ZoneRuleTargetType = 'ZONE' | 'LOCATION' | 'ZONE_TYPE' | 'STORAGE_METHOD';
+
+    type ZoneRuleConditionLogic = 'AND' | 'OR';
+
+    type ZoneRuleCondition = {
+      priority: number;
+      deliveryMethod: string;
+      platform?: string | null;
+      platformCode?: string | null;
+    };
+
+    type ZoneRule = {
+      id: CommonType.IdType;
+      warehouseId?: CommonType.IdType | null;
+      warehouseName?: string | null;
+      targetType?: ZoneRuleTargetType | null;
+      conditionLogic?: ZoneRuleConditionLogic | null;
+      conditions?: ZoneRuleCondition[] | null;
+      zoneNames: string;
+      locationNos: string;
+      zoneType?: string | null;
+      storageMethod?: string | null;
+      priority: number;
+      deliveryMethod: ZoneRuleDeliveryMethod | string;
+      platform: ZoneRulePlatform | string;
+      platformCode?: string | null;
+      remark?: string | null;
+      createTime?: string | null;
+      updateTime?: string | null;
+    };
+
+    type ZoneRuleList = Api.Common.PaginatingQueryRecord<ZoneRule>;
+
+    type ZoneRuleSearchParams = CommonType.RecordNullable<
+      {
+        zoneName?: string | null;
+        locationNo?: string | null;
+        zoneType?: string | null;
+        storageMethod?: string | null;
+        deliveryMethod?: string | null;
+        platform?: string | null;
+        platformCode?: string | null;
+      } & Api.Common.CommonSearchParams
+    >;
+
+    type ZoneRuleOperateParams = {
+      targetType: ZoneRuleTargetType;
+      conditionLogic: ZoneRuleConditionLogic;
+      conditions: ZoneRuleCondition[];
+      zoneNames: string;
+      locationNos: string;
+      zoneType?: string | null;
+      storageMethod?: string | null;
+      priority: number;
+      deliveryMethod: string;
+      platform: string;
+      platformCode?: string | null;
+      remark?: string | null;
+    };
+
+    type ZoneRuleFallbackParams = {
+      zoneNames: string;
+      locationNos: string;
+      remark?: string | null;
+    };
+
+    // ======================== 平台仓库管理 ========================
+
+    type PlatformEntity = Common.CommonRecord<{
+      platformName: string;
+      platformCode: string;
+      status: string;
+      warehouseCount: number;
+      remark?: string | null;
+    }>;
+
+    type PlatformWarehouse = Common.CommonRecord<{
+      platformId: CommonType.IdType;
+      platformCode: string;
+      warehouseCode: string;
+      warehouseName: string;
+      countryCode: string;
+      countryName: string;
+      address: string;
+      zipCode: string;
+      cbmPerPallet: number;
+      status: string;
+    }>;
+
+    type PlatformList = { rows: PlatformEntity[]; total: number };
+
+    type PlatformWarehouseList = Api.Common.PaginatingQueryRecord<PlatformWarehouse>;
+
+    type PlatformSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      status?: string | null;
+    }>;
+
+    type PlatformWarehouseSearchParams = CommonType.RecordNullable<
+      Pick<PlatformWarehouse, 'platformId' | 'status' | 'countryCode'> & {
+        keyword?: string | null;
+        pageNum?: number;
+        pageSize?: number;
+      }
+    >;
+
+    type PlatformOperateParams = CommonType.RecordNullable<
+      Pick<PlatformEntity, 'platformName' | 'platformCode' | 'status' | 'remark'>
+    >;
+
+    type PlatformWarehouseOperateParams = CommonType.RecordNullable<
+      Pick<
+        PlatformWarehouse,
+        | 'platformId'
+        | 'warehouseCode'
+        | 'warehouseName'
+        | 'countryCode'
+        | 'countryName'
+        | 'address'
+        | 'zipCode'
+        | 'cbmPerPallet'
+        | 'status'
+      >
+    >;
+
+    // ======================== 自动车次推荐 ========================
+
+    type TripRecommendAppointmentType = 'FLOOR' | 'PALLET';
+    type TripRecommendSummaryAppointmentType = TripRecommendAppointmentType | 'MIXED';
+
+    type TripRecommendStats = {
+      operableOrderCount: number;
+      operablePalletQty: number;
+      operableCbm: number;
+      operableWeightKg: number;
+      matchableTripCount: number;
+      floorGenerable: number;
+      palletGenerable: number;
+      generatedTripCount: number;
+      inoperableOrderCount: number;
+    };
+
+    type TripRecommendSummaryRow = {
+      id: string;
+      platform: string;
+      destination: string;
+      appointmentNo: string;
+      appointmentType: TripRecommendSummaryAppointmentType;
+      appointmentTime: string;
+      operableOrderCount: number;
+      totalPalletQty: number;
+      totalCartonQty: number;
+      totalCbm: number;
+      totalWeightKg: number;
+      matchableTripCount: number;
+      recommendRule: string;
+      recommendStatus: 'READY' | 'PARTIAL' | 'BLOCKED' | 'GENERATED';
+      recommendStatusLabel: string;
+      tripGenerated: boolean;
+      generatedTripNo?: string | null;
+    };
+
+    type TripRecommendOrderLine = {
+      id: number;
+      orderNo: string;
+      customerOrderNo?: string | null;
+      customerName: string;
+      platform: string;
+      destination: string;
+      appointmentNo: string;
+      appointmentType: TripRecommendAppointmentType;
+      appointmentTime: string;
+      containerNo?: string | null;
+      palletQty: number;
+      cartonQty: number;
+      cbm: number;
+      weightKg: number;
+      inventoryStatus: string;
+      cargoStatus: string;
+      feeStatus: string;
+      holdFlag: boolean;
+      exceptionFlag: boolean;
+      inventoryLocked: boolean;
+      tripGenerated: boolean;
+      operationStatus: string;
+      warehouseName?: string | null;
+      palletNo?: string | null;
+      sku?: string | null;
+      fbaShipmentId?: string | null;
+      referenceId?: string | null;
+      poNumber?: string | null;
+    };
+
+    type TripRecommendLoadPreview = {
+      selectedOrderCount: number;
+      selectedPalletQty: number;
+      selectedCartonQty: number;
+      selectedCbm: number;
+      targetCbm: number;
+      selectedWeightKg: number;
+      maxWeightKg: number;
+      loadRate: number;
+      weightUsageRate: number;
+      ruleStatus: 'OK' | 'UNDER' | 'OVER_CBM' | 'OVER_WEIGHT' | 'EMPTY';
+      ruleStatusLabel: string;
+    };
+
+    type TripRecommendGroupContext = {
+      platform: string;
+      destination: string;
+      appointmentNo: string;
+      appointmentType: TripRecommendSummaryAppointmentType;
+      appointmentTime: string;
+      recommendRule: string;
+    };
+
+    type TripRecommendSearchParams = CommonType.RecordNullable<{
+      keyword?: string | null;
+      platform?: string | null;
+      destination?: string | null;
+      appointmentNo?: string | null;
+      appointmentType?: TripRecommendAppointmentType | null;
+      customerName?: string | null;
+      warehouseName?: string | null;
+      inventoryStatus?: string | null;
+      cargoStatus?: string | null;
+      holdFlag?: string | null;
+      exceptionFlag?: string | null;
+      tripGenerated?: string | null;
+      appointmentTimeStart?: string | null;
+      appointmentTimeEnd?: string | null;
+      showGenerated?: boolean | string | null;
+      groupId?: string | null;
+      pageNum?: number;
+      pageSize?: number;
+    }>;
+
+    type TripRecommendSummaryList = Api.Common.PaginatingQueryRecord<TripRecommendSummaryRow>;
+
+    type TripRecommendOrdersResult = {
+      rows: TripRecommendOrderLine[];
+      defaultSelectedIds: number[];
+      groupContext?: TripRecommendGroupContext | null;
+      loadPreview?: TripRecommendLoadPreview | null;
+    };
+
+    type TripRecommendGenerateParams = {
+      groupId: string;
+      orderIds: number[];
+    };
+
+    type TripRecommendGenerateResult = {
+      success: boolean;
+      message: string;
+      tripNo?: string;
+      orderCount?: number;
+      loadPreview?: TripRecommendLoadPreview | null;
     };
   }
 }

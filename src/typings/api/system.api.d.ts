@@ -143,6 +143,8 @@ declare namespace Api {
       email: string;
       /** 手机号码 */
       phonenumber: string;
+      /** 手机国际区号，如 +86 / +1 */
+      phoneCountryCode?: string | null;
       /** 用户性别（0男 1女 2未知） */
       sex: string;
       /** 头像地址 */
@@ -176,6 +178,7 @@ declare namespace Api {
         | 'nickName'
         | 'email'
         | 'phonenumber'
+        | 'phoneCountryCode'
         | 'sex'
         | 'password'
         | 'status'
@@ -295,6 +298,10 @@ declare namespace Api {
      */
     type IsMenuFrame = '0' | '1' | '2';
 
+    type MenuPermType = 'menu' | 'button' | 'api';
+
+    type MenuOpenMode = 'self' | 'blank' | 'iframe';
+
     type Menu = Common.CommonRecord<{
       /** 菜单 ID */
       menuId: CommonType.IdType;
@@ -302,6 +309,32 @@ declare namespace Api {
       parentId: CommonType.IdType;
       /** 菜单名称 */
       menuName: string;
+      /** 英文名称 */
+      menuNameEn?: string;
+      /** 菜单编码 */
+      menuCode?: string;
+      /** 权限名称 */
+      permName?: string;
+      /** 权限类型 */
+      permType?: MenuPermType;
+      /** 是否高风险 */
+      highRisk?: boolean;
+      /** 是否需要二次确认 */
+      needConfirm?: boolean;
+      /** 是否记录操作日志 */
+      auditLog?: boolean;
+      /** 适用端口（逗号分隔） */
+      applicablePorts?: string;
+      /** 适用仓库（逗号分隔） */
+      applicableWarehouses?: string;
+      /** 适用角色（逗号分隔） */
+      applicableRoles?: string;
+      /** 适用租户（逗号分隔） */
+      applicableTenants?: string;
+      /** 是否固定标签页 */
+      affixTab?: boolean;
+      /** 打开方式 */
+      openMode?: MenuOpenMode;
       /** 显示顺序 */
       orderNum: number;
       /** 路由地址 */
@@ -346,6 +379,19 @@ declare namespace Api {
         Menu,
         | 'menuId'
         | 'menuName'
+        | 'menuNameEn'
+        | 'menuCode'
+        | 'permName'
+        | 'permType'
+        | 'highRisk'
+        | 'needConfirm'
+        | 'auditLog'
+        | 'applicablePorts'
+        | 'applicableWarehouses'
+        | 'applicableRoles'
+        | 'applicableTenants'
+        | 'affixTab'
+        | 'openMode'
         | 'parentId'
         | 'orderNum'
         | 'path'
@@ -361,6 +407,48 @@ declare namespace Api {
         | 'remark'
       >
     >;
+
+    /** 菜单是否可删除 */
+    type MenuDeletableResult = {
+      canDelete: boolean;
+      message?: string;
+      childMenuCount?: number;
+      buttonCount?: number;
+    };
+
+    /** 批量更新菜单状态 */
+    type MenuBatchStatusParams = {
+      menuIds: CommonType.IdType[];
+      status: Common.EnableStatus;
+    };
+
+    type MenuExportParams = CommonType.RecordNullable<{
+      parentId: CommonType.IdType;
+    }>;
+
+    type MenuImportParams = {
+      menus: Array<Partial<Menu>>;
+      mode?: 'merge' | 'replace';
+    };
+
+    type MenuImportResult = {
+      created: number;
+      updated: number;
+      skipped: number;
+    };
+
+    type MenuButtonTemplateApplyParams = {
+      templateKey: string;
+      parentMenuId?: CommonType.IdType;
+      routeKey?: string;
+    };
+
+    type MenuButtonTemplateApplyResult = {
+      success: boolean;
+      message?: string;
+      added: number;
+      skipped: number;
+    };
 
     /** 字典类型 */
     type DictType = Common.CommonRecord<{
@@ -558,6 +646,8 @@ declare namespace Api {
       contactUserName: string;
       /** 联系电话 */
       contactPhone: string;
+      /** 联系电话国际区号，如 +86 / +1 */
+      contactPhoneCountryCode?: string | null;
       /** 企业名称 */
       companyName: string;
       /** 统一社会信用代码 */
@@ -596,6 +686,7 @@ declare namespace Api {
         | 'tenantId'
         | 'contactUserName'
         | 'contactPhone'
+        | 'contactPhoneCountryCode'
         | 'companyName'
         | 'licenseNumber'
         | 'address'
@@ -861,5 +952,78 @@ declare namespace Api {
 
     /** oss config list */
     type OssConfigList = Api.Common.PaginatingQueryRecord<OssConfig>;
+
+    /** theme config */
+    type ThemeConfig = Common.CommonRecord<{
+      themeId: CommonType.IdType;
+      themeName: string;
+      themeCode: string;
+      themeScheme: UnionKey.ThemeScheme;
+      themeColor: string;
+      layoutMode: UnionKey.ThemeLayoutMode;
+      themeRadius: number;
+      tabVisible: Common.VisibleStatus;
+      watermarkVisible: Common.VisibleStatus;
+      watermarkText: string;
+      isDefault: Common.YesOrNoStatus;
+      status: Common.EnableStatus;
+      version: string;
+      configJson: string;
+      remark?: string | null;
+      /** 适用端口，逗号分隔 BACKEND,SUPPLIER,PDA */
+      applicablePorts?: string | null;
+      /** 适用仓库 */
+      applicableWarehouses?: string | null;
+      /** 适用账号范围 ALL / CUSTOMER / SUPPLIER */
+      applicableAccounts?: string | null;
+      /** 适用角色，逗号分隔 */
+      applicableRoles?: string | null;
+      /** 主题风格 GLASS / LIGHT / BUSINESS 等 */
+      themeStyle?: string | null;
+      /** 发布状态 DRAFT / PUBLISHED */
+      publishStatus?: string | null;
+    }>;
+
+    type ThemeConfigList = Api.Common.PaginatingQueryRecord<ThemeConfig>;
+
+    type ThemeConfigSearchParams = CommonType.RecordNullable<
+      Pick<
+        ThemeConfig,
+        'themeName' | 'themeCode' | 'themeScheme' | 'status' | 'isDefault' | 'applicablePorts' | 'applicableWarehouses'
+      > &
+        Api.Common.CommonSearchParams
+    >;
+
+    type ThemeConfigOperateParams = CommonType.RecordNullable<
+      Pick<
+        ThemeConfig,
+        | 'themeId'
+        | 'themeName'
+        | 'themeCode'
+        | 'themeScheme'
+        | 'themeColor'
+        | 'layoutMode'
+        | 'themeRadius'
+        | 'tabVisible'
+        | 'watermarkVisible'
+        | 'watermarkText'
+        | 'isDefault'
+        | 'status'
+        | 'version'
+        | 'configJson'
+        | 'remark'
+        | 'applicablePorts'
+        | 'applicableWarehouses'
+        | 'applicableAccounts'
+        | 'applicableRoles'
+        | 'themeStyle'
+        | 'publishStatus'
+      >
+    >;
+
+    type ThemeConfigBatchStatusParams = {
+      themeIds: CommonType.IdType[];
+      status: Common.EnableStatus;
+    };
   }
 }

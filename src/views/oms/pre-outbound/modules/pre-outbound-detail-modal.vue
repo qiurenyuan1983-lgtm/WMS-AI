@@ -485,7 +485,7 @@ async function submitConvert() {
                 <NFormItem label="预出单号" class="readonly-field">
                   <NInput :value="row.preOutboundNo" disabled />
                 </NFormItem>
-                <NFormItem label="运单号" class="readonly-field">
+                <NFormItem label="订单号" class="readonly-field">
                   <NInput :value="val(row.cargoOrderNo)" disabled />
                 </NFormItem>
                 <NFormItem label="客户" class="readonly-field">

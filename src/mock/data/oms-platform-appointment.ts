@@ -55,7 +55,7 @@ const MOCK_PLATFORM_APPOINTMENTS: PlatformAppointmentRow[] = [
     id: 95001,
     platformName: 'Amazon FBA',
     warehouseCode: 'LAX9',
-    appointmentNo: 'APT-2026-0601-001',
+    appointmentNo: 'ISA-2026-0601-001',
     appointmentTime: '2026-06-05 09:00:00',
     createTime: '2026-06-01 10:20:00',
     appointmentType: 'FBA_DELIVERY',
@@ -70,7 +70,7 @@ const MOCK_PLATFORM_APPOINTMENTS: PlatformAppointmentRow[] = [
     id: 95002,
     platformName: 'Amazon FBA',
     warehouseCode: 'ONT8',
-    appointmentNo: 'APT-2026-0602-002',
+    appointmentNo: 'ISA-2026-0602-002',
     appointmentTime: '2026-06-06 14:30:00',
     createTime: '2026-06-02 11:05:00',
     appointmentType: 'FBA_DELIVERY',
@@ -115,7 +115,7 @@ const MOCK_PLATFORM_APPOINTMENTS: PlatformAppointmentRow[] = [
     id: 95005,
     platformName: 'Amazon FBA',
     warehouseCode: 'SBD1',
-    appointmentNo: 'APT-2026-0605-005',
+    appointmentNo: 'ISA-2026-0605-005',
     appointmentTime: '2026-06-09 10:30:00',
     createTime: '2026-06-04 08:50:00',
     appointmentType: 'EMPTY_PICKUP',
@@ -145,7 +145,7 @@ const MOCK_PLATFORM_APPOINTMENTS: PlatformAppointmentRow[] = [
     id: 95007,
     platformName: 'Amazon FBA',
     warehouseCode: MOCK_WAREHOUSE.warehouseCode,
-    appointmentNo: 'APT-2026-0611-007',
+    appointmentNo: 'ISA-2026-0611-007',
     appointmentTime: '2026-06-11 09:30:00',
     createTime: '2026-06-05 09:00:00',
     appointmentType: 'FBA_DELIVERY',
@@ -233,7 +233,7 @@ function buildPreOutboundPool(row: PlatformAppointmentRow): PreOutboundCargoSour
     {
       id: Number(`${id}12`),
       cargoOrderNo: `CO-PRE-${id}-2`,
-      containerNo: 'OOLU7654321',
+      containerNo: 'OOLU1000137',
       palletNo: '--',
       storageLocation: '--',
       pieceQty: 32,
@@ -267,7 +267,7 @@ function buildPreOutboundPool(row: PlatformAppointmentRow): PreOutboundCargoSour
     {
       id: Number(`${id}14`),
       cargoOrderNo: `CO-PRE-${id}-4`,
-      containerNo: 'OOLU7654321',
+      containerNo: 'OOLU1000137',
       palletNo: `PLT-LBL-${wh}-004`,
       storageLocation: `B-02-${String(id).slice(-2)}`,
       pieceQty: 24,
@@ -427,4 +427,59 @@ export function getPlatformAppointmentStatusCount(params?: Record<string, any>) 
 
 export function getPlatformAppointmentDetail(id: number | string) {
   return MOCK_PLATFORM_APPOINTMENTS.find(row => String(row.id) === String(id)) || null;
+}
+
+export function linkPlatformAppointmentToTrip(appointmentId: number | string, tripNo: string) {
+  const row = MOCK_PLATFORM_APPOINTMENTS.find(item => String(item.id) === String(appointmentId));
+  if (!row || row.status === 'CANCELLED' || row.status === 'DELIVERED') return null;
+  row.outboundOrderNo = tripNo;
+  row.status = 'USED';
+  return row;
+}
+
+export function linkPlatformAppointmentByNo(appointmentNo: string, tripNo: string) {
+  const row = MOCK_PLATFORM_APPOINTMENTS.find(item => item.appointmentNo === appointmentNo);
+  if (!row) return null;
+  return linkPlatformAppointmentToTrip(row.id, tripNo);
+}
+
+let platformAppointmentIdSeq = 95008;
+let platformAppointmentNoSeq = 0;
+
+function formatNow() {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function nextAppointmentNo(platformName?: string) {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  platformAppointmentNoSeq += 1;
+  const seq = String(platformAppointmentNoSeq).padStart(3, '0');
+  const isAmazon = (platformName ?? '').toLowerCase().includes('amazon');
+  return isAmazon ? `ISA-${ymd}-${seq}` : `APT-${ymd}-${seq}`;
+}
+
+export function createPlatformAppointment(payload: Record<string, unknown>) {
+  const platformName = String(payload.platformName || '');
+  const appointmentNo = String(payload.appointmentNo || '').trim() || nextAppointmentNo(platformName);
+  const row: PlatformAppointmentRow = {
+    id: ++platformAppointmentIdSeq,
+    platformName: String(payload.platformName || ''),
+    warehouseCode: String(payload.warehouseCode || '').toUpperCase(),
+    appointmentNo,
+    appointmentTime: String(payload.appointmentTime || ''),
+    createTime: formatNow(),
+    appointmentType: String(payload.appointmentType || 'FBA_DELIVERY'),
+    status: 'UNUSED',
+    remark: payload.remark ? String(payload.remark) : null,
+    tagCodes: Array.isArray(payload.tagCodes) ? (payload.tagCodes as string[]) : [],
+    existingCargoCbm: Number(payload.existingCargoCbm) || 0,
+    outboundOrderNo: null,
+    preOutboundNo: null
+  };
+  if (!row.platformName || !row.warehouseCode || !row.appointmentTime) {
+    throw new Error('请完善平台、仓库代码与预约时间');
+  }
+  MOCK_PLATFORM_APPOINTMENTS.unshift(row);
+  return row;
 }

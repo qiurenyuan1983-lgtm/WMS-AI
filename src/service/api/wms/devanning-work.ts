@@ -128,3 +128,30 @@ export function fetchCompleteDevanningWorkTask(taskId: CommonType.IdType) {
     data: { taskId }
   });
 }
+
+export function fetchUpdateDevanningWorkDock(taskId: CommonType.IdType, dockId: CommonType.IdType) {
+  return request<Api.Wms.DevanningWorkTask>({
+    url: '/wms/devanning-work/dock',
+    method: 'post',
+    data: { taskId, dockId }
+  });
+}
+
+export function fetchUpdateDevanningWorkDate(taskId: CommonType.IdType, devanningDate: string) {
+  return request<Api.Wms.DevanningWorkTask>({
+    url: '/wms/devanning-work/devanning-date',
+    method: 'post',
+    data: { taskId, devanningDate }
+  });
+}
+
+export function fetchUpdateDevanningWorkExtraFee(
+  taskId: CommonType.IdType,
+  data: { amount: number; remark: string }
+) {
+  return request<Api.Wms.DevanningWorkTask>({
+    url: '/wms/devanning-work/extra-fee',
+    method: 'post',
+    data: { taskId, ...data }
+  });
+}

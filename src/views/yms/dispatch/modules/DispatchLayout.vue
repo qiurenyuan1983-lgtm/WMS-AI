@@ -113,18 +113,20 @@ const statItems = computed(() => {
 
     <!-- 顶部统计 -->
     <NCard :bordered="false" class="card-wrapper flex-shrink-0">
-      <div class="flex items-center justify-between flex-wrap gap-12px">
-        <!-- 标题 + 统计 -->
-        <div class="flex items-center gap-24px flex-wrap">
-          <span class="text-16px font-semibold text-gray-700">{{ TITLE[taskGroup] }}</span>
+      <div class="dispatch-header flex items-center gap-16px flex-wrap">
+        <!-- 左侧统计 -->
+        <div class="header-side flex items-center gap-24px flex-wrap">
           <div v-for="item in statItems" :key="item.label" class="stat-item">
             <span class="stat-num" :style="{ color: item.color }">{{ item.val }}</span>
             <span class="stat-label">{{ item.label }}</span>
           </div>
         </div>
 
+        <!-- 居中标题 -->
+        <h1 class="header-title">{{ TITLE[taskGroup] }}</h1>
+
         <!-- 右侧控制 -->
-        <div class="flex items-center gap-8px flex-wrap">
+        <div class="header-side flex items-center gap-8px flex-wrap justify-end">
           <NSelect
             v-model:value="selectedWarehouseId"
             :options="warehouseOptions"
@@ -192,6 +194,17 @@ const statItems = computed(() => {
 </template>
 
 <style scoped>
+.dispatch-header { position: relative; }
+.header-side { flex: 1; min-width: 0; }
+.header-title {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #374151;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
 .stat-item  { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; }
 .stat-num   { font-size: 22px; font-weight: 700; line-height: 1; }
 .stat-label { font-size: 11px; color: #6b7280; }

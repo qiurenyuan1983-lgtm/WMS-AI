@@ -96,10 +96,10 @@ async function handleConfirm() {
     <template #header>新增货物信息</template>
     <div class="drawer-body">
       <NSpace vertical :size="12">
-        <NSpace>
+        <NCollapse default-expanded-names="['search']"><NCollapseItem title="搜索" name="search"><NSpace>
           <NInput v-model:value="keyword" placeholder="订单号/柜号/货件/追踪编码" clearable style="width: 280px" @keyup.enter="handleSearch" />
-          <NButton type="primary" @click="handleSearch">查询</NButton>
-        </NSpace>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
+        </NSpace></NCollapseItem></NCollapse>
         <NDataTable
           v-model:checked-row-keys="checkedRowKeys"
           remote

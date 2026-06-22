@@ -1,3 +1,5 @@
+import { enrichTripDeadlineFields } from '@/utils/tms/trip-deadline';
+
 export type OutboundPallet = {
   palletNo: string;
   destination: string;
@@ -6,6 +8,8 @@ export type OutboundPallet = {
   scanned: boolean;
   loaded: boolean;
   loadScanned: boolean;
+  /** HOLD 货物禁止装车 */
+  hold?: boolean;
 };
 
 export type OutboundLocation = {
@@ -18,11 +22,74 @@ export type OutboundTrip = {
   dockNo: string;
   carriageNo: string;
   locations: OutboundLocation[];
+  appointmentTime?: string | null;
+  originWarehouse?: string;
+  destination?: string;
+  palletQty?: number;
+  cartonQty?: number;
+  latestStartLoadingTime?: string | null;
+  latestFinishTime?: string | null;
+  remainingMinutes?: number | null;
+  deadlineRiskLevel?: 'NORMAL' | 'NEAR' | 'URGENT' | 'OVERDUE';
+  distanceMiles?: number;
+  estimatedTravelMinutes?: number;
 };
 
-function cloneTrip(trip: OutboundTrip): OutboundTrip {
+function formatTripDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function enrichOutboundTrip(trip: OutboundTrip): OutboundTrip {
+  const pallets = trip.locations.flatMap(l => l.pallets);
+  const palletQty = pallets.length;
+  const cartonQty = pallets.reduce((s, p) => s + p.qty, 0);
+  const destination = pallets[0]?.destination ?? '洛杉矶';
+  const finishOffsets = [18, 42, 68];
+  const tripIdx = OUTBOUND_TRIP_POOL.findIndex(t => t.tripNo === trip.tripNo);
+  const finishInMin = finishOffsets[Math.max(0, tripIdx) % finishOffsets.length];
+  const probe = enrichTripDeadlineFields({
+    appointmentTime: '2099-06-06 20:00:00',
+    originWarehouse: 'LA',
+    destination,
+    palletQty,
+    cartonQty
+  });
+  const routeMinutes =
+    probe.estimatedTravelMinutes +
+    probe.trafficBufferMinutes +
+    probe.exitCheckMinutes +
+    probe.sealSignMinutes;
+  const appointmentTime = formatTripDateTime(
+    new Date(Date.now() + (finishInMin + routeMinutes) * 60_000)
+  );
+  const deadline = enrichTripDeadlineFields({
+    appointmentTime,
+    originWarehouse: 'LA',
+    destination,
+    palletQty,
+    cartonQty
+  });
   return {
     ...trip,
+    appointmentTime,
+    originWarehouse: 'LA',
+    destination,
+    palletQty,
+    cartonQty,
+    distanceMiles: deadline.distanceMiles,
+    estimatedTravelMinutes: deadline.estimatedTravelMinutes,
+    latestStartLoadingTime: deadline.latestStartLoadingTime,
+    latestFinishTime: deadline.latestFinishTime,
+    remainingMinutes: deadline.remainingMinutes,
+    deadlineRiskLevel: deadline.deadlineRiskLevel
+  };
+}
+
+function cloneTrip(trip: OutboundTrip): OutboundTrip {
+  const enriched = enrichOutboundTrip(trip);
+  return {
+    ...enriched,
     locations: trip.locations.map(loc => ({
       ...loc,
       pallets: loc.pallets.map(p => ({ ...p, loadScanned: p.loadScanned ?? false }))
@@ -146,6 +213,26 @@ const ADD_PALLET_TEMPLATES: Array<Omit<OutboundPallet, 'scanned' | 'loaded' | 'l
 ];
 
 let addPalletSeq = 0;
+
+export const PDA_WRONG_PALLET_NO = 'PLT-WRONG-001';
+
+export type LoadScanResult = 'success' | 'duplicate' | 'wrong' | 'hold';
+
+export function evaluateLoadScan(
+  trip: OutboundTrip,
+  palletNo: string
+): { result: LoadScanResult; message: string; pallet?: OutboundPallet } {
+  if (palletNo === PDA_WRONG_PALLET_NO) {
+    return { result: 'wrong', message: '该托盘不属于当前车次，禁止装车' };
+  }
+  const pallet = getAllPallets(trip).find(p => p.palletNo === palletNo);
+  if (!pallet) return { result: 'wrong', message: '该托盘不属于当前车次，禁止装车' };
+  if (pallet.hold) return { result: 'hold', message: 'HOLD 货物，禁止装车', pallet };
+  if (pallet.loadScanned || pallet.loaded) {
+    return { result: 'duplicate', message: '该托盘已扫描，请勿重复扫描', pallet };
+  }
+  return { result: 'success', message: '允许装车', pallet };
+}
 
 export function addScannedPalletToTrip(trip: OutboundTrip): OutboundPallet | null {
   const existing = new Set(getAllPallets(trip).map(p => p.palletNo));

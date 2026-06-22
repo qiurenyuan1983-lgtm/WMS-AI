@@ -35,7 +35,9 @@ function menuGroup(
       cloneRoute(r, {
         order: r.meta?.order ?? index + 1,
         hideInMenu: hiddenNames.includes(r.name) ? true : r.meta?.hideInMenu,
-        activeMenu: hiddenNames.includes(r.name) ? (menuActiveKey as RouteMeta['activeMenu']) : r.meta?.activeMenu,
+        activeMenu: hiddenNames.includes(r.name)
+          ? resolveHiddenActiveMenu(String(r.name), menuActiveKey)
+          : r.meta?.activeMenu,
         multiTab: r.name === 'wms_devanning-order-detail' ? true : r.meta?.multiTab
       })
     );
@@ -84,18 +86,12 @@ function buildBaseRoutes(): ElegantRoute {
         ['base_company', 'base_warehouse'],
         1
       ),
-      menuGroup(
-        'base_goods',
-        '/base/goods',
-        { i18nKey: 'route.base_goods', icon: 'mdi:package-variant' },
-        ['base_sku'],
-        2
-      ),
+      buildWmsWarehouseDataMenuGroup(2),
       menuGroup(
         'base_platform-group',
         '/base/platform-group',
         { i18nKey: 'route.base_platform-group', icon: 'mdi:store-outline' },
-        ['base_platform', 'base_platform-address'],
+        ['oms_platform-warehouse'],
         3
       ),
       menuGroup(
@@ -138,106 +134,231 @@ function buildBaseRoutes(): ElegantRoute {
         { i18nKey: 'route.base_yard', icon: 'mdi:map-marker-radius' },
         ['yard_dock', 'yard_zone'],
         8
-      )
+      ),
+      buildOmsConfigRoutes(9),
+      buildPrintMenuGroup(10)
     ],
-    10
+    87
   );
 }
 
 const WMS_HIDDEN_MENU = [
+  'wms_devanning-order',
   'wms_devanning-order-detail',
   'wms_devanning-work-exec',
-  'wms_inbound-task',
-  'wms_putaway-pda',
-  'wms_vas-work',
   'wms_stock-prep-exec',
   'wms_outbound-exec',
   'wms_outbound-loading',
+  'wms_outbound-order',
   'pda_business',
   'pda_inbound',
   'pda_outbound',
+  'pda_devanning',
   'pda_task'
 ];
+
+const OMS_TRIP_HIDDEN = ['oms_trip-order-detail', 'oms_ltl-order-detail', 'oms_local-order-detail', 'wms_outbound-exec'];
+
+function resolveHiddenActiveMenu(routeName: string, menuActiveKey: string): RouteMeta['activeMenu'] {
+  if (routeName === 'oms_trip-order-detail') return 'oms_outbound-order';
+  if (routeName === 'oms_ltl-order-detail') return 'oms_order-workbench';
+  if (routeName === 'oms_local-order-detail') return 'oms_order-workbench';
+  if (routeName === 'wms_outbound-exec') return 'wms_outbound-loading';
+  if (routeName === 'print_designer') return menuActiveKey as RouteMeta['activeMenu'];
+  return menuActiveKey as RouteMeta['activeMenu'];
+}
 
 /** WMS: PRD V1.0 prototype menu (sys_menu 6000+) */
 function buildWmsRoutes(): ElegantRoute {
   return moduleShell(
     'wms',
     '/wms',
-    { i18nKey: 'route.wms', icon: 'carbon:warehouse' },
+    { i18nKey: 'route.wms', icon: 'mdi:package-variant-closed' },
     [
       menuGroup(
         'wms_devanning-group',
         '/wms/devanning-group',
         { i18nKey: 'route.wms_devanning-group', icon: 'mdi:crane' },
-        ['wms_devanning-order', 'wms_devanning-work', 'wms_devanning-dock-qr'],
+        ['yms_devanning', 'wms_devanning-dock-qr', 'wms_devanning-work'],
         1,
-        WMS_HIDDEN_MENU
-      ),
-      menuGroup(
-        'wms_inbound-group',
-        '/wms/inbound-group',
-        { i18nKey: 'route.wms_inbound-group', icon: 'mdi:package-down' },
-        ['wms_inbound-order'],
-        2,
-        WMS_HIDDEN_MENU
-      ),
-      menuGroup(
-        'wms_putaway-group',
-        '/wms/putaway-group',
-        { i18nKey: 'route.wms_putaway-group', icon: 'mdi:arrow-up-bold-box' },
-        ['wms_putaway-task', 'wms_putaway-pda'],
-        3,
-        WMS_HIDDEN_MENU
-      ),
-      menuGroup(
-        'wms_operation-group',
-        '/wms/operation-group',
-        { i18nKey: 'route.wms_operation-group', icon: 'mdi:clipboard-text-play' },
-        ['wms_operation-order'],
-        4
-      ),
-      menuGroup(
-        'wms_vas-group',
-        '/wms/vas-group',
-        { i18nKey: 'route.wms_vas-group', icon: 'mdi:star-circle' },
-        ['wms_vas-task'],
-        5,
-        WMS_HIDDEN_MENU
+        [...WMS_HIDDEN_MENU, 'yms_dispatch-detail', 'yms_dispatch-create']
       ),
       menuGroup(
         'wms_stock-prep-group',
         '/wms/stock-prep-group',
         { i18nKey: 'route.wms_stock-prep-group', icon: 'mdi:cart-arrow-right' },
         ['wms_stock-prep-order'],
-        6,
+        2,
+        WMS_HIDDEN_MENU
+      ),
+      menuGroup(
+        'wms_outbound-mgmt',
+        '/wms/outbound-mgmt',
+        { i18nKey: 'route.wms_outbound-mgmt', icon: 'mdi:truck-delivery' },
+        ['wms_trip-outbound-plan', 'wms_driver-checkin', 'wms_dock-auto-schedule'],
+        3,
         WMS_HIDDEN_MENU
       ),
       menuGroup(
         'wms_outbound-group',
         '/wms/outbound-group',
-        { i18nKey: 'route.wms_outbound-group', icon: 'mdi:truck-delivery' },
-        ['wms_outbound-order', 'wms_outbound-exec', 'wms_outbound-loading', 'wms_pallet-outbound'],
-        7,
-        WMS_HIDDEN_MENU
+        { i18nKey: 'route.wms_outbound-group', icon: 'mdi:truck-delivery', hideInMenu: true },
+        ['wms_pallet-outbound'],
+        31,
+        [...WMS_HIDDEN_MENU, 'yms_dispatch-detail', 'yms_dispatch-create', 'yms_loading']
       ),
       menuGroup(
         'wms_inventory-group',
         '/wms/inventory-group',
         { i18nKey: 'route.wms_inventory-group', icon: 'ep:box' },
-        ['wms_inventory', 'wms_pallet', 'wms_inventory-lock', 'wms_inventory-transaction', 'wms_inventory-visualization'],
-        8
+        ['wms_pallet', 'wms_inventory-visualization'],
+        4
       ),
       menuGroup(
-        'wms_warehouse-data',
-        '/wms/warehouse-data',
-        { i18nKey: 'route.wms_warehouse-data', icon: 'ep:office-building' },
-        ['wms_zone', 'wms_location'],
-        9
+        'wms_transit-group',
+        '/wms/transit-group',
+        { i18nKey: 'route.wms_transit-group', icon: 'mdi:swap-horizontal' },
+        ['wms_transfer-workbench'],
+        5
       )
     ],
     30
   );
+}
+
+/** 库位设置（挂基础数据菜单下，路由仍 /wms/*） */
+function buildWmsWarehouseDataMenuGroup(order = 2): ElegantRoute {
+  return menuGroup(
+    'wms_warehouse-data',
+    '/base/warehouse-data',
+    { i18nKey: 'route.wms_warehouse-data', icon: 'ep:office-building' },
+    ['wms_zone', 'wms_location'],
+    order
+  );
+}
+
+/** 打印中心（挂基础数据菜单下，路由仍 /print/*） */
+function buildPrintMenuGroup(order = 10): ElegantRoute {
+  return {
+    name: 'print',
+    path: '/print',
+    component: 'ParentView',
+    meta: { i18nKey: 'route.print', icon: 'mdi:printer-outline', order },
+    children: [
+      ...cloneMenuRoutes([['print_workbench', 1]]),
+      menuGroup(
+        'print_template',
+        '/print/template',
+        { i18nKey: 'route.print_template', icon: 'mdi:file-document-multiple-outline' },
+        [
+          'print_template-pallet-label',
+          'print_template-devanning',
+          'print_template-bol',
+          'print_template-report',
+          'print_template-invoice',
+          'print_template-carton',
+          'print_template-location',
+          'print_template-custom'
+        ],
+        2,
+        ['print_designer']
+      ),
+      ...cloneMenuRoutes([
+        ['print_template-version', 3],
+        ['print_rule', 4],
+        ['print_permission', 5]
+      ])
+    ]
+  };
+}
+
+/** 智能员工中心 */
+function buildIecRoutes(): ElegantRoute {
+  const childNames = [
+    'iec_dashboard',
+    'iec_role-config',
+    'iec_auto-flow',
+    'iec_rpa',
+    'iec_task-queue',
+    'iec_takeover',
+    'iec_execution-log',
+    'iec_credential',
+    'iec_performance'
+  ];
+  const children = childNames
+    .map(n => findRoute(n))
+    .filter((r): r is ElegantRoute => Boolean(r))
+    .map((r, index) => cloneRoute(r, { order: index + 1 }));
+
+  return {
+    name: 'iec',
+    path: '/iec',
+    component: 'layout.base',
+    meta: {
+      title: 'iec',
+      i18nKey: 'route.iec',
+      icon: 'mdi:robot-outline',
+      order: 4
+    },
+    children
+  };
+}
+
+/** Comm Center */
+function buildCommRoutes(): ElegantRoute {
+  return {
+    name: 'comm',
+    path: '/comm',
+    component: 'layout.base',
+    meta: { title: 'comm', i18nKey: 'route.comm', icon: 'mdi:chat-outline', order: 1 },
+    children: cloneMenuRoutes([
+      ['comm_message', 1],
+      ['comm_settings', 2]
+    ])
+  };
+}
+
+/** 客户门户 */
+function cloneMenuRoute(name: string, order: number, extraMeta?: Partial<RouteMeta>): ElegantRoute | null {
+  const route = findRoute(name);
+  if (!route) {
+    // eslint-disable-next-line no-console
+    console.warn(`[auth-routes] route not found: ${name}`);
+    return null;
+  }
+  return cloneRoute(route, { order, ...extraMeta });
+}
+
+function cloneMenuRoutes(entries: Array<[string, number, Partial<RouteMeta>?]>): ElegantRoute[] {
+  return entries
+    .map(([name, order, extraMeta]) => cloneMenuRoute(name, order, extraMeta))
+    .filter((r): r is ElegantRoute => Boolean(r));
+}
+
+function buildPortalRoutes(): ElegantRoute {
+  const portalChildren = [
+    cloneMenuRoute('portal_home', 1),
+    cloneMenuRoute('portal_order-create', 2),
+    cloneMenuRoute('portal_orders', 3),
+    cloneMenuRoute('portal_inventory', 4),
+    cloneMenuRoute('portal_in-transit', 5),
+    cloneMenuRoute('portal_containers', 6),
+    cloneMenuRoute('portal_transfer-ops', 7),
+    cloneMenuRoute('portal_fee-confirm', 8),
+    cloneMenuRoute('portal_bill', 9),
+    cloneMenuRoute('portal_files', 10),
+    cloneMenuRoute('portal_comm', 11),
+    cloneMenuRoute('portal_exception', 12),
+    cloneMenuRoute('portal_settings', 13)
+  ].filter((r): r is ElegantRoute => Boolean(r));
+
+  return {
+    name: 'portal',
+    path: '/portal',
+    component: 'layout.base',
+    meta: { title: 'portal', i18nKey: 'route.portal', icon: 'mdi:account-circle-outline', order: 2 },
+    children: portalChildren
+  };
 }
 
 /** PDA prototype shell */
@@ -248,9 +369,35 @@ function buildPdaRoutes(): ElegantRoute {
     component: 'layout.base',
     meta: { i18nKey: 'route.pda', icon: 'mdi:cellphone', order: 35 },
     children: [
-      cloneRoute(findRoute('pda_home')!, { order: 1 }),
-      cloneRoute(findRoute('pda_task')!, { order: 2, hideInMenu: true })
+      ...cloneMenuRoutes([['pda_home', 1]]),
+      ...cloneMenuRoutes([
+        ['pda_business', 2, { hideInMenu: true }],
+        ['pda_inbound', 99, { hideInMenu: true }],
+        ['pda_outbound', 99, { hideInMenu: true }],
+        ['pda_devanning', 99, { hideInMenu: true }],
+        ['pda_task', 3, { hideInMenu: true }]
+      ])
     ]
+  };
+}
+
+/** 规则中心（挂基础数据菜单下，路由仍 /oms/*） */
+function buildOmsConfigRoutes(order = 9): ElegantRoute {
+  const childNames = ['oms_zone-rule', 'oms_business-rule', 'oms_cargo-grouping-rule', 'oms_approval-flow'];
+  const children = childNames
+    .map((name, index) => {
+      const route = findRoute(name);
+      if (!route) return null;
+      return cloneRoute(route, { order: index + 1 });
+    })
+    .filter((r): r is ElegantRoute => Boolean(r));
+
+  return {
+    name: 'oms_config',
+    path: '/oms/config',
+    component: 'ParentView',
+    meta: { i18nKey: 'route.oms_config', icon: 'mdi:tune-variant', order },
+    children
   };
 }
 
@@ -266,31 +413,43 @@ function buildOmsRoutes(): ElegantRoute {
         '/oms/order',
         { i18nKey: 'route.oms_order', icon: 'mdi:clipboard-list-outline' },
         [
+          'oms_order-workbench',
+          'oms_ltl-order',
+          'oms_local-order',
+          'oms_platform-order',
           'oms_container-order',
           'oms_cargo-order',
           'oms_platform-appointment',
-          'oms_pre-outbound',
-          'oms_outbound-order',
-          'oms_outbound-pool'
+          'oms_trip-recommend',
+          'oms_outbound-order'
         ],
-        1
-      ),
-      menuGroup(
-        'oms_plan',
-        '/oms/plan',
-        { i18nKey: 'route.oms_plan', icon: 'mdi:calendar-import' },
-        ['oms_inbound-plan'],
-        2
-      ),
-      menuGroup(
-        'oms_config',
-        '/oms/config',
-        { i18nKey: 'route.oms_config', icon: 'mdi:tune-variant' },
-        ['oms_cargo-grouping-rule'],
-        3
+        1,
+        OMS_TRIP_HIDDEN
       )
     ],
     20
+  );
+}
+
+/** TMS 供应商管理（路由 /tms/supplier/*） */
+function buildTmsSupplierMenuGroup(order = 7): ElegantRoute {
+  return menuGroup(
+    'tms_supplier',
+    '/tms/supplier',
+    { i18nKey: 'route.tms_supplier', title: 'tms_supplier', icon: 'mdi:truck-check-outline' },
+    [
+      'tms_supplier-task',
+      'tms_supplier-drayage',
+      'tms_supplier-linehaul',
+      'tms_supplier-ltl',
+      'tms_supplier-devanning-loading',
+      'tms_supplier-quote',
+      'tms_supplier-account',
+      'tms_supplier-bill',
+      'tms_supplier-fleet',
+      'tms_supplier-kpi'
+    ],
+    order
   );
 }
 
@@ -303,6 +462,46 @@ const YMS_HIDDEN_MENU = [
   'yms_gate-driver-qr',
   'yms_gate'
 ];
+
+const TMS_HIDDEN_MENU = ['tms_home'];
+
+/** TMS 运输管理系统 */
+function buildTmsRoutes(): ElegantRoute {
+  const menuActiveKey = 'tms_dispatch';
+
+  function cloneTmsMenuRoute(name: string, order: number): ElegantRoute | null {
+    const route = findRoute(name);
+    if (!route) return null;
+    return cloneRoute(route, {
+      order,
+      hideInMenu: TMS_HIDDEN_MENU.includes(route.name) ? true : route.meta?.hideInMenu,
+      activeMenu: TMS_HIDDEN_MENU.includes(route.name)
+        ? resolveHiddenActiveMenu(String(route.name), menuActiveKey)
+        : route.meta?.activeMenu
+    });
+  }
+
+  const children = [
+    cloneTmsMenuRoute('tms_dispatch', 1),
+    cloneTmsMenuRoute('tms_driver', 2),
+    cloneTmsMenuRoute('tms_vehicle', 3),
+    cloneTmsMenuRoute('tms_dock-board', 4),
+    cloneTmsMenuRoute('tms_pod', 5),
+    cloneTmsMenuRoute('tms_freight-settlement', 6),
+    buildTmsSupplierMenuGroup(7),
+    cloneTmsMenuRoute('tms_exception', 8),
+    cloneTmsMenuRoute('tms_log', 9),
+    cloneTmsMenuRoute('tms_home', 99)
+  ].filter((r): r is ElegantRoute => Boolean(r));
+
+  return moduleShell(
+    'tms',
+    '/tms',
+    { title: 'tms', i18nKey: 'route.tms', icon: 'mdi:truck-delivery-outline' },
+    children,
+    21
+  );
+}
 
 /** YMS (sys_menu 5000 + menu groups) */
 function buildYmsRoutes(): ElegantRoute {
@@ -322,7 +521,7 @@ function buildYmsRoutes(): ElegantRoute {
         'yms_dispatch-work',
         '/yms/dispatch-work',
         { i18nKey: 'route.yms_dispatch-work', icon: 'mdi:truck-cargo-container' },
-        ['yms_dispatch', 'yms_task', 'yms_devanning', 'yms_loading'],
+        ['yms_dispatch', 'yms_task'],
         2,
         YMS_HIDDEN_MENU
       ),
@@ -362,17 +561,105 @@ function buildYmsRoutes(): ElegantRoute {
   );
 }
 
-const PROTOTYPE_MODULE_NAMES = new Set(['wms', 'oms', 'yms', 'yard', 'base', 'pda']);
+const PROTOTYPE_MODULE_NAMES = new Set(['wms', 'oms', 'tms', 'yms', 'yard', 'base', 'pda', 'print', 'comm', 'iec', 'portal']);
+/** 原型模式下不展示的框架内置菜单 */
+const PROTOTYPE_HIDDEN_MENU_NAMES = new Set(['demo', 'tool']);
+
+/** 系统监控（排在侧边栏底部） */
+function buildMonitorRoutes(): ElegantRoute | null {
+  const monitor = findRoute('monitor');
+  if (!monitor) {
+    // eslint-disable-next-line no-console
+    console.warn('[auth-routes] route not found: monitor');
+    return null;
+  }
+  return cloneRoute(monitor, {
+    meta: {
+      ...monitor.meta,
+      order: 86,
+      icon: monitor.meta?.icon || 'mdi:monitor-eye'
+    }
+  });
+}
+
+/** 系统管理（分组菜单，便于原型演示） */
+function buildSystemRoutes(): ElegantRoute {
+  return moduleShell(
+    'system',
+    '/system',
+    { i18nKey: 'route.system', icon: 'mdi:cog-outline', order: 88 },
+    [
+      menuGroup(
+        'system_user-group',
+        '/system/user-group',
+        { i18nKey: 'route.system_user-group', icon: 'mdi:account-cog-outline' },
+        ['system_user', 'system_role', 'system_dept', 'system_post'],
+        1
+      ),
+      menuGroup(
+        'system_config-group',
+        '/system/config-group',
+        { i18nKey: 'route.system_config-group', icon: 'mdi:tune-vertical-variant' },
+        // 菜单管理(system_menu) 固定在本分组下，不拆为侧边栏独立一级
+        ['system_menu', 'system_dict', 'system_config', 'system_theme-config', 'system_notice'],
+        2
+      ),
+      menuGroup(
+        'system_tenant-group',
+        '/system/tenant-group',
+        { i18nKey: 'route.system_tenant-group', icon: 'mdi:domain' },
+        ['system_tenant', 'system_tenant-package'],
+        3
+      ),
+      menuGroup(
+        'system_resource-group',
+        '/system/resource-group',
+        { i18nKey: 'route.system_resource-group', icon: 'mdi:folder-cog-outline' },
+        ['system_client', 'system_oss'],
+        4,
+        ['system_oss-config']
+      )
+    ],
+    88
+  );
+}
+
+let cachedPrototypeAuthRoutes: ElegantRoute[] | null = null;
 
 /** Prototype auth routes: backend-aligned menu tree for business modules */
 export function buildPrototypeAuthRoutes(): ElegantRoute[] {
+  if (cachedPrototypeAuthRoutes) {
+    return cachedPrototypeAuthRoutes;
+  }
+
+  const comm = buildCommRoutes();
+  const portal = buildPortalRoutes();
+  const iec = buildIecRoutes();
   const businessModules = [
-    buildBaseRoutes(),
     buildOmsRoutes(),
+    buildTmsRoutes(),
     buildWmsRoutes(),
     buildYmsRoutes(),
     buildPdaRoutes()
   ];
-  const others = generatedRoutes.filter(r => !PROTOTYPE_MODULE_NAMES.has(r.name));
-  return [...others, ...businessModules];
+  const adminModules = [buildMonitorRoutes(), buildBaseRoutes(), buildSystemRoutes()].filter(
+    (r): r is ElegantRoute => Boolean(r)
+  );
+  const others = generatedRoutes
+    .filter(
+      r =>
+        !PROTOTYPE_MODULE_NAMES.has(r.name) &&
+        !PROTOTYPE_HIDDEN_MENU_NAMES.has(r.name) &&
+        r.name !== 'system' &&
+        r.name !== 'monitor'
+    )
+    .map(r => (r.name === 'home' ? cloneRoute(r, { order: 2 }) : r));
+
+  cachedPrototypeAuthRoutes = [comm, portal, iec, ...others, ...businessModules, ...adminModules];
+  return cachedPrototypeAuthRoutes;
+}
+
+/** 菜单管理保存排序后刷新侧边栏路由缓存 */
+export function invalidatePrototypeAuthRoutesCache() {
+  cachedPrototypeAuthRoutes = null;
 }

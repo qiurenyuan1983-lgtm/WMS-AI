@@ -1,28 +1,48 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { storeToRefs } from 'pinia';
-import { useAuthStore } from '@/store/modules/auth';
 import PdaPhoneShell from '@/components/pda/PdaPhoneShell.vue';
-import {
-  getBusinessPendingTotal,
-  PDA_BUSINESS_GROUPS,
-  PDA_PERFORMANCE,
-  type BusinessKey
-} from '../shared/business-config';
+import { fetchPdaHomeSummary } from '@/service/api/pda';
+import { useAuthStore } from '@/store/modules/auth';
+import { useRouterPush } from '@/hooks/common/router';
+import { sessionStg } from '@/utils/storage';
+import { applyModuleBadges, type BusinessKey } from '../shared/business-config';
+import { usePdaHomeLocale, type PdaHomeLang } from '../shared/pda-home-locale';
 
 defineOptions({ name: 'PdaHome' });
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { userInfo } = storeToRefs(authStore);
+const { toLogin } = useRouterPush(false);
+const { lang, t, applyLang, langOptions } = usePdaHomeLocale();
 
-const displayName = computed(
-  () => userInfo.value.user?.nickName || userInfo.value.user?.userName || 'ALEX'
-);
+const loading = ref(false);
+const summary = ref<Api.Pda.HomeSummary | null>(null);
 
-const performance = PDA_PERFORMANCE;
-const notifyCount = 4;
+const displayName = computed(() => summary.value?.displayName ?? '原型管理员');
+const warehouseName = computed(() => summary.value?.warehouseName ?? '美西二号仓');
+const notifyCount = computed(() => summary.value?.notifyCount ?? 0);
+const businessGroups = computed(() => summary.value?.businessGroups ?? []);
+const performance = computed(() => summary.value?.performance);
+
+const moreMenuOpen = ref(false);
+const bluetoothConnected = ref(sessionStg.get('pdaBluetoothConnected') === 'Y');
+
+async function loadSummary() {
+  loading.value = true;
+  const { data, error } = await fetchPdaHomeSummary();
+  loading.value = false;
+  if (!error && data) {
+    summary.value = data;
+    data.businessGroups.forEach(g => {
+      const badges: Record<string, number> = {};
+      g.modules.forEach(m => {
+        badges[m.key] = m.badge;
+      });
+      applyModuleBadges(g.key as BusinessKey, badges);
+    });
+  }
+}
 
 function goBack() {
   router.push({ name: 'home' });
@@ -33,12 +53,56 @@ function openBusiness(key: BusinessKey) {
 }
 
 function switchWarehouse() {
-  window.$message?.info('[原型] 切换仓库');
+  window.$message?.info(t.value.switchWarehouse);
 }
 
 function openPerformanceDetail() {
-  window.$message?.info('[原型] 个人绩效详情');
+  window.$message?.info(t.value.perfDetailToast);
 }
+
+function getGroupPending(group: Api.Pda.BusinessGroupSummary) {
+  return group.modules.reduce((sum, m) => sum + (m.badge > 0 ? m.badge : 0), 0);
+}
+
+function toggleMoreMenu() {
+  moreMenuOpen.value = !moreMenuOpen.value;
+}
+
+function closeMoreMenu() {
+  moreMenuOpen.value = false;
+}
+
+function selectLang(next: PdaHomeLang) {
+  applyLang(next);
+}
+
+async function handleAccountLogin() {
+  closeMoreMenu();
+  window.$message?.info(t.value.accountLoginToast);
+  await authStore.logout();
+  await toLogin('pwd-login', '/pda/home');
+}
+
+function toggleBluetooth() {
+  bluetoothConnected.value = !bluetoothConnected.value;
+  sessionStg.set('pdaBluetoothConnected', bluetoothConnected.value ? 'Y' : 'N');
+  window.$message?.success(bluetoothConnected.value ? t.value.moreBluetoothOn : t.value.moreBluetoothOff);
+  closeMoreMenu();
+}
+
+function onDocClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (!target.closest('.pda-more-wrap')) closeMoreMenu();
+}
+
+onMounted(() => {
+  loadSummary();
+  document.addEventListener('click', onDocClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick);
+});
 </script>
 
 <template>
@@ -47,7 +111,7 @@ function openPerformanceDetail() {
       <header class="pda-header">
         <button type="button" class="pda-back" @click="goBack">
           <span class="pda-back-arrow">&larr;</span>
-          返回物流管理系统
+          {{ t.back }}
         </button>
         <div class="pda-user-row">
           <span class="pda-user-name">{{ displayName }}</span>
@@ -59,25 +123,60 @@ function openPerformanceDetail() {
             </svg>
             <em v-if="notifyCount" class="pda-badge">{{ notifyCount }}</em>
           </span>
-          <button type="button" class="pda-more" aria-label="more">...</button>
+          <div class="pda-more-wrap">
+            <button
+              type="button"
+              class="pda-more"
+              :class="{ active: moreMenuOpen }"
+              aria-label="more"
+              @click.stop="toggleMoreMenu"
+            >
+              ...
+            </button>
+            <div v-if="moreMenuOpen" class="pda-more-menu" @click.stop>
+              <p class="pda-more-menu-title">{{ t.moreLanguage }}</p>
+              <button
+                v-for="opt in langOptions"
+                :key="opt.key"
+                type="button"
+                class="pda-more-menu-item"
+                :class="{ selected: lang === opt.key }"
+                @click="selectLang(opt.key)"
+              >
+                <span>{{ opt.label }}</span>
+                <span v-if="lang === opt.key" class="pda-more-check">✓</span>
+              </button>
+              <div class="pda-more-divider" />
+              <button type="button" class="pda-more-menu-item" @click="handleAccountLogin">
+                <span class="pda-more-menu-icon" aria-hidden="true">👤</span>
+                <span>{{ t.moreAccount }}</span>
+              </button>
+              <button type="button" class="pda-more-menu-item" @click="toggleBluetooth">
+                <span class="pda-more-menu-icon" aria-hidden="true">📶</span>
+                <span>{{ bluetoothConnected ? t.moreBluetoothDisconnect : t.moreBluetoothConnect }}</span>
+                <span v-if="bluetoothConnected" class="pda-more-bt-on">ON</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
       <section class="pda-warehouse" @click="switchWarehouse">
-        <span class="pda-warehouse-label">当前仓库</span>
-        <span class="pda-warehouse-name">美西二号仓</span>
+        <span class="pda-warehouse-label">{{ t.currentWarehouse }}</span>
+        <span class="pda-warehouse-name">{{ warehouseName }}</span>
       </section>
 
       <section class="pda-biz-section">
-        <h2 class="pda-section-title">选择业务</h2>
-        <div class="pda-biz-list">
+        <h2 class="pda-section-title">{{ t.selectBusiness }}</h2>
+        <div v-if="loading" class="pda-loading">{{ t.loading }}</div>
+        <div v-else class="pda-biz-list">
           <button
-            v-for="group in PDA_BUSINESS_GROUPS"
+            v-for="group in businessGroups"
             :key="group.key"
             type="button"
             class="pda-biz-entry"
             :style="{ '--entry-accent': group.accent }"
-            @click="openBusiness(group.key)"
+            @click="openBusiness(group.key as BusinessKey)"
           >
             <span class="pda-biz-entry-icon">{{ group.icon }}</span>
             <span class="pda-biz-entry-body">
@@ -85,21 +184,21 @@ function openPerformanceDetail() {
               <span class="pda-biz-entry-desc">{{ group.desc }}</span>
             </span>
             <span class="pda-biz-entry-meta">
-              <em class="pda-biz-entry-pending">{{ getBusinessPendingTotal(group) }} 待办</em>
+              <em class="pda-biz-entry-pending">{{ getGroupPending(group) }} {{ t.pending }}</em>
               <span class="pda-biz-entry-arrow">&rsaquo;</span>
             </span>
           </button>
         </div>
       </section>
 
-      <section class="pda-perf" @click="openPerformanceDetail">
+      <section v-if="performance" class="pda-perf" @click="openPerformanceDetail">
         <div class="pda-perf-head">
           <div>
-            <h3 class="pda-perf-title">个人绩效看板</h3>
+            <h3 class="pda-perf-title">{{ t.perfTitle }}</h3>
             <p class="pda-perf-sub">{{ performance.dateLabel }} · {{ performance.shift }}</p>
           </div>
           <span class="pda-perf-rank">
-            排名 <strong>{{ performance.rank.position }}</strong>/{{ performance.rank.total }}
+            {{ t.rank }} <strong>{{ performance.rank.position }}</strong>/{{ performance.rank.total }}
             <em class="pda-perf-trend">{{ performance.rank.trend }}</em>
           </span>
         </div>
@@ -107,7 +206,7 @@ function openPerformanceDetail() {
         <div class="pda-perf-summary">
           <div v-for="item in performance.summary" :key="item.key" class="pda-perf-stat">
             <span class="pda-perf-stat-val" :style="{ color: item.color }">{{ item.value }}</span>
-            <span class="pda-perf-stat-unit">{{ item.unit }}</span>
+            <span class="pda-perf-stat-unit">{{ item.unit === '单' ? t.unitOrder : item.unit }}</span>
             <span class="pda-perf-stat-label">{{ item.label }}</span>
           </div>
         </div>
@@ -119,9 +218,9 @@ function openPerformanceDetail() {
         </div>
 
         <div class="pda-perf-score">
-          <span>综合得分</span>
+          <span>{{ t.perfScore }}</span>
           <strong>{{ performance.rank.score }}</strong>
-          <span class="pda-perf-link">查看详情 &rsaquo;</span>
+          <span class="pda-perf-link">{{ t.perfDetail }} &rsaquo;</span>
         </div>
       </section>
     </div>
@@ -193,6 +292,10 @@ function openPerformanceDetail() {
   text-align: center;
 }
 
+.pda-more-wrap {
+  position: relative;
+}
+
 .pda-more {
   width: 32px;
   height: 26px;
@@ -202,6 +305,81 @@ function openPerformanceDetail() {
   color: #fff;
   font-size: 16px;
   cursor: pointer;
+}
+
+.pda-more.active {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.pda-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 168px;
+  padding: 8px 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 8px 24px rgba(30, 20, 80, 0.22);
+}
+
+.pda-more-menu-title {
+  margin: 0;
+  padding: 4px 14px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pda-more-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pda-more-menu-item:active,
+.pda-more-menu-item.selected {
+  background: #f3f4f6;
+}
+
+.pda-more-check {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5b54d8;
+}
+
+.pda-more-divider {
+  height: 1px;
+  margin: 4px 10px;
+  background: #e5e7eb;
+}
+
+.pda-more-menu-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.pda-more-bt-on {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .pda-warehouse {
@@ -230,6 +408,13 @@ function openPerformanceDetail() {
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 700;
+}
+
+.pda-loading {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.85;
 }
 
 .pda-biz-list {

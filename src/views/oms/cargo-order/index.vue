@@ -16,6 +16,12 @@ import {
   fetchSplitCargoOrder,
   fetchMergeBackCargoOrder
 } from '@/service/api/oms/cargo-order';
+import { displayAppointmentNo } from '@/utils/oms/appointment-no';
+import {
+  CARGO_OPERATION_STATUS_LIST,
+  CARGO_OPERATION_STATUS_META,
+  type CargoOperationStatus
+} from '@/utils/oms/operation-status';
 import CargoOrderDetailDrawer from './modules/cargo-order-detail-drawer.vue';
 import { useCargoOrderTransfer } from '../container-order/composables/use-cargo-order-transfer';
 
@@ -26,10 +32,17 @@ const { hasAuth } = useAuth();
 const { cancelTransfer, modifyTransfer } = useCargoOrderTransfer(() => getData());
 const POPUP_TO_BODY = false;
 
-const { options: fulfillmentStatusOptions } = useDict('oms_cargo_fulfillment_status');
+const { options: operationStatusOptions } = useDict('oms_cargo_operation_status');
 const { options: billingStatusOptions } = useDict('oms_cargo_billing_status');
 const { options: parcelCarrierOptions } = useDict('oms_parcel_carrier');
 const { options: addressTypeOptions } = useDict('oms_address_type');
+const { options: timelinessLevelOptions, record: timelinessLevelRecord } = useDict('oms_timeliness_level');
+
+const TIMELINESS_TAG: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+  T: 'error',
+  K: 'warning',
+  NORMAL_SHIP: 'default'
+};
 
 const channelOptions = ref<CommonType.Option[]>([]);
 const businessTypeOptions = ref<CommonType.Option[]>([]);
@@ -48,33 +61,13 @@ const OUTBOUND_ORDER_STATUS_OPTIONS = [
   { label: '已取消', value: 'CANCELLED' }
 ];
 
-const fulfillmentStatusFilterOptions = computed(() =>
-  fulfillmentStatusOptions.value.length
-    ? fulfillmentStatusOptions.value
-    : FULFILLMENT_STATUS_LIST.map(item => ({ label: item.label, value: item.value }))
+const operationStatusFilterOptions = computed(() =>
+  operationStatusOptions.value.length
+    ? operationStatusOptions.value
+    : CARGO_OPERATION_STATUS_LIST.map(item => ({ label: item.label, value: item.value }))
 );
 
-// ===================== 状态 Tab =====================
-
-const FULFILLMENT_STATUS_LIST = [
-  { label: '在途',     value: 'IN_TRANSIT',         type: 'info' },
-  { label: '已到港',   value: 'ARRIVED_PORT',       type: 'warning' },
-  { label: '已提柜',   value: 'PICKED_UP',          type: 'warning' },
-  { label: '已到仓',   value: 'ARRIVED_WAREHOUSE',  type: 'warning' },
-  { label: '拆柜中',   value: 'DEVANNING',          type: 'warning' },
-  { label: '拆柜完成', value: 'DEVANNED',           type: 'warning' },
-  { label: '已入库',   value: 'INBOUNDED',          type: 'success' },
-  { label: '已出单',   value: 'OUTBOUND_ORDERED',   type: 'success' },
-  { label: '已预约',   value: 'DELIVERY_APPOINTED', type: 'success' },
-  { label: '已出库',   value: 'OUTBOUNDED',         type: 'success' },
-  { label: '派送中',   value: 'DELIVERING',         type: 'info' },
-  { label: '已签收',   value: 'DELIVERED',          type: 'success' },
-  { label: 'POD回传',  value: 'POD_UPLOADED',       type: 'success' },
-  { label: '已出账单', value: 'BILLED',             type: 'success' },
-  { label: '已完成',   value: 'COMPLETED',          type: 'success' },
-  { label: '异常中',   value: 'EXCEPTION',          type: 'error' },
-  { label: '已取消',   value: 'CANCELLED',          type: 'default' }
-] as const;
+// ===================== 操作状态 Tab =====================
 
 const activeStatus = ref('');
 const statusCountMap = ref<Record<string, number>>({});
@@ -88,13 +81,14 @@ const lifecycleTabs = computed(() => {
   const total = Object.values(statusCountMap.value).reduce((sum, n) => sum + n, 0);
   return [
     { label: '全部', value: '', count: total },
-    ...FULFILLMENT_STATUS_LIST.map(item => ({ ...item, count: statusCountMap.value[item.value] || 0 }))
+    ...CARGO_OPERATION_STATUS_LIST.map(item => ({ ...item, count: statusCountMap.value[item.value] || 0 }))
   ];
 });
 
 function handleStatusChange(val: string) {
   activeStatus.value = val;
-  searchParams.value.fulfillmentStatus = val || undefined;
+  searchParams.value.operationStatus = val || undefined;
+  searchParams.value.fulfillmentStatus = undefined;
   getData();
 }
 
@@ -102,35 +96,21 @@ function handleStatusChange(val: string) {
 
 const searchCollapsed = ref(false);
 
-const ORDER_NO_FIELD_OPTIONS: { label: string; value: Api.Oms.CargoOrderKeywordField }[] = [
-  { label: '订单号', value: 'cargoOrderNo' },
-  { label: '唛头', value: 'mark' },
-  { label: '货件编码', value: 'shipmentCode' },
-  { label: 'PO号', value: 'poNo' },
-  { label: '参考号', value: 'externalOrderNo' }
+const HOLD_FILTER_OPTIONS = [
+  { label: '暂扣', value: 'HOLDING' },
+  { label: '正常', value: 'NORMAL' },
+  { label: '已放行', value: 'RELEASED' }
 ];
-
-const orderNoField = ref<Api.Oms.CargoOrderKeywordField>('cargoOrderNo');
-const orderNoKeyword = ref<string | null>(null);
 
 const searchParams = ref<Api.Oms.NewCargoOrderSearchParams>({
   pageNum: 1,
-  pageSize: 10,
-  keywordField: 'cargoOrderNo'
+  pageSize: 10
 });
 const checkedRowKeys = ref<CommonType.IdType[]>([]);
 
-function syncOrderNoSearch() {
-  const value = orderNoKeyword.value?.trim() || null;
-  searchParams.value.keywordField = orderNoField.value;
-  searchParams.value.keyword = value;
-  searchParams.value.cargoOrderNo = orderNoField.value === 'cargoOrderNo' ? value : null;
-  searchParams.value.externalOrderNo = orderNoField.value === 'externalOrderNo' ? value : null;
-}
-
 function handleSearch() {
-  syncOrderNoSearch();
-  searchParams.value.fulfillmentStatus = activeStatus.value || undefined;
+  searchParams.value.operationStatus = activeStatus.value || undefined;
+  searchParams.value.fulfillmentStatus = undefined;
   searchParams.value.pageNum = 1;
   applyAdvancedFilters();
   getData();
@@ -140,9 +120,7 @@ function handleSearch() {
 function handleReset() {
   advancedFilters.value = [];
   activeStatus.value = '';
-  orderNoField.value = 'cargoOrderNo';
-  orderNoKeyword.value = null;
-  searchParams.value = { pageNum: 1, pageSize: searchParams.value.pageSize || 10, keywordField: 'cargoOrderNo' };
+  searchParams.value = { pageNum: 1, pageSize: searchParams.value.pageSize || 10 };
   getData();
   loadStatusCount();
 }
@@ -186,16 +164,23 @@ const POD_STATUS_OPTIONS = [
 ];
 
 const ADVANCED_FIELD_OPTIONS: AdvancedFieldOption[] = [
-  { label: '货物单号', value: 'cargoOrderNo' },
-  { label: '外部单号', value: 'externalOrderNo' },
+  { label: '订单号', value: 'cargoOrderNo' },
+  { label: '预约号', value: 'appointmentNo' },
   { label: '客户', value: 'customerName' },
+  {
+    label: '时效等级',
+    value: 'timelinessLevel',
+    component: 'select',
+    multiSelect: true,
+    options: () => timelinessLevelOptions.value
+  },
   { label: '收货方', value: 'consigneeName' as AdvancedField },
   { label: '订单来源', value: 'orderSource', component: 'select', multiSelect: true, options: ORDER_SOURCE_OPTIONS },
   { label: '渠道', value: 'channelId', component: 'select', multiSelect: true, options: () => channelOptions.value },
   { label: '业务类型', value: 'businessTypeId', component: 'select', multiSelect: true, options: () => businessTypeOptions.value },
   { label: '平台', value: 'platformId', component: 'select', multiSelect: true, options: () => platformOptions.value },
   { label: '入库仓库', value: 'inboundWarehouseId', component: 'select', multiSelect: true, options: () => warehouseOptions.value },
-  { label: '履约状态', value: 'fulfillmentStatus', component: 'select', multiSelect: true, options: () => fulfillmentStatusFilterOptions.value },
+  { label: '操作状态', value: 'operationStatus', component: 'select', multiSelect: true, options: () => operationStatusFilterOptions.value },
   { label: '出单状态', value: 'outboundOrderStatus', component: 'select', multiSelect: true, options: OUTBOUND_ORDER_STATUS_OPTIONS },
   { label: '柜号', value: 'containerNo' },
   { label: '出单号', value: 'outboundBatchNo' },
@@ -212,6 +197,8 @@ const ADVANCED_FIELD_OPTIONS: AdvancedFieldOption[] = [
   { label: 'POD状态', value: 'podStatus', component: 'select', multiSelect: true, options: POD_STATUS_OPTIONS },
   { label: '是否异常', value: 'exceptionFlag', component: 'select', multiSelect: true, options: BOOLEAN_OPTIONS },
   { label: '是否转仓', value: 'transferFlag', component: 'select', multiSelect: true, options: BOOLEAN_OPTIONS },
+  { label: '转仓代码', value: 'transferOutboundWarehouseCode' },
+  { label: 'HOLD', value: 'holdStatus', component: 'select', multiSelect: true, options: HOLD_FILTER_OPTIONS },
   { label: '最早DW时间', value: 'beginEarliestDwTime', component: 'daterange', endKey: 'endEarliestDwTime' },
   { label: 'ETA', value: 'beginEta', component: 'daterange', endKey: 'endEta' },
   { label: 'ATA', value: 'beginAta', component: 'daterange', endKey: 'endAta' },
@@ -323,14 +310,35 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, scrollX
   columns: () => [
     { type: 'selection', align: 'center', width: 48, fixed: 'left' },
     {
-      key: 'cargoOrderNo', title: '订单号', width: 160, fixed: 'left',
-      render: row => renderCargoOrderNo(row)
+      key: 'cargoOrderNo', title: '订单号', width: 180, fixed: 'left',
+      render: row => (
+        <div class="flex items-center gap-6px">
+          {renderCargoOrderNo(row)}
+          {(row as any).orderSubType === 'LOOSE_PALLET'
+            ? h(NTag, { type: 'warning', size: 'small' }, () => '散板')
+            : null}
+        </div>
+      )
     },
-    { key: 'shipmentCodes',        title: '货件编码汇总', width: 160, ellipsis: { tooltip: true } },
+    { key: 'shipmentCodes',        title: 'FBA/SKU', width: 200, ellipsis: { tooltip: true } },
     { key: 'poNos',                title: 'PO汇总',      width: 140, ellipsis: { tooltip: true } },
-    { key: 'externalOrderNo',      title: '参考号',       width: 130, ellipsis: { tooltip: true } },
+    {
+      key: 'appointmentNo', title: '预约号', width: 140, ellipsis: { tooltip: true },
+      render: row => {
+        const r = row as Api.Oms.NewCargoOrder;
+        return displayAppointmentNo(r.appointmentNo, { platformName: r.platformName });
+      }
+    },
     { key: 'marks',                title: '唛头号',       width: 120, ellipsis: { tooltip: true } },
     { key: 'platformWarehouseCode', title: '仓库代码',   width: 120, ellipsis: { tooltip: true } },
+    {
+      key: 'transferFlag', title: '是否转仓', width: 80,
+      render: row => row.transferFlag
+        ? h(NTag, { type: 'warning', size: 'small' }, () => '转仓')
+        : h(NTag, { type: 'default', size: 'small' }, () => '否')
+    },
+    { key: 'transferWarehouseCode', title: '转仓仓库', width: 110, ellipsis: { tooltip: true } },
+    { key: 'transferOutboundWarehouseCode', title: '转仓代码', width: 130, ellipsis: { tooltip: true } },
     { key: 'groupCode',             title: '目的仓/分组', width: 130, ellipsis: { tooltip: true } },
     { key: 'platformName',          title: '平台',        width: 110, ellipsis: { tooltip: true } },
     {
@@ -347,6 +355,17 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, scrollX
     },
     { key: 'customerName',         title: '客户',    width: 130, ellipsis: { tooltip: true } },
     {
+      key: 'timelinessLevel',
+      title: '时效等级',
+      width: 110,
+      render: row => {
+        const code = row.timelinessLevel as string | undefined;
+        if (!code) return '--';
+        const label = timelinessLevelRecord.value[code]?.dictLabel ?? code;
+        return h(NTag, { type: TIMELINESS_TAG[code] || 'default', size: 'small' }, () => label);
+      }
+    },
+    {
       key: 'attachmentCount', title: '附件', width: 90,
       render: row => h(NButton, { text: true, type: 'primary', onClick: () => handleView(row.id, false, 'files') }, () => `附件 ${row.attachmentCount || 0}`)
     },
@@ -356,10 +375,11 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, scrollX
     },
     { key: 'containerNo',          title: '柜号',    width: 130, ellipsis: { tooltip: true } },
     {
-      key: 'fulfillmentStatus', title: '履约状态', width: 120,
+      key: 'operationStatus', title: '操作状态', width: 140,
       render: row => {
-        const opt = fulfillmentStatusOptions.value.find(o => o.value === row.fulfillmentStatus);
-        return h(NTag, { type: 'info', size: 'small' }, () => opt?.label ?? row.fulfillmentStatus);
+        const code = (row as Api.Oms.NewCargoOrder).operationStatus as CargoOperationStatus | undefined;
+        const meta = code ? CARGO_OPERATION_STATUS_META[code] : null;
+        return h(NTag, { type: meta?.type ?? 'default', size: 'small' }, () => meta?.label ?? code ?? '—');
       }
     },
     { key: 'remark',              title: '备注',     width: 140, ellipsis: { tooltip: true } },
@@ -380,13 +400,7 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, scrollX
     { key: 'declaredCbm',         title: '预报体积', width: 90, align: 'right' },
     { key: 'outboundBatchNo',     title: '出库单号', width: 140, ellipsis: { tooltip: true } },
     { key: 'inboundWarehouseName', title: '入库仓库', width: 120, ellipsis: { tooltip: true } },
-    {
-      key: 'transferFlag', title: '是否转仓', width: 80,
-      render: row => row.transferFlag
-        ? h(NTag, { type: 'warning', size: 'small' }, () => '转仓')
-        : h(NTag, { type: 'default', size: 'small' }, () => '否')
-    },
-    { key: 'transferWarehouseCode', title: '转仓仓库', width: 110, ellipsis: { tooltip: true } },
+    { key: 'actualInboundLocation', title: '实际入库库位', width: 130, ellipsis: { tooltip: true } },
     { key: 'eta',                  title: 'ETA',       width: 110 },
     { key: 'actualPickupTime',     title: '提柜时间',  width: 130 },
     { key: 'actualArrivalTime',    title: '到仓时间',  width: 130 },
@@ -464,7 +478,7 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, scrollX
           else if (key === 'delete') {
             window.$dialog?.warning({
               title: '确认删除',
-              content: `确认删除货物订单 ${row.cargoOrderNo}？`,
+              content: `确认删除订单 ${row.cargoOrderNo}？`,
               positiveText: '确认',
               negativeText: '取消',
               onPositiveClick: async () => {
@@ -609,7 +623,7 @@ function quickMergeBack(row: Api.Oms.NewCargoOrder) {
 }
 
 function handleImport() {
-  window.$message?.info('请在海柜订单详情的「关联货物订单」Tab 中使用导入功能；或联系管理员配置独立导入入口。');
+  window.$message?.info('请在海柜订单详情的「关联订单」Tab 中使用导入功能；或联系管理员配置独立导入入口。');
 }
 
 async function loadAdvancedFilterOptions() {
@@ -665,45 +679,57 @@ getData();
               {{ activeAdvancedCount }}
             </NTag>
           </NButton>
-          <NButton type="primary" @click="handleSearch">查询</NButton>
+          <NButton type="primary" @click="handleSearch">搜索</NButton>
           <NButton @click="handleReset">重置</NButton>
         </NSpace>
       </div>
 
       <div v-show="!searchCollapsed" class="mt-14px">
         <NForm inline label-placement="left" :show-feedback="false">
-          <NFormItem label="单号搜索">
-            <NInputGroup class="w-320px">
-              <NSelect :to="POPUP_TO_BODY"
-                v-model:value="orderNoField"
-                :options="ORDER_NO_FIELD_OPTIONS"
-                class="w-120px"
-              />
-              <NInput
-                v-model:value="orderNoKeyword"
-                clearable
-                :placeholder="`请输入${ORDER_NO_FIELD_OPTIONS.find(item => item.value === orderNoField)?.label || ''}`"
-                @keyup.enter="handleSearch"
-              />
-            </NInputGroup>
-          </NFormItem>
-          <NFormItem label="客户">
-            <NInput v-model:value="searchParams.customerName" clearable placeholder="客户名称" class="w-150px" />
-          </NFormItem>
-          <NFormItem label="入库仓">
+          <NFormItem label="订单号">
             <NInput
-              v-model:value="(searchParams as any).inboundWarehouseName"
+              v-model:value="searchParams.cargoOrderNo"
               clearable
-              placeholder="入库仓名称"
+              placeholder="订单号"
+              class="w-160px"
+              @keyup.enter="handleSearch"
+            />
+          </NFormItem>
+          <NFormItem label="柜号">
+            <NInput
+              v-model:value="searchParams.containerNo"
+              clearable
+              placeholder="柜号"
+              class="w-150px"
+              @keyup.enter="handleSearch"
+            />
+          </NFormItem>
+          <NFormItem label="仓库代码/转仓代码">
+            <NInput
+              v-model:value="searchParams.warehouseOrTransferCode"
+              clearable
+              placeholder="仓库代码或转仓代码"
+              class="w-180px"
+              @keyup.enter="handleSearch"
+            />
+          </NFormItem>
+          <NFormItem label="平台">
+            <NSelect :to="POPUP_TO_BODY"
+              v-model:value="searchParams.platformId"
+              :options="platformOptions"
+              filterable
+              clearable
+              placeholder="请选择平台"
               class="w-150px"
             />
           </NFormItem>
-          <NFormItem label="收货方">
-            <NInput
-              v-model:value="(searchParams as any).consigneeName"
+          <NFormItem label="HOLD">
+            <NSelect :to="POPUP_TO_BODY"
+              v-model:value="searchParams.holdStatus"
+              :options="HOLD_FILTER_OPTIONS"
               clearable
-              placeholder="收货方名称"
-              class="w-150px"
+              placeholder="全部"
+              class="w-120px"
             />
           </NFormItem>
         </NForm>
@@ -714,7 +740,7 @@ getData();
     <NCard
       :bordered="false"
       size="small"
-      title="货物订单"
+      title="订单管理"
       class="card-wrapper flex min-h-0 flex-1 flex-col overflow-hidden sm:flex-1-hidden"
       content-class="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
@@ -789,7 +815,7 @@ getData();
     >
       <div>
         <div class="mb-12px flex items-center justify-between">
-          <span class="text-12px text-#6b7280">可组合多个字段进行精确搜索，选择框支持多选</span>
+          <span class="text-12px text-#6b7280">可组合多个字段进行模糊搜索，文本字段包含即匹配，选择框支持多选</span>
           <NButton size="small" type="primary" secondary @click="addAdvancedFilter">+ 添加字段</NButton>
         </div>
         <NSpace v-if="advancedFilters.length" vertical :size="10">
@@ -846,7 +872,7 @@ getData();
       <template #footer>
         <div class="flex justify-end gap-8px">
           <NButton @click="advancedFilters = []">清空条件</NButton>
-          <NButton type="primary" @click="handleAdvancedApply">确认查询</NButton>
+          <NButton type="primary" @click="handleAdvancedApply">确认搜索</NButton>
         </div>
       </template>
     </NModal>

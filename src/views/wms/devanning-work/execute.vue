@@ -1,20 +1,29 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NButton, NCard, NEmpty, NInput, NModal, NProgress, NSpace, NTag } from 'naive-ui';
+import { NButton, NCard, NEmpty, NModal, NProgress, NTag } from 'naive-ui';
 import {
   fetchCompleteDevanningWorkTask,
+  fetchGetDevanningWorkTasks,
   fetchGetDevanningWorkSession,
-  fetchResolveDevanningScan,
+  fetchReceiveDevanningByBox,
+  fetchReceiveDevanningByPallet,
   fetchStartDevanningWorkTask
 } from '@/service/api/wms/devanning-work';
+import {
+  buildDevanningExecQuery,
+  pickDevanningExecTask
+} from './utils/resolve-exec-task';
+import BoxScanDetailPanel from './modules/box-scan-detail-panel.vue';
 import GroupPalletLabelForm from './modules/group-pallet-label-form.vue';
 import PalletHistoryDrawer from './modules/pallet-history-drawer.vue';
+import { useDevanningWorkI18n, type DevanningWorkLocale } from './composables/use-devanning-work-i18n';
 
 defineOptions({ name: 'WmsDevanningWorkExec' });
 
 const route = useRoute();
 const router = useRouter();
+const { locale, setLocale, t, DEVANNING_WORK_LOCALE_OPTIONS } = useDevanningWorkI18n();
 
 const dockId = computed(() => String(route.query.dockId || ''));
 const taskId = computed(() => String(route.query.taskId || ''));
@@ -25,24 +34,37 @@ const loading = ref(false);
 const palletDrawerVisible = ref(false);
 const groupFormVisible = ref(false);
 const activeGroupCode = ref('');
+const selectedGroupCode = ref<string | null>(null);
 const formOpenKey = ref(0);
 const formInitialQty = ref<number | null>(null);
 
 const scanInput = ref('');
-const scanInputRef = ref<{ focus: () => void } | null>(null);
+const scanPanelRef = ref<{ focusScan: () => void } | null>(null);
 const scanLoading = ref(false);
 const lastScanHint = ref('');
+
+const displayContainerNo = computed(() => session.value?.containerNo || containerNo.value || '—');
 
 const activeGroup = computed(() =>
   session.value?.groups.find(g => g.groupCode === activeGroupCode.value) || null
 );
+
+const boxScans = computed(() => session.value?.boxScans || []);
+
+const visibleBoxScans = computed(() => {
+  if (!selectedGroupCode.value) return [];
+  return boxScans.value.filter(s => s.groupCode === selectedGroupCode.value);
+});
+
+const canLabelEntry = computed(() => {
+  return Boolean(selectedGroupCode.value) && workPhase.value !== 'finished' && visibleBoxScans.value.length > 0;
+});
 
 const progressPercent = computed(() => {
   if (!session.value?.totalBoxQty) return 0;
   return Math.min(100, Math.round((session.value.markedBoxQty / session.value.totalBoxQty) * 100));
 });
 
-/** not_started | in_progress | finished */
 const workPhase = computed(() => {
   const s = session.value;
   if (!s) return 'not_started';
@@ -54,6 +76,10 @@ const workPhase = computed(() => {
 function groupProgress(g: Api.Wms.DevanningWorkGroup) {
   if (!g.totalExpectedQty) return 0;
   return Math.min(100, Math.round((g.totalReceivedQty / g.totalExpectedQty) * 100));
+}
+
+function groupScanCount(groupCode: string) {
+  return boxScans.value.filter(s => s.groupCode === groupCode).reduce((sum, s) => sum + s.qty, 0);
 }
 
 async function loadSession() {
@@ -72,7 +98,7 @@ async function handleStartWork() {
   const { data, error } = await fetchStartDevanningWorkTask(taskId.value);
   if (error || !data) return;
   session.value = data;
-  window.$message?.success('已开始拆柜');
+  window.$message?.success(t('startedSuccess'));
   focusScanInput();
 }
 
@@ -80,7 +106,7 @@ async function handleCompleteWork() {
   const { data, error } = await fetchCompleteDevanningWorkTask(taskId.value);
   if (error || !data) return;
   session.value = data;
-  window.$message?.success('拆柜已完成');
+  window.$message?.success(t('completedSuccess'));
 }
 
 function goBack() {
@@ -88,7 +114,7 @@ function goBack() {
 }
 
 function focusScanInput() {
-  nextTick(() => scanInputRef.value?.focus());
+  scanPanelRef.value?.focusScan();
 }
 
 async function ensureWorkStarted() {
@@ -106,13 +132,23 @@ function openGroupModal(groupCode: string, initialQty?: number | null) {
   groupFormVisible.value = true;
 }
 
-async function openGroupForm(groupCode: string) {
+async function handleGroupClick(groupCode: string) {
   if (workPhase.value === 'finished') {
-    window.$message?.warning('拆柜已完成');
+    window.$message?.warning(t('workFinishedWarning'));
     return;
   }
+  selectedGroupCode.value = groupCode;
+  lastScanHint.value = '';
   if (!(await ensureWorkStarted())) return;
   openGroupModal(groupCode);
+}
+
+function openScanLabelEntry() {
+  if (!selectedGroupCode.value) {
+    window.$message?.warning(t('selectDestFirst'));
+    return;
+  }
+  handleGroupClick(selectedGroupCode.value);
 }
 
 function closeGroupForm() {
@@ -126,12 +162,34 @@ async function submitScan() {
   const code = scanInput.value.trim();
   if (!code || scanLoading.value) return;
   if (workPhase.value === 'finished') {
-    window.$message?.warning('拆柜已完成');
+    window.$message?.warning(t('workFinishedWarning'));
+    return;
+  }
+  if (!selectedGroupCode.value) {
+    window.$message?.warning(t('selectDestFirst'));
+    focusScanInput();
     return;
   }
 
   scanLoading.value = true;
-  const { data, error } = await fetchResolveDevanningScan(taskId.value, code);
+  if (!(await ensureWorkStarted())) {
+    scanLoading.value = false;
+    focusScanInput();
+    return;
+  }
+
+  const isPallet = /^PLT-/i.test(code);
+  const { data, error } = isPallet
+    ? await fetchReceiveDevanningByPallet(taskId.value, {
+        palletNo: code,
+        groupCode: selectedGroupCode.value
+      })
+    : await fetchReceiveDevanningByBox(taskId.value, {
+        scanCode: code,
+        qty: 1,
+        groupCode: selectedGroupCode.value
+      });
+
   scanLoading.value = false;
 
   if (error || !data) {
@@ -139,22 +197,13 @@ async function submitScan() {
     return;
   }
 
-  if (!(await ensureWorkStarted())) {
-    focusScanInput();
-    return;
+  session.value = data;
+  const latest = data.boxScans?.[0];
+  if (latest) {
+    lastScanHint.value = t('boxScanSuccess', { group: latest.groupCode });
   }
-
-  if (!data.groupCode) {
-    window.$message?.warning('未识别到对应分组');
-    focusScanInput();
-    return;
-  }
-
-  openGroupModal(data.groupCode, data.qty);
-  lastScanHint.value = data.isPallet
-    ? `已识别：卡板 ${code} → ${data.groupCode}`
-    : `已识别：${data.remark || code} → ${data.groupCode}`;
   scanInput.value = '';
+  focusScanInput();
 }
 
 function onLabelCreated(result: Api.Wms.DevanningGroupPalletLabelResult) {
@@ -163,88 +212,179 @@ function onLabelCreated(result: Api.Wms.DevanningGroupPalletLabelResult) {
   closeGroupForm();
 }
 
+async function ensureExecTaskFromDock() {
+  if (taskId.value || !dockId.value) return;
+  const { data } = await fetchGetDevanningWorkTasks({ dockId: dockId.value });
+  const rows = (data as Api.Wms.DevanningWorkTaskList | undefined)?.rows ?? [];
+  const task = pickDevanningExecTask(rows, dockId.value);
+  if (!task) {
+    window.$message?.warning('该 Dock 暂无可用拆柜任务');
+    router.replace({ name: 'wms_devanning-work', query: { dockId: dockId.value } });
+    return;
+  }
+  await router.replace({
+    name: 'wms_devanning-work-exec',
+    query: buildDevanningExecQuery(task)
+  });
+  await nextTick();
+}
+
 onMounted(async () => {
+  await ensureExecTaskFromDock();
   await loadSession();
+  if (session.value?.groups.length && !selectedGroupCode.value) {
+    selectedGroupCode.value = session.value.groups[0].groupCode;
+  }
   if (workPhase.value !== 'finished') focusScanInput();
 });
 </script>
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-12px bg-#f5f7fa p-16px">
-    <NSpace justify="space-between" align="center" wrap>
-      <div>
-        <h2 class="text-20px font-600 m-0">拆柜作业</h2>
-        <p class="mt-4px text-13px text-#6b7280">
-          柜号：{{ session?.containerNo || containerNo }} · Dock {{ session?.dockCode }}
-          <span v-if="session?.devanningStartTime" class="ml-12px">开始：{{ session.devanningStartTime }}</span>
-          <span v-if="session?.devanningFinishTime" class="ml-12px">完成：{{ session.devanningFinishTime }}</span>
-        </p>
-      </div>
-      <NSpace wrap>
-        <NButton secondary type="info">蓝牙连接</NButton>
-        <NButton secondary @click="palletDrawerVisible = true">板贴历史</NButton>
-        <NButton v-if="workPhase === 'not_started'" type="primary" @click="handleStartWork">开始拆柜</NButton>
-        <NButton v-else-if="workPhase === 'in_progress'" type="success" @click="handleCompleteWork">拆柜完成</NButton>
-        <NTag v-else type="success" size="medium">已拆柜完成</NTag>
-        <NButton @click="goBack">返回任务</NButton>
-      </NSpace>
-    </NSpace>
-
-    <NCard v-if="session" size="small" :bordered="false">
-      <div class="scan-progress-row">
-        <div v-if="workPhase !== 'finished'" class="scan-col">
-          <div class="text-14px font-600 mb-8px">扫码收货</div>
-          <NInput
-            ref="scanInputRef"
-            v-model:value="scanInput"
-            size="large"
-            placeholder="扫描或输入唛头 / 货件号 / 订单号 / 箱唛 / 卡板号，回车打开对应分组录入"
-            :loading="scanLoading"
-            clearable
-            @keyup.enter="submitScan"
-          />
-          <p v-if="lastScanHint" class="text-13px text-#059669 m-0 mt-8px">{{ lastScanHint }}</p>
-        </div>
-        <div class="progress-col" :class="workPhase === 'finished' ? 'progress-col-full' : ''">
-          <div class="text-14px font-600 mb-8px">收货进度</div>
-          <div class="flex flex-wrap items-center gap-16px">
-            <span class="text-15px font-600">{{ session.markedBoxQty }} / {{ session.totalBoxQty }} 箱</span>
-            <div class="min-w-160px flex-1">
-              <NProgress type="line" :percentage="progressPercent" :show-indicator="true" />
+    <NCard size="small" :bordered="false" class="exec-hero-card">
+      <div class="exec-hero">
+        <div class="exec-hero-side exec-hero-left">
+          <div class="exec-left-stack">
+            <NButton secondary @click="goBack">{{ t('backToTasks') }}</NButton>
+            <div class="exec-primary-actions">
+              <NButton secondary type="info" size="medium">{{ t('bluetooth') }}</NButton>
+              <NButton secondary size="medium" @click="palletDrawerVisible = true">{{ t('palletHistory') }}</NButton>
+              <NButton
+                v-if="workPhase === 'not_started'"
+                type="primary"
+                size="medium"
+                @click="handleStartWork"
+              >
+                {{ t('startWork') }}
+              </NButton>
+              <NButton
+                v-else-if="workPhase === 'in_progress'"
+                type="success"
+                size="medium"
+                @click="handleCompleteWork"
+              >
+                {{ t('completeWork') }}
+              </NButton>
+              <NTag v-else type="success" size="medium">{{ t('workFinishedTag') }}</NTag>
             </div>
           </div>
         </div>
-      </div>
-    </NCard>
 
-    <NCard v-if="session" size="small" title="选择目的地分组" :bordered="false">
-      <div class="group-grid">
-        <NCard
-          v-for="g in session.groups"
-          :key="g.groupCode"
-          size="small"
-          hoverable
-          class="cursor-pointer group-cell"
-          :class="workPhase === 'finished' ? 'opacity-70' : ''"
-          @click="openGroupForm(g.groupCode)"
-        >
-          <div class="text-18px font-600 mb-8px truncate">{{ g.groupCode }}</div>
-          <NProgress type="line" :percentage="groupProgress(g)" :show-indicator="false" class="mb-8px" />
-          <div class="group-received">
-            <span class="group-received-label">已收</span>
-            <span class="group-received-num">{{ g.totalReceivedQty }}</span>
-            <span class="group-received-total">/ {{ g.totalExpectedQty }} 箱</span>
+        <div class="exec-hero-center">
+          <div class="container-no-display">{{ displayContainerNo }}</div>
+          <p v-if="session" class="exec-meta m-0 mt-8px">
+            {{ t('dock') }} {{ session.dockCode }}
+            <span v-if="session.devanningStartTime" class="ml-12px">
+              {{ t('startAt') }}：{{ session.devanningStartTime }}
+            </span>
+            <span v-if="session.devanningFinishTime" class="ml-12px">
+              {{ t('finishAt') }}：{{ session.devanningFinishTime }}
+            </span>
+          </p>
+        </div>
+
+        <div class="exec-hero-side exec-hero-right">
+          <div class="lang-switch">
+            <NButton
+              v-for="opt in DEVANNING_WORK_LOCALE_OPTIONS"
+              :key="opt.value"
+              size="small"
+              :type="locale === opt.value ? 'primary' : 'default'"
+              :secondary="locale !== opt.value"
+              @click="setLocale(opt.value as DevanningWorkLocale)"
+            >
+              {{ t(opt.labelKey) }}
+            </NButton>
           </div>
-        </NCard>
+        </div>
+      </div>
+
+    </NCard>
+
+    <NCard v-if="session" size="small" :bordered="false">
+      <div class="receive-progress-block">
+        <div class="text-14px font-600 mb-8px">{{ t('receiveProgress') }}</div>
+        <div class="flex flex-wrap items-center gap-16px">
+          <span class="text-15px font-600">
+            {{ session.markedBoxQty }} / {{ session.totalBoxQty }} {{ t('boxesUnit') }}
+          </span>
+          <div class="min-w-160px flex-1">
+            <NProgress type="line" :percentage="progressPercent" :show-indicator="true" />
+          </div>
+        </div>
       </div>
     </NCard>
 
-    <NEmpty v-else-if="!loading" description="未找到作业数据" class="py-40px" />
+    <div v-if="session" class="work-main">
+      <NCard size="small" :bordered="false" class="work-main-scans" :content-style="{ padding: '12px 14px' }">
+        <BoxScanDetailPanel
+          ref="scanPanelRef"
+          v-model:scan-value="scanInput"
+          :scans="visibleBoxScans"
+          :group-code="selectedGroupCode"
+          :label-entry-disabled="!canLabelEntry"
+          :scan-loading="scanLoading"
+          :scan-hint="lastScanHint"
+          :scan-disabled="workPhase === 'finished'"
+          :t="t"
+          @label-entry="openScanLabelEntry"
+          @scan-submit="submitScan"
+        />
+      </NCard>
+
+      <NCard size="small" :title="t('selectDestGroup')" :bordered="false" class="work-main-groups">
+        <div class="group-grid-main">
+          <div
+            v-for="g in session.groups"
+            :key="g.groupCode"
+            role="button"
+            tabindex="0"
+            class="group-cell-wrap"
+            :class="{
+              'group-cell-selected': selectedGroupCode === g.groupCode,
+              'opacity-70': workPhase === 'finished'
+            }"
+            @click="handleGroupClick(g.groupCode)"
+            @keydown.enter="handleGroupClick(g.groupCode)"
+          >
+            <NCard size="small" hoverable class="group-cell-main">
+              <div class="text-18px font-600 mb-8px truncate">{{ g.groupCode }}</div>
+              <div class="group-locations">
+                <span class="group-locations-label">{{ t('recommendedLocations') }}</span>
+                <div v-if="g.recommendedLocations?.length" class="group-locations-tags">
+                  <NTag
+                    v-for="loc in g.recommendedLocations"
+                    :key="loc"
+                    size="small"
+                    type="info"
+                    :bordered="false"
+                  >
+                    {{ loc }}
+                  </NTag>
+                </div>
+                <span v-else class="group-locations-empty">{{ t('noRecommendedLocation') }}</span>
+              </div>
+              <NProgress type="line" :percentage="groupProgress(g)" :show-indicator="false" class="mb-10px" />
+              <div class="group-received">
+                <span class="group-received-label">{{ t('received') }}</span>
+                <span class="group-received-num">{{ g.totalReceivedQty }}</span>
+                <span class="group-received-total">/ {{ g.totalExpectedQty }} {{ t('boxesUnit') }}</span>
+              </div>
+              <p class="group-scan-stat m-0 mt-8px">
+                {{ t('scannedInGroup', { count: groupScanCount(g.groupCode) }) }}
+              </p>
+            </NCard>
+          </div>
+        </div>
+      </NCard>
+    </div>
+
+    <NEmpty v-else-if="!loading" :description="t('noSessionData')" class="py-40px" />
 
     <NModal
       v-model:show="groupFormVisible"
       preset="card"
-      :title="activeGroup ? '录入板贴 · ' + activeGroup.groupCode : '录入板贴'"
+      :title="activeGroup ? t('labelEntryTitle', { group: activeGroup.groupCode }) : t('labelEntryTitle', { group: '' })"
       style="width: 520px; max-width: 95vw"
       :mask-closable="false"
       @after-leave="activeGroupCode = ''"
@@ -272,54 +412,157 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.scan-progress-row {
-  display: flex;
-  align-items: stretch;
-  gap: 24px;
+.exec-hero-card :deep(.n-card__content) {
+  padding-top: 16px;
+  padding-bottom: 12px;
 }
 
-.scan-col {
+.exec-hero {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto minmax(100px, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.exec-hero-center {
+  text-align: center;
+  min-width: 0;
+}
+
+.exec-hero-side {
+  display: flex;
+  align-items: flex-start;
+}
+
+.exec-hero-left {
+  justify-content: flex-start;
+}
+
+.exec-left-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.exec-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.exec-primary-actions :deep(.n-button) {
+  min-width: 108px;
+  height: 40px;
+  font-size: 15px;
+  padding: 0 18px;
+}
+
+.exec-hero-right {
+  justify-content: flex-end;
+}
+
+.lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.container-no-display {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: #111827;
+  word-break: break-all;
+}
+
+.exec-meta {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.receive-progress-block {
+  width: 100%;
+}
+
+.work-main {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 460px;
+}
+
+.work-main-groups {
   flex: 1;
   min-width: 0;
 }
 
-.progress-col {
-  width: 320px;
+.work-main-scans {
+  width: 340px;
   flex-shrink: 0;
-  border-left: 1px solid #e5e7eb;
-  padding-left: 24px;
 }
 
-.progress-col-full {
-  width: 100%;
-  border-left: none;
-  padding-left: 0;
-}
-
-.group-grid {
+.group-grid-main {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 200px);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
+  align-content: start;
+  min-height: 360px;
 }
 
-.group-cell {
-  width: 200px;
-  height: 200px;
-  box-sizing: border-box;
+.group-locations {
+  margin-bottom: 10px;
 }
 
-.group-cell :deep(.n-card) {
-  width: 100%;
+.group-locations-label {
+  display: block;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.group-locations-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.group-locations-empty {
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.group-cell-wrap {
+  cursor: pointer;
+  min-height: 188px;
+  border-radius: 8px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.group-cell-wrap:focus-visible {
+  outline: 2px solid var(--n-color-primary);
+  outline-offset: 2px;
+}
+
+.group-cell-main {
   height: 100%;
+  pointer-events: none;
 }
 
-.group-cell :deep(.n-card__content) {
+.group-cell-main :deep(.n-card__content) {
   display: flex;
   flex-direction: column;
   justify-content: center;
   height: 100%;
-  padding: 14px;
+  padding: 14px 16px;
   box-sizing: border-box;
+}
+
+.group-cell-selected {
+  box-shadow: 0 0 0 2px var(--n-color-primary);
 }
 
 .group-received {
@@ -335,7 +578,7 @@ onMounted(async () => {
 }
 
 .group-received-num {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1;
   color: #111827;
@@ -344,5 +587,24 @@ onMounted(async () => {
 .group-received-total {
   font-size: 14px;
   color: #6b7280;
+}
+
+.group-scan-stat {
+  font-size: 12px;
+  color: #059669;
+}
+
+@media (max-width: 960px) {
+  .work-main {
+    flex-direction: column;
+  }
+
+  .work-main-scans {
+    width: 100%;
+  }
+
+  .group-grid-main {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
 }
 </style>

@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue';
 import { NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NSpace, NTag } from 'naive-ui';
 import { useDict } from '@/hooks/business/dict';
+import { displayAppointmentNo } from '@/utils/oms/appointment-no';
 
 defineOptions({ name: 'PlatformAppointmentDetailDrawer' });
 
@@ -43,12 +44,17 @@ watch(visible, val => {
 
 <template>
   <NDrawer v-model:show="visible" :width="520" display-directive="show">
-    <NDrawerContent :title="row ? `预约详情 · ${row.appointmentNo}` : '预约详情'" closable>
+    <NDrawerContent
+      :title="row ? `预约详情 · ${displayAppointmentNo(row.appointmentNo, { platformName: row.platformName })}` : '预约详情'"
+      closable
+    >
       <template v-if="row">
         <NDescriptions :column="1" label-placement="left" bordered size="small">
           <NDescriptionsItem label="平台">{{ row.platformName }}</NDescriptionsItem>
           <NDescriptionsItem label="仓库代码">{{ row.warehouseCode }}</NDescriptionsItem>
-          <NDescriptionsItem label="预约号">{{ row.appointmentNo }}</NDescriptionsItem>
+          <NDescriptionsItem label="预约号">
+            {{ displayAppointmentNo(row.appointmentNo, { platformName: row.platformName }) }}
+          </NDescriptionsItem>
           <NDescriptionsItem label="预约时间">{{ row.appointmentTime }}</NDescriptionsItem>
           <NDescriptionsItem label="创建时间">{{ row.createTime }}</NDescriptionsItem>
           <NDescriptionsItem label="类型">{{ typeLabel }}</NDescriptionsItem>

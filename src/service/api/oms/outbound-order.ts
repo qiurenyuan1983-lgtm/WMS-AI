@@ -1,4 +1,4 @@
-﻿import { request } from '@/service/request';
+import { request } from '@/service/request';
 
 const BASE = '/oms/outbound-order';
 
@@ -40,6 +40,25 @@ export function fetchConfirmSigned(id: CommonType.IdType) {
 
 export function fetchGetOutboundOrderItems(id: CommonType.IdType) {
   return request<Api.Oms.OutboundOrderItem[]>({ url: `${BASE}/${id}/items`, method: 'get' });
+}
+
+export function fetchGetOutboundAvailableOrders(
+  id: CommonType.IdType,
+  params?: CommonType.RecordNullable<{ pageNum?: number; pageSize?: number; keyword?: string }>
+) {
+  return request<Api.Oms.OutboundAvailableOrderList>({
+    url: `${BASE}/${id}/available-orders`,
+    method: 'get',
+    params
+  });
+}
+
+export function fetchAddOutboundCargo(id: CommonType.IdType, orderIds: number[]) {
+  return request<Api.Oms.AddOutboundCargoResult>({
+    url: `${BASE}/${id}/add-cargo`,
+    method: 'post',
+    data: { orderIds }
+  });
 }
 
 export function fetchGetOutboundOrderAttachments(id: CommonType.IdType) {

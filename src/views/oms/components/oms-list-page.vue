@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { $t } from '@/locales';
+
 defineOptions({ name: 'OmsListPage' });
 
 defineProps<{
@@ -20,7 +22,11 @@ defineProps<{
           <slot name="filter-actions" />
         </NSpace>
       </div>
-      <slot name="filters" />
+      <NCollapse v-if="$slots.filters" default-expanded-names="['search']" class="mt-8px">
+        <NCollapseItem :title="$t('common.search')" name="search">
+          <slot name="filters" />
+        </NCollapseItem>
+      </NCollapse>
     </NCard>
 
     <NCard

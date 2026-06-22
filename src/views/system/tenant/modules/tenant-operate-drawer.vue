@@ -5,6 +5,9 @@ import { jsonClone } from '@sa/utils';
 import { fetchCreateTenant, fetchUpdateTenant } from '@/service/api/system/tenant';
 import { fetchGetTenantPackageSelectList } from '@/service/api/system/tenant-package';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { DEFAULT_PHONE_COUNTRY_CODE } from '@/constants/phone-country';
+import { createIntlPhoneRule, splitIntlPhone } from '@/utils/phone/intl-phone';
+import IntlPhoneInput from '@/components/custom/intl-phone-input.vue';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -31,7 +34,7 @@ const visible = defineModel<boolean>('visible', {
 });
 
 const { formRef, validate, restoreValidation } = useNaiveForm();
-const { createRequiredRule, patternRules } = useFormRules();
+const { createRequiredRule } = useFormRules();
 const { loading: packageLoading, startLoading: startPackageLoading, endLoading: endPackageLoading } = useLoading();
 const title = computed(() => {
   const titles: Record<NaiveUI.TableOperateType, string> = {
@@ -49,6 +52,7 @@ function createDefaultModel(): Model {
   return {
     tenantId: '',
     contactUserName: '',
+    contactPhoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
     contactPhone: '',
     companyName: '',
     licenseNumber: '',
@@ -73,7 +77,10 @@ type RuleKey = Extract<
 const rules: Record<RuleKey, App.Global.FormRule | App.Global.FormRule[]> = {
   id: createRequiredRule('id不能为空'),
   contactUserName: createRequiredRule('联系人不能为空'),
-  contactPhone: [createRequiredRule('联系电话不能为空'), { ...patternRules.phone, trigger: ['blur', 'change'] }],
+  contactPhone: [
+    createRequiredRule('联系电话不能为空'),
+    createIntlPhoneRule(() => model.value.contactPhoneCountryCode, '联系电话格式不正确')
+  ],
   companyName: createRequiredRule('企业名称不能为空'),
   packageId: createRequiredRule('租户套餐不能为空'),
   accountCount: createRequiredRule('用户数量不能为空'),
@@ -116,6 +123,9 @@ function handleUpdateModelWhenEdit() {
 
   if (props.operateType === 'edit' && props.rowData) {
     Object.assign(model.value, jsonClone(props.rowData));
+    const phoneParts = splitIntlPhone(props.rowData.contactPhone, props.rowData.contactPhoneCountryCode);
+    model.value.contactPhoneCountryCode = phoneParts.phoneCountryCode;
+    model.value.contactPhone = phoneParts.phonenumber;
   }
 }
 
@@ -130,6 +140,7 @@ async function handleSubmit() {
     id,
     tenantId,
     contactUserName,
+    contactPhoneCountryCode,
     contactPhone,
     companyName,
     username,
@@ -149,6 +160,7 @@ async function handleSubmit() {
   if (props.operateType === 'add') {
     const { error } = await fetchCreateTenant({
       contactUserName,
+      contactPhoneCountryCode,
       contactPhone,
       companyName,
       username,
@@ -172,6 +184,7 @@ async function handleSubmit() {
       id,
       tenantId,
       contactUserName,
+      contactPhoneCountryCode,
       contactPhone,
       companyName,
       licenseNumber,
@@ -213,7 +226,10 @@ watch(visible, () => {
           <NInput v-model:value="model.contactUserName" placeholder="请输入联系人" />
         </NFormItem>
         <NFormItem label="联系电话" path="contactPhone">
-          <NInput v-model:value="model.contactPhone" placeholder="请输入联系电话" />
+          <IntlPhoneInput
+            v-model:phone-country-code="model.contactPhoneCountryCode"
+            v-model:phonenumber="model.contactPhone"
+          />
         </NFormItem>
         <div v-if="props.operateType === 'add'">
           <NDivider>管理员信息</NDivider>
